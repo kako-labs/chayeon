@@ -33,20 +33,22 @@ class MeetViewModel(private val deps: MeetDeps) : ViewModel() {
         val pending = requestsState.readyValue().orEmpty()
             .filter { it.status == ConnectionRequestStatus.PENDING }.maxByOrNull { it.version }
         when {
-            connection != null && connection.status != ConnectionStatus.ENDED &&
+            driving.policy == DrivingPolicy.ALLOWED && connection != null && connection.status != ConnectionStatus.ENDED &&
                 route != MeetDestination.CONNECTED && "connected:${connection.id}" !in handled ->
                 MeetNavigationEffect.Connected(connection.id)
-            connection?.status == ConnectionStatus.ENDED && route != MeetDestination.ENDED &&
+            driving.policy == DrivingPolicy.ALLOWED && connection?.status == ConnectionStatus.ENDED && route != MeetDestination.ENDED &&
                 (connection.id in activeConnections || route == MeetDestination.CONNECTED) &&
                 "ended:${connection.id}" !in handled -> MeetNavigationEffect.Ended(connection.id)
-            driving.policy != DrivingPolicy.ALLOWED && route == MeetDestination.HOME -> MeetNavigationEffect.LockHome
+            driving.policy != DrivingPolicy.ALLOWED && (route == MeetDestination.HOME ||
+                (connection != null && connection.status != ConnectionStatus.ENDED &&
+                    route !in setOf(MeetDestination.CONNECTED, MeetDestination.DRIVING))) -> MeetNavigationEffect.LockHome
             driving.policy == DrivingPolicy.ALLOWED && route == MeetDestination.DRIVING -> MeetNavigationEffect.ResumeHome
             driving.policy == DrivingPolicy.ALLOWED && pending?.direction == RequestDirection.OUTGOING &&
                 route in setOf(MeetDestination.HOME, MeetDestination.CANDIDATE) &&
                 "request:${pending.id}" !in handled -> MeetNavigationEffect.Requests(pending.id)
             else -> null
         }
-    }.filterNotNull().distinctUntilChanged()
+    }.distinctUntilChanged().filterNotNull()
 
     fun handled(effect: MeetNavigationEffect) {
         when (effect) {

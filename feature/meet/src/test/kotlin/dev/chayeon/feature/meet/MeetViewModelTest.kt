@@ -179,6 +179,61 @@ class MeetViewModelTest {
         assertEquals(EndedUiState(), states[4].value); assertEquals(MeetUiState(), states[5].value)
     }
 
+    @Test fun `connection arriving while restricted or unknown opens only after parking`() = scenario { deps, store ->
+        val model = store.keep(MeetViewModel(deps))
+        val events = mutableListOf<MeetNavigationEffect>()
+        deps.drivingState.value = DrivingState(policy = DrivingPolicy.RESTRICTED)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            model.effectsFor(MeetDestination.DRIVING).collect { events += it; model.handled(it) }
+        }
+        deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3)
+        runCurrent()
+        assertTrue(events.isEmpty())
+        deps.drivingState.value = DrivingState(policy = DrivingPolicy.UNKNOWN)
+        runCurrent()
+        assertTrue(events.isEmpty())
+        deps.drivingState.value = MeetFixtures.parked
+        runCurrent()
+        assertEquals(listOf(MeetNavigationEffect.Connected("connection")), events)
+    }
+
+    @Test fun `unhandled navigation is emitted again after a policy interruption`() = scenario { deps, store ->
+        val model = store.keep(MeetViewModel(deps))
+        deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3)
+        val events = mutableListOf<MeetNavigationEffect>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            model.effectsFor(MeetDestination.DRIVING).collect { events += it }
+        }
+        runCurrent()
+        deps.drivingState.value = DrivingState()
+        runCurrent()
+        deps.drivingState.value = MeetFixtures.parked
+        runCurrent()
+        assertEquals(List(2) { MeetNavigationEffect.Connected("connection") }, events)
+    }
+
+    @Test fun `new connection on an existing connected route stays anonymous while driving`() = scenario { deps, store ->
+        deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3)
+        val model = store.keep(ConnectedViewModel(deps))
+        observe(model.uiState)
+        runCurrent()
+        deps.drivingState.value = DrivingState(policy = DrivingPolicy.RESTRICTED)
+        runCurrent()
+        assertNotNull(model.uiState.value.connection)
+        deps.connection.value = LoadState.Ready(MeetFixtures.connection.copy(id = "new-connection", version = 4), 4)
+        runCurrent()
+        assertTrue(model.uiState.value.awaitingPark)
+        assertNull(model.uiState.value.connection)
+        assertNull(model.uiState.value.ownProfile)
+        model.leave()
+        runCurrent()
+        assertEquals("new-connection", deps.leaveCommands.single().connectionId)
+        deps.drivingState.value = MeetFixtures.parked
+        runCurrent()
+        assertFalse(model.uiState.value.awaitingPark)
+        assertEquals("new-connection", model.uiState.value.connection?.id)
+    }
+
     @Test fun `restored ended connection does not hijack the ready home`() = scenario { deps, store ->
         deps.connection.value = LoadState.Ready(MeetFixtures.ended, 5)
         val model = store.keep(MeetViewModel(deps))

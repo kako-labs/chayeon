@@ -55,6 +55,7 @@ data class ConnectedUiState(
     val sendingPresets: Set<PresetCode> = emptySet(),
     val leave: MeetCommandState = MeetCommandState(),
     val canLeave: Boolean = false,
+    val awaitingPark: Boolean = false,
 )
 
 data class EndedUiState(

@@ -18,6 +18,7 @@ class ConnectedViewModel(private val deps: MeetDeps) : ViewModel() {
     )
 
     private var lastActiveConnectionId: String? = null
+    private var revealedConnectionId: String? = null
     private val connections = deps.connectionRepository.connection.onEach { observation ->
         if (observation is LoadState.Ready) {
             lastActiveConnectionId = observation.value?.takeIf { it.status != ConnectionStatus.ENDED }?.id
@@ -62,7 +63,15 @@ class ConnectedViewModel(private val deps: MeetDeps) : ViewModel() {
         )
     }
     val uiState: StateFlow<ConnectedUiState> = combine(content, deps.drivingStateProvider.drivingState, leave.state) { state, driving, leaving ->
-        state.copy(driving = driving, leave = leaving)
+        if (driving.policy == DrivingPolicy.ALLOWED) {
+            revealedConnectionId = state.connection?.id
+            state.copy(driving = driving, leave = leaving)
+        } else {
+            val awaitingPark = state.connection?.let { it.id != revealedConnectionId } == true
+            state.copy(driving = driving, leave = leaving, awaitingPark = awaitingPark,
+                connection = state.connection.takeUnless { awaitingPark },
+                ownProfile = state.ownProfile.takeUnless { awaitingPark }, greetings = emptyList())
+        }
     }.stateIn(viewModelScope, meetSharing, ConnectedUiState())
 
     private val startingPresets = mutableSetOf<PresetCode>()

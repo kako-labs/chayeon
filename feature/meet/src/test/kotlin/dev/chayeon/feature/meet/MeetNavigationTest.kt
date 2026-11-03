@@ -5,6 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.assertCountEquals
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
@@ -54,6 +56,48 @@ class MeetNavigationTest {
         compose.runOnIdle { deps.drivingState.value = MeetFixtures.parked }
         awaitRoute(MeetDestination.HOME)
         assertEquals(MeetFixtures.discovery, deps.discovery.value)
+    }
+
+    @Test fun newConnectionWhileDrivingHidesIdentityUntilParked() {
+        launch()
+        compose.runOnIdle { deps.drivingState.value = DrivingState(policy = DrivingPolicy.RESTRICTED, gear = Gear.DRIVE) }
+        awaitRoute(MeetDestination.DRIVING)
+        compose.runOnIdle { deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3) }
+        compose.waitForIdle()
+        for (policy in listOf(DrivingPolicy.RESTRICTED, DrivingPolicy.UNKNOWN)) {
+            compose.runOnIdle { deps.drivingState.value = DrivingState(policy = policy) }
+            compose.waitForIdle()
+            compose.runOnIdle { assertEquals(MeetDestination.DRIVING, controller.currentDestination?.route) }
+            compose.onNodeWithText("새 연결이 있어요").assertExists()
+            compose.onNodeWithText(MeetFixtures.peer.nickname).assertDoesNotExist()
+            compose.onNodeWithText(MeetFixtures.own.nickname).assertDoesNotExist()
+            compose.onAllNodes(hasClickAction()).assertCountEquals(1)
+        }
+        compose.runOnIdle { deps.drivingState.value = MeetFixtures.parked }
+        awaitRoute(MeetDestination.CONNECTED)
+        compose.onNodeWithText(MeetFixtures.peer.nickname).assertExists()
+    }
+
+    @Test fun newConnectionWhileUnknownCanBeLeftWithoutRevealingIdentity() {
+        deps.drivingState.value = DrivingState()
+        deps.leaveResult = {
+            deps.connection.value = LoadState.Ready(MeetFixtures.ended, 4)
+            AppResult.Success(MeetFixtures.ended)
+        }
+        launch()
+        awaitRoute(MeetDestination.DRIVING)
+        compose.runOnIdle { deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3) }
+        compose.waitForIdle()
+        compose.onNodeWithText("나가기").performClick()
+        compose.waitForIdle()
+        compose.runOnIdle {
+            assertEquals(MeetFixtures.connection.id, deps.leaveCommands.single().connectionId)
+            assertEquals(MeetDestination.DRIVING, controller.currentDestination?.route)
+        }
+        compose.onNodeWithText(MeetFixtures.peer.nickname).assertDoesNotExist()
+        compose.runOnIdle { deps.drivingState.value = MeetFixtures.parked }
+        awaitRoute(MeetDestination.ENDED)
+        compose.onNodeWithText("기록 보기").assertExists()
     }
 
     @Test fun serverRequestConnectionAndEndDriveNavigationOnlyOnce() {

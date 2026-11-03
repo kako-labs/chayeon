@@ -16,8 +16,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "w1682dp-h1210dp-land-mdpi")
 class MeetInteractionTest {
     @get:Rule val compose = createComposeRule()
@@ -64,6 +66,39 @@ class MeetInteractionTest {
             }
         }
         compose.waitUntil(timeoutMillis = 5_000) { model.uiState.value.connection != null }
+    }
+
+    @Test fun unpublishedInvitationPrecedesCandidatesAndDisappearsWhenPublished() {
+        val state = mutableStateOf(HomeUiState(MeetFixtures.parked, MeetFixtures.discovery,
+            MeetFixtures.own.copy(signature = null), profileLoaded = true))
+        var opened = false
+        compose.setContent {
+            ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+                HomeScreen(state.value, previewChrome(), {}, {}, {}, {}, {}, { opened = true }, {})
+            }
+        }
+        val invitation = compose.onNodeWithText("내 시그니처 만들기").assertIsDisplayed().getUnclippedBoundsInRoot()
+        val candidates = compose.onNodeWithText("지금 연결할 수 있는 사람").getUnclippedBoundsInRoot()
+        assertTrue(invitation.bottom <= candidates.top)
+        compose.onNodeWithText("시그니처 만들러 가기").performClick()
+        assertTrue(opened)
+        compose.runOnIdle { state.value = state.value.copy(profile = MeetFixtures.own) }
+        compose.onNodeWithText("내 시그니처 만들기").assertDoesNotExist()
+        compose.onNodeWithText("프로필 보기").assertExists()
+    }
+
+    @Test fun everyPublicTraitAndPhraseIsVisibleWithoutScrolling() {
+        val state = CandidateUiState(MeetFixtures.parked, MeetFixtures.completeCandidate, MeetFixtures.own, canRequest = true)
+        compose.setContent {
+            ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { CandidateScreen(state, previewChrome(), {}, {}, {}) }
+        }
+        TraitId.entries.forEach {
+            compose.onNodeWithText(it.presentation.name).assertIsDisplayed()
+            compose.onNodeWithText(it.presentation.publicPhrase).assertIsDisplayed()
+        }
+        MeetFixtures.completeCandidate.chemistry.lines.forEach { compose.onNodeWithText(it.text).assertIsDisplayed() }
+        compose.onNodeWithText("좋아하는 것", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("연결 요청 보내기").assertIsDisplayed()
     }
 
     @Test fun homeToggleUpdatesDiscoveryAndStopsShowingCandidates() {

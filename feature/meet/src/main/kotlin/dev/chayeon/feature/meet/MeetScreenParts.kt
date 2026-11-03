@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
@@ -38,10 +40,13 @@ import dev.chayeon.core.model.*
 import dev.chayeon.core.ui.*
 
 @Composable
-internal fun MeetPane(content: @Composable ColumnScope.() -> Unit) {
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val scroll = if (constraints.hasBoundedHeight) Modifier.verticalScroll(rememberScrollState()) else Modifier
-        Column(Modifier.fillMaxWidth().then(scroll), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap), content = content)
+internal fun MeetPane(centered: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
+    BoxWithConstraints(if (centered) Modifier.fillMaxSize() else Modifier.fillMaxWidth()) {
+        val scroll = rememberScrollState()
+        val viewport = if (constraints.hasBoundedHeight) Modifier.scrollEdgeFade(scroll).verticalScroll(scroll) else Modifier
+        val minimum = if (centered && constraints.hasBoundedHeight) Modifier.heightIn(min = maxHeight) else Modifier
+        Column(Modifier.fillMaxWidth().then(viewport).then(minimum),
+            verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap, if (centered) Alignment.CenterVertically else Alignment.Top), content = content)
     }
 }
 
@@ -178,7 +183,7 @@ internal fun MeetDiscoveryHero(state: HomeUiState, onToggle: (Boolean) -> Unit) 
 
 @Composable
 internal fun MeetRelationStage(own: PublicProfile?, peer: PublicProfile, stage: ThreadStage, title: String, subtitle: String,
-    modifier: Modifier = Modifier, animate: Boolean = true, centered: Boolean = false) {
+    modifier: Modifier = Modifier, animate: Boolean = true, centered: Boolean = false, largeAvatars: Boolean = centered) {
     HeroPanel(modifier.fillMaxWidth(), contentPadding = PaddingValues(ChayeonSpacing.Large)) {
         Column(Modifier.fillMaxWidth().align(Alignment.Center), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium),
             horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start) {
@@ -188,9 +193,9 @@ internal fun MeetRelationStage(own: PublicProfile?, peer: PublicProfile, stage: 
                 if (maxWidth >= ChayeonSpacing.NarrowBreakpoint) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-                        MeetRelationAvatar(own, "나", large = centered)
+                        MeetRelationAvatar(own, "나", large = largeAvatars)
                         ThreadView(stage, Modifier.weight(1f), animateTransition = animate)
-                        MeetRelationAvatar(peer, peer.nickname, large = centered)
+                        MeetRelationAvatar(peer, peer.nickname, large = largeAvatars)
                     }
                 } else {
                     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
@@ -218,11 +223,11 @@ private fun MeetRelationAvatar(profile: PublicProfile?, fallback: String, large:
 }
 
 @Composable
-internal fun MeetTwoColumns(first: @Composable () -> Unit, second: @Composable () -> Unit) {
+internal fun MeetTwoColumns(first: @Composable () -> Unit, second: @Composable () -> Unit, secondWeight: Float = 1f) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         if (maxWidth >= ChayeonSpacing.NarrowBreakpoint) Row(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
             Box(Modifier.weight(1f)) { first() }
-            Box(Modifier.weight(1f)) { second() }
+            Box(Modifier.weight(secondWeight)) { second() }
         } else Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
             first()
             second()
@@ -235,7 +240,9 @@ internal fun MeetGreeting(message: GreetingUi, canRetry: Boolean, onRetry: (Stri
     val mine = message.author == MessageAuthor.SELF
     Column(Modifier.fillMaxWidth(), horizontalAlignment = if (mine) Alignment.End else Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
-        ChatBubble(message.code.label, mine, Modifier.fillMaxWidth(.88f))
+        BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = if (mine) Alignment.CenterEnd else Alignment.CenterStart) {
+            ChatBubble(message.code.label, mine, Modifier.widthIn(max = minOf(maxWidth * .88f, ChayeonDimensions.ChemistryKnot)))
+        }
         ChayeonText(when (message.delivery) {
             DeliveryState.SENDING -> "보내고 있어요"
             DeliveryState.SENT -> if (mine) "보냈어요" else "받았어요"
