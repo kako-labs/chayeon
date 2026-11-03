@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "label": "합성 주행 · 여유로운 제동",
+  "source": "SYNTHETIC",
+  "durationMillis": 1200000,
+  "replayWallMillis": 10000,
+  "signals": [
+    "speed",
+    "brake",
+    "belt",
+    "clock"
+  ],
+  "frames": [
+    {
+      "atMillis": 0
+    },
+    {
+      "atMillis": 30000,
+      "speedKph": 42
+    },
+    {
+      "atMillis": 300000,
+      "speedKph": 42,
+      "indicator": true
+    },
+    {
+      "atMillis": 302000,
+      "speedKph": 42,
+      "indicator": true,
+      "steering": 18
+    },
+    {
+      "atMillis": 308000,
+      "speedKph": 42
+    },
+    {
+      "atMillis": 570000,
+      "speedKph": 42,
+      "brake": true
+    },
+    {
+      "atMillis": 600000,
+      "speedKph": 0
+    },
+    {
+      "atMillis": 630000,
+      "speedKph": 42
+    },
+    {
+      "atMillis": 900000,
+      "speedKph": 42,
+      "indicator": true
+    },
+    {
+      "atMillis": 902000,
+      "speedKph": 42,
+      "indicator": true,
+      "steering": 20
+    },
+    {
+      "atMillis": 908000,
+      "speedKph": 42
+    },
+    {
+      "atMillis": 1170000,
+      "speedKph": 42,
+      "brake": true
+    },
+    {
+      "atMillis": 1200000,
+      "speedKph": 0
+    }
+  ]
+}

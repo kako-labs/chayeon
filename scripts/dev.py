@@ -143,12 +143,30 @@ def console_request(base_url, method, route, **parameters):
         response.read()
 
 
-def drive(scenario, base_url):
+def drive(scenario, base_url, serial="emulator-5556", duration_seconds=None):
+    import json
+    import math
     adb = sdk_tool("platform-tools", "adb")
     if not adb:
         print("adb를 찾지 못했어요. setup-sdk를 실행하세요.", file=sys.stderr)
         return 1
-    if subprocess.call([adb, "forward", "tcp:8088", "tcp:8088"]) != 0:
+    fixture = ROOT / "fixtures/drive" / (scenario + ".json")
+    if not fixture.is_file():
+        print("합성 주행 시나리오를 찾지 못했어요.", file=sys.stderr)
+        return 1
+    data = json.loads(fixture.read_text(encoding="utf-8"))
+    if data.get("source") != "SYNTHETIC" or data.get("schemaVersion") != 1:
+        print("합성 주행 형식을 확인하세요.", file=sys.stderr)
+        return 1
+    packaged = ROOT / "data/vehicle/src/main/assets/drive" / fixture.name
+    if packaged.read_bytes() != fixture.read_bytes():
+        print("앱과 도구의 합성 주행 파일이 달라요. 같은 파일로 맞추세요.", file=sys.stderr)
+        return 1
+    duration = duration_seconds if duration_seconds is not None else data["durationMillis"] / 1000
+    if not math.isfinite(duration) or duration <= 0:
+        print("재생 시간은 0초보다 길어야 해요.", file=sys.stderr)
+        return 1
+    if subprocess.call([adb, "-s", serial, "forward", "tcp:8088", "tcp:8088"]) != 0:
         return 1
     stopped = threading.Event()
     heartbeat_failed = threading.Event()
@@ -156,40 +174,70 @@ def drive(scenario, base_url):
     def heartbeat():
         while not stopped.wait(0.7):
             try:
-                console_request(base_url, "POST", "/browser/session", client="chayeon")
+                console_request(base_url, "POST", "/browser/session", client="chayeon-drive")
             except (OSError, URLError):
                 heartbeat_failed.set()
                 return
 
-    def controls(speed=0, accelerator=0, brake=0, steering=0):
+    def controls(speed=0, brake=False, steering=0):
         if heartbeat_failed.is_set():
             raise OSError("Virtual Console session expired")
-        console_request(base_url, "PUT", "/vehicle/controls", speed=speed,
-                        accelerator=accelerator, brake=brake, steering=steering)
+        console_request(base_url, "PUT", "/vehicle/controls", speed=round(speed),
+                        accelerator=15 if speed and not brake else 0,
+                        brake=20 if brake else 0, steering=round(steering))
 
     worker = None
     try:
-        console_request(base_url, "POST", "/browser/session", client="chayeon")
+        console_request(base_url, "POST", "/browser/session", client="chayeon-drive")
         worker = threading.Thread(target=heartbeat, daemon=True)
         worker.start()
-        gear = {"park": "Park", "neutral": "Neutral", "reverse": "Reverse"}.get(scenario, "Drive")
         controls()
-        console_request(base_url, "PUT", "/vehicle/gear", gear=gear)
-        if scenario in {"gentle", "stop-and-go"}:
-            profile = [0, 5, 10, 15, 20, 25, 30, 30, 25, 20, 15, 10, 5, 0]
-            if scenario == "stop-and-go":
-                profile = [0, 10, 20, 10, 0, 0, 10, 20, 10, 0]
-            for speed in profile:
-                controls(speed=speed, accelerator=10 if speed else 0, brake=0)
-                time.sleep(1)
-            controls()
-            console_request(base_url, "PUT", "/vehicle/gear", gear="Park")
-        print("합성 주행 시나리오를 적용했어요. 실제 차량 데이터가 아니에요.")
+        console_request(base_url, "PUT", "/vehicle/gear", gear="Park")
+        if "energy" in data["signals"]:
+            console_request(base_url, "PUT", "/vehicle/ev-battery", field="soc", value=65)
+        if "chargeLimit" in data["signals"]:
+            console_request(base_url, "PUT", "/vehicle/ev-battery", field="percent_limit", value=80)
+        if "airCleaning" in data["signals"]:
+            console_request(base_url, "PUT", "/vehicle/hvac-air-cleaner", activated="true")
+        if "tire" in data["signals"]:
+            for area in [1114113, 1114191, 1179649, 1179727]:
+                console_request(base_url, "PUT", "/vehicle/tire-pressure", area=area, pressure_kpa=240)
+        time.sleep(3)
+        console_request(base_url, "PUT", "/vehicle/gear", gear="Drive")
+        began = time.monotonic()
+        frames = data["frames"]
+        previous_indicator = None
+        while time.monotonic() - began < duration:
+            elapsed = min(data["durationMillis"], (time.monotonic() - began) / duration * data["durationMillis"])
+            before = next(frame for frame in reversed(frames) if frame["atMillis"] <= elapsed)
+            after = next((frame for frame in frames if frame["atMillis"] > elapsed), before)
+            ratio = 0 if before is after else (elapsed - before["atMillis"]) / (after["atMillis"] - before["atMillis"])
+            speed = before.get("speedKph", 0) + ratio * (after.get("speedKph", 0) - before.get("speedKph", 0))
+            controls(speed, before.get("brake", False), before.get("steering", 0))
+            indicator = before.get("indicator", False)
+            if "indicator" in data["signals"] and indicator != previous_indicator:
+                console_request(base_url, "PUT", "/vehicle/turn-signal", mode="BlinkLeft" if indicator else "Off")
+                previous_indicator = indicator
+            time.sleep(min(0.5, max(0, duration - (time.monotonic() - began))))
+        controls()
+        console_request(base_url, "PUT", "/vehicle/turn-signal", mode="Off")
+        console_request(base_url, "PUT", "/vehicle/gear", gear="Park")
+        console_request(base_url, "GET", "/vehicle/state")
+        print("합성 주행 시나리오를 적용했어요. 에뮬레이터에서 만든 신호이며 실차 검증이 아니에요.")
+        if scenario == "unsupported":
+            print("플랫폼의 신호 지원 여부는 바꾸지 않아요. 신호 누락은 앱의 합성 재생에서 확인해요.")
         return 0
-    except (OSError, URLError):
-        print("Virtual Console에 연결하지 못했어요. Pleos 에뮬레이터와 콘솔 상태를 확인하세요.", file=sys.stderr)
+    except (OSError, URLError, KeyboardInterrupt):
+        print("합성 주행을 마치지 못했어요. Virtual Console 연결을 확인하세요.", file=sys.stderr)
         return 1
     finally:
+        try:
+            console_request(base_url, "POST", "/browser/session", client="chayeon-drive")
+            console_request(base_url, "PUT", "/vehicle/controls", speed=0, accelerator=0, brake=0, steering=0)
+            console_request(base_url, "PUT", "/vehicle/turn-signal", mode="Off")
+            console_request(base_url, "PUT", "/vehicle/gear", gear="Park")
+        except (OSError, URLError):
+            pass
         stopped.set()
         if worker:
             worker.join(timeout=4)
@@ -214,8 +262,10 @@ def main():
     emulator_parser = commands.add_parser("emulator")
     emulator_parser.add_argument("--visible", action="store_true")
     drive_parser = commands.add_parser("drive")
-    drive_parser.add_argument("scenario", choices=["park", "drive", "neutral", "reverse", "gentle", "stop-and-go"])
+    drive_parser.add_argument("scenario", choices=["gentle", "early-brake", "signal-manners", "care", "unsupported"])
     drive_parser.add_argument("--console-url", default="http://127.0.0.1:8088")
+    drive_parser.add_argument("--serial", default="emulator-5556")
+    drive_parser.add_argument("--duration-seconds", type=float)
     args = parser.parse_args()
     if args.command == "doctor":
         return doctor()
@@ -225,7 +275,7 @@ def main():
         print("종단 검증은 아직 구현되지 않았어요. 기능·차량 작업자가 Pleos 시나리오를 연결한 뒤 실행하세요.", file=sys.stderr)
         return 2
     if args.command == "drive":
-        return drive(args.scenario, args.console_url)
+        return drive(args.scenario, args.console_url, args.serial, args.duration_seconds)
     if args.command == "emulator":
         return emulator(args.visible)
     if doctor(android=args.command != "server"):
