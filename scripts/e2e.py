@@ -71,13 +71,21 @@ class Device:
         self.capture("failure")
         raise AssertionError("화면에서 찾지 못했어요: " + label + " / " + str(self.labels(self.tree())))
 
-    def tap(self, label, exact=True, scroll=False):
+    def confirm(self, label):
+        """Tap the action inside the confirmation sheet, drawn above an identically named button."""
+        time.sleep(0.8)
+        self.tap(label, last=True)
+
+    def tap(self, label, exact=True, scroll=False, last=False):
         for attempt in range(8):
             tree = self.tree()
             parents = {child: parent for parent in tree.iter() for child in parent}
             node = None
             matches = []
-            for candidate in tree.iter("node"):
+            candidates = list(tree.iter("node"))
+            if last:
+                candidates.reverse()
+            for candidate in candidates:
                 values = [candidate.get("text", ""), candidate.get("content-desc", "")]
                 if not any(value == label if exact else label in value for value in values):
                     continue
@@ -368,7 +376,7 @@ def run(with_real_drive=False, skip_build=False, apk=None):
         device.capture("18-after-message", ["서로 이어졌어요", "보냈어요", reply])
         device.tap("차단·신고", scroll=True)
         device.tap("별보는밤 님 차단")
-        device.tap("확인하고 진행")
+        device.confirm("별보는밤 님 차단")
         device.wait("차단했어요")
         device.capture("19-blocked", ["차단했어요"])
         device.tap("뒤로")
@@ -423,7 +431,7 @@ def finish_session(device, debug_proof):
     device.tap("내 프로필")
     device.tap("기록과 계정 정리")
     device.tap("로그아웃", scroll=True)
-    device.tap("확인하고 진행")
+    device.confirm("로그아웃")
     device.wait("이 계정으로 시작")
     device.capture("25-signed-out", ["혼자 둘러보기(가상 상대)", "이 계정으로 시작"])
     if debug_proof and device.trip_summary()["rows"] != 0:
