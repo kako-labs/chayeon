@@ -11,4 +11,6 @@ HMG 앱 공모전의 2순위 작품(가칭)입니다. 1순위 작품은 [motion-
 ## 문서
 
 - [문서 색인과 링크](docs/README.md)
+- [기획서 초안](docs/proposal.md)
+- [프로젝트 뼈대 초안](docs/architecture.md)
 - [디자인 시안](docs/design/README.md)

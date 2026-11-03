@@ -2,7 +2,11 @@
 
 ## 저장소 문서
 
+- [기획서 초안](proposal.md): 공식 접수양식의 8개 항목에 맞춘 초안
+- [프로젝트 뼈대 초안](architecture.md): 저장소 구조, 모듈, 계약, 차량 환경 조건, 결정할 항목
 - [디자인 시안](design/README.md): 채택한 디자인 방향, 화면 목록, 색과 글자 기준, 3D 에셋
+
+아래 링크는 내부용입니다. Notion에는 실명이 있으므로 제출 자료에 넣지 않습니다.
 
 ## 디자인
 
@@ -29,4 +33,5 @@
 |---|---|
 | 공식 홈페이지 | https://appdevchallenge.auto-hmg.io/ |
 | 제출 안내 | https://appdevchallenge.auto-hmg.io/guide/submission |
+| 공식 접수양식 | https://appdevchallenge.auto-hmg.io/downloads/contest-application-consent.docx |
 | FAQ | https://appdevchallenge.auto-hmg.io/faq |
