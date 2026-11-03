@@ -71,7 +71,7 @@ fun MyProfileScreen(
                     InfoRow(ChayeonIcon.LOCK, "차량 정보는 보이지 않아요",
                         body = "상대에게는 공개한 시그니처와 관심사만 보여요. 개인 주행 수치는 이 차 안에 남아요.")
                 }
-                ChayeonText("테스트 로그인과 연령 확인은 시연용이에요. 실제 인증은 아직 제공하지 않아요.",
+                ChayeonText("시연용 로그인과 연령 확인이에요. 실제 인증은 아직 제공하지 않아요.",
                     style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
             }
         },

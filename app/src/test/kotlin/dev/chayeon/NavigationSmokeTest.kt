@@ -156,7 +156,10 @@ class NavigationSmokeTest {
     private fun assertArrivalBanner(label: String, screenshot: String) {
         val fixture = TestGraph().apply { ready() }
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-        val events = AppEvents(fixture.graph, object : MessageNotifier { override fun notifyMessage(id: String) = Unit }, scope)
+        val events = AppEvents(fixture.graph, object : MessageNotifier {
+            override fun cancelMessage(id: String) = Unit
+            override fun notifyMessage(id: String) = Unit
+        }, scope)
         try {
             events.start()
             compose.setContent { ChayeonApp(fixture.graph, events = events) }

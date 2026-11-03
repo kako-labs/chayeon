@@ -18,9 +18,16 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
-interface MessageNotifier { fun notifyMessage(id: String) }
+interface MessageNotifier {
+    fun notifyMessage(id: String)
+    fun cancelMessage(id: String)
+}
 
 class AppNotifications(private val context: Context) : MessageNotifier {
+    override fun cancelMessage(id: String) {
+        context.getSystemService(NotificationManager::class.java).cancel(id.hashCode())
+    }
+
     override fun notifyMessage(id: String) {
         if (Build.VERSION.SDK_INT >= 33 && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -42,12 +49,14 @@ class AppEvents(private val graph: AppGraph, private val notifier: MessageNotifi
     val banner = pending.map { it.firstOrNull() }.stateIn(scope, SharingStarted.WhileSubscribed(5_000, 0), null)
     private val observed = mutableSetOf<String>()
     private val notified = mutableSetOf<String>()
+    private val receivedEvents = mutableMapOf<String, AppEvent>()
     private var started = false
     private val viewing = mutableMapOf<Any, Pair<String?, String?>>()
 
     fun viewing(requestId: String?, relationshipId: String?): () -> Unit {
         val token = Any()
         viewing[token] = requestId to relationshipId
+        cancelViewedNotifications()
         pending.update { events -> events.filterNot(::isViewed) }
         return { viewing.remove(token); Unit }
     }
@@ -56,15 +65,27 @@ class AppEvents(private val graph: AppGraph, private val notifier: MessageNotifi
         (request != null && request == event.requestId) || (relationship != null && relationship == event.relationshipId)
     }
 
+    private fun cancelViewedNotifications() {
+        receivedEvents.values.filter(::isViewed).forEach(::cancelNotification)
+    }
+
+    private fun cancelNotification(event: AppEvent) {
+        notifier.cancelMessage(event.id)
+        notified.remove(event.id)
+    }
+
     fun acknowledge(id: String) { pending.update { list -> list.filterNot { it.id == id } } }
 
     private suspend fun receive(event: AppEvent) {
+        if (receivedEvents.put(event.id, event) == null && isViewed(event)) cancelNotification(event)
         if (!observed.add(event.id)) return
         val settings = (graph.profileRepository.settings.first() as? LoadState.Ready)?.value
         val enabled = if (event.greeting) settings?.notifyGreetings != false else settings?.notifyRequests != false
         if (!enabled || isViewed(event)) return
         pending.update { it + event }
-        if (graph.currentPolicy() != DrivingPolicy.ALLOWED && notified.add(event.id)) notifier.notifyMessage(event.id)
+        if (graph.currentPolicy() != DrivingPolicy.ALLOWED && notified.add(event.id)) {
+            notifier.notifyMessage(event.id)
+        }
     }
 
     fun start() {
@@ -81,7 +102,9 @@ class AppEvents(private val graph: AppGraph, private val notifier: MessageNotifi
             graph.sessionRepository.session.map { (it as? SessionState.Active)?.session?.id }.distinctUntilChanged().collectLatest { id ->
                 pending.value = emptyList()
                 observed.clear()
+                notified.forEach(notifier::cancelMessage)
                 notified.clear()
+                receivedEvents.clear()
                 if (id == null) return@collectLatest
                 kotlinx.coroutines.coroutineScope {
                     launch {

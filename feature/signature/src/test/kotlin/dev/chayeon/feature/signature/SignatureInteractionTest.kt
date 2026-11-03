@@ -57,7 +57,8 @@ class SignatureInteractionTest {
         } }
         compose.onNodeWithText("이 주행이 매듭이 됐어요").assertIsDisplayed()
         compose.onNodeWithText("미리 채우는 습관").assertIsDisplayed()
-        compose.onNodeWithText("깜빡이 매너").assertDoesNotExist()
+        compose.onNodeWithText("깜빡이 매너").assertIsDisplayed()
+        compose.onNodeWithText("여유로운 제동").assertDoesNotExist()
         compose.onNodeWithTag("exclude-trip").assertDoesNotExist()
         compose.onRoot().captureRoboImage("src/test/screenshots/first_moment_care.png")
     }

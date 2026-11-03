@@ -21,7 +21,16 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import dev.chayeon.core.model.*
 import dev.chayeon.core.signature.DefaultSignatureEngine
+import dev.chayeon.core.signature.SignatureLanguage
 import dev.chayeon.core.ui.*
+
+internal fun firstSignatureTraits(changes: List<TraitChange>, title: String): List<TraitChange> {
+    val earned = changes.filter { it.currentLevel != TraitLevel.RECORDING }
+        .sortedWith(compareByDescending<TraitChange> { it.currentLevel.ordinal }.thenBy { it.trait.ordinal })
+    val titleTrait = earned.firstOrNull { it.trait == SignatureLanguage.titleTrait(title) }
+    val care = earned.firstOrNull { it.trait.presentation.category == TraitCategory.CARE }
+    return (listOfNotNull(titleTrait, care) + earned).distinctBy { it.trait }.take(3)
+}
 
 @Composable
 internal fun FirstSignatureMoment(
@@ -37,12 +46,8 @@ internal fun FirstSignatureMoment(
         recap.changes.filter { it.currentLevel != TraitLevel.RECORDING }
             .sortedByDescending { it.currentLevel.ordinal }
     }
-    val traits = remember(earned) {
-        val care = earned.firstOrNull { it.trait.presentation.category == TraitCategory.CARE }
-        val first = earned.take(3)
-        if (care != null && first.none { it.trait.presentation.category == TraitCategory.CARE }) first.take(2) + care else first
-    }
     val title = remember(earned) { DefaultSignatureEngine().title(earned.map { PublicTrait(it.trait, it.currentLevel) }) }
+    val traits = remember(earned, title) { firstSignatureTraits(earned, title) }
     val allowed = state.driving.policy == DrivingPolicy.ALLOWED && LocalDrivingPolicy.current == DrivingPolicy.ALLOWED
     val motion = LocalDecorativeMotion.current && allowed
     val timeline = remember(recap.id) { Animatable(0f) }

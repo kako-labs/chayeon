@@ -47,6 +47,10 @@ object SignatureLanguage {
         else -> nouns
     }
 
+    fun titleTrait(title: String): TraitId? = modifiers.entries.firstOrNull { (trait, modifier) ->
+        nounsFor(trait).any { noun -> title == "$modifier $noun" }
+    }?.key
+
     /** Exhaustive review surface for the complete modifier/noun vocabulary. */
     fun titleCombinations(): List<String> = modifiers.flatMap { (trait, modifier) -> nounsFor(trait).map { "$modifier $it" } }
 }
