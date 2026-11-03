@@ -4,6 +4,7 @@ COPY gradlew settings.gradle.kts build.gradle.kts gradle.properties ./
 COPY gradle ./gradle
 COPY core/model ./core/model
 COPY core/signature ./core/signature
+COPY core/engine ./core/engine
 COPY server ./server
 RUN chmod +x gradlew && ./gradlew --no-daemon -Pchayeon.serverOnly=true :server:installDist
 

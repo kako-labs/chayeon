@@ -38,6 +38,7 @@ tasks.withType<Test>().configureEach {
 
 dependencies {
     implementation(project(":core:model"))
+    implementation(project(":core:engine"))
     implementation(libs.core.ktx)
     implementation(libs.coroutines.android)
     implementation(libs.serialization.json)

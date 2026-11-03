@@ -10,6 +10,7 @@ application { mainClass.set("dev.chayeon.server.ServerKt") }
 
 dependencies {
     implementation(project(":core:model"))
+    implementation(project(":core:engine"))
     implementation(project(":core:signature"))
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)

@@ -9,11 +9,11 @@ import org.junit.Test
 
 class ServerSmokeTest {
     @Test
-    fun foundationStartsWithoutOpeningSocialRoutes() = testApplication {
+    fun healthStartsAndSocialRoutesRequireAuthorization() = testApplication {
         application { chayeonModule() }
         val response = client.get("/health")
         assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals("{\"status\":\"foundation\"}", response.bodyAsText())
-        assertEquals(HttpStatusCode.NotFound, client.get("/v1/sync?since=0").status)
+        assertEquals("{\"status\":\"ready\"}", response.bodyAsText())
+        assertEquals(HttpStatusCode.Unauthorized, client.get("/v1/sync?since=0").status)
     }
 }
