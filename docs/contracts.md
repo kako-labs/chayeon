@@ -2,6 +2,49 @@
 
 `core:model/src/main/kotlin/dev/chayeon/core/model/`가 앱과 서버의 단일 계약입니다. Android와 HTTP 구현에 의존하지 않습니다. 공개 타입을 바꿔야 할 때는 계약 소유 역할에 먼저 알립니다. 이 문서는 구현 완료 주장이 아니라 후속 작업자가 지켜야 할 경계와 사용 방법입니다.
 
+## 관계 엔진 구현 규칙
+
+- `core:engine`의 `ChayeonEngine`을 서버와 SOLO가 함께 사용해요. `EngineClock`, `EngineIdGenerator`, `SignatureRules`, `EngineStore`를 주입하며 명령·tick·스냅샷은 하나의 잠금 안에서 실행해요. 저장 성공 후에만 메모리 상태와 `revision`을 공개해요. 저장 실패 시 관계 변경을 되돌려요.
+- 호스트는 `EngineApi.execute(actor, route, body)`로 같은 DTO 처리를 사용해요. 인증 주체는 본문과 분리해요. `EngineJson`은 제네릭 `AppResult.Success`의 허용된 응답 타입 serializer를 등록하므로, 서버와 클라이언트 모두 이 설정을 사용해야 해요. 성공 값의 `type` 식별자도 이 설정으로 왕복해요.
+- 같은 행위자와 `commandId`의 동일 명령은 최근 512개 결과 범위에서 원래 결과를 돌려줘요. 공개 철회·차단 뒤에는 과거 후보와 상대 공개 정보를 되살리지 않도록 현재 공개 범위로 다시 투영해요. 다른 본문은 `Restricted`예요. 결과를 보관 범위 밖으로 밀어내도 키와 본문 지문은 보존하며, 같은 오래된 명령은 `AlreadyClosed`로 거절해요. 키 재사용으로 과거 수정이 다시 적용되지 않아요.
+- 로그아웃·삭제 후 토큰은 일반 경로에서 즉시 무효예요. 응답 유실 복구를 위해 서버는 최대 512개, 5분 동안 정확히 같은 종료 경로와 본문의 영수증만 다시 반환해요. 다른 명령과 새 본문은 허용하지 않아요.
+- `EngineState`에는 좌표를 넣지 않아요. DEVICE 좌표는 엔진 메모리에만 존재하고 재시작하면 사라져요. 저장된 위치 수신 시각만으로 근접을 복원하지 않으며 새 위치 전까지 STALE이에요. 기존 연결은 CHECKING을 거쳐 확인 불가 유예가 지나면 STATUS_UNKNOWN으로 끝나요. 합성 위치는 좌표 없는 `SyntheticPresence`만 복원해요. 합성 상대가 포함된 쌍은 합성 시나리오로 근접을 판단하며 실위치 판정으로 주장하지 않아요.
+- 시간 전이는 `tick(now)`가 예정 시각 순서로 처리해요. 드문 tick도 잦은 tick과 같은 종료 결과를 만들어요. 서버 타이머는 250ms, SOLO 타이머는 1초 간격이며 모든 명령과 스냅샷 전에도 tick해요.
+- 한 연결이 끝나면 양측에 별도 기록을 하나씩 만들어요. 내 기록 삭제는 상대의 기록·애프터 신청 자격을 바꾸지 않아요. 삭제된 기록을 애프터 응답 때문에 다시 만들지 않아요.
+- 시연 행동은 `DemoCast.peers`에 모여 있어요. 느린오후는 수락·인사·이탈/복귀·애프터 수락, 바다보러가요는 거절, 숲길산책은 무응답, 재즈한잔은 발견 후 먼저 요청, 별보는밤은 수락과 애프터 수락을 해요. 이전 연결의 위치 이벤트가 새 연결을 바꾸지 않아요.
+
+### 현재 엔진 정책
+
+아래 값은 `EnginePolicy` 생성자로 바꿀 수 있어요. 관심사 최대 5개는 시안 값이에요. 요청 시안의 1:48과 애프터 시안의 23시간은 남은 시간 표시이므로 전체 기한은 각각 2분·24시간으로 정했어요. 닉네임 범위, 거리·유예·재신청 값은 시안에 명시된 확정값이 아니라 이번 시연의 구현 정책이에요.
+
+| 항목 | 값 |
+|---|---|
+| 연결 요청 기한 / 재신청 대기 | 2분 / 30초 |
+| 애프터 기한 / 재신청 대기 | 24시간 / 24시간 |
+| 진입 / 이탈 반경 | 200m / 300m, 엔진 내부 계산 전용 |
+| 이탈 / 상태 확인 불가 유예 | 10초 / 30초 |
+| DEVICE 위치 유효 기간 | 30초 |
+| 닉네임 / 관심사 | 유니코드 코드 포인트 2~12자 / 최대 5개 |
+| 애프터 텍스트 | 최대 500 코드 포인트, 공백만·제어문자·보이지 않는 서식 문자 금지 |
+| 동의 문서 버전 | 2026-11-03 |
+| 신고 기록 보관일 | null, 미정 |
+
+서버는 본문 32KiB, 방 64개, 방 유휴 30분, 긴 폴링 최대 25초를 `ServerPolicy`로 제한해요. 서버 저장은 메모리이며 프로세스 재시작을 넘는 서버 계정 보존은 제공하지 않아요.
+
+### 앱 조립
+
+`SocialGraph(context, serverUrl, rules, localCleanup, drivingStateProvider)`의 `sessionRepository`, `profileRepository`, `discoveryRepository`, `connectionRepository`, `encounterRepository`, `afterRepository`, `safetyRepository`, `serverTimeProvider`를 기능 Deps에 연결해요. 계약의 여덟 번째 `SignatureRepository`는 VEHICLE 구현이며 `localCleanup = { signatureRepository.clearLocalData() }`로 연결해요. 주행 제공자는 생성자 또는 `bindDrivingState()`로 넣으며 없으면 UNKNOWN으로 조작을 막아요. 종료할 때 `SocialGraph.close()`를 호출해요.
+
+`SignatureRules`는 `DefaultSignatureEngine.title/chemistry`에 위임해요. 이 작업트리의 해당 구현은 아직 중립 결과를 내는 scaffold이므로 실제 칭호·궁합의 완성은 SIGNATURE 작업 통합에 달려 있어요. 엔진 테스트는 가짜 규칙으로 공개 특성만 전달되는지를 검증해요.
+
+앱에서 `SignatureRules`를 직접 구성하려면 선언된 모듈 그래프에 맞게 `app → core:engine` 의존성도 연결해야 해요. 공개 범위 변경·주행 제외로 `SignatureRepository.signature`의 공개 결과가 바뀌면 `ProfileRepository.publishSignature(PublishSignatureRequest(...))`에 새 공개 시그니처 또는 null을 전달하는 연결도 필요해요. 기기 전용 근거와 지표는 이 호출에 포함하지 않아요.
+
+로컬 상태와 서버 토큰은 앱 전용 `noBackupFilesDir/chayeon-social`에 원자적으로 저장해요. 서버 주소가 없으면 SOLO만 제공해요. Android에서 개발용 HTTP 서버를 사용할 때의 cleartext 허용은 앱 소유 역할이 호스트별로 정해야 하며 이 모듈은 manifest를 변경하지 않아요.
+
+스냅샷 저장소는 세션뿐 아니라 각 동기화 요청의 시작 세대도 확인해요. 통신 실패가 나면 진행 중이던 이전 요청들의 응답은 더 큰 버전이어도 상태를 복구할 수 없어요. 실패 뒤 새로 시작한 요청으로 확인된 전체 스냅샷만 복구해요. 같은 버전 heartbeat는 내용이 같을 때 시각 기준점을 갱신할 수 있어요.
+
+로그아웃·삭제는 부작용 전에 앱 전용 정리 표식을 저장해요. 원격 결과를 받으면 표식에 보존하고 저장소와 기기 전용 지표 정리가 모두 끝나야 표식을 지워요. 정리 실패 후 다른 종료 명령의 성공 영수증을 대신 사용하지 않아요. 재시작은 표식 정리를 먼저 수행하며, 정리 전에는 새 계정으로 들어갈 수 없어요. 정리 hook이 회복되면 새 입장 시도에서도 로컬 정리만 재시도할 수 있어요. 이 동작은 이전의 원격 계정 삭제 성공을 추정하지 않아요.
+
 ## 파일과 책임
 
 | 파일 | 내용 |
