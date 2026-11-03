@@ -9,6 +9,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import dev.chayeon.core.model.*
 import dev.chayeon.core.ui.ScreenChrome
+import dev.chayeon.core.ui.ViewedContent
 
 sealed interface HistoryExit {
     data object OpenMeet : HistoryExit
@@ -113,6 +114,7 @@ fun NavGraphBuilder.historyGraph(
         val id = entry.arguments?.getString("encounterId").orEmpty()
         val model: AfterRequestViewModel = viewModel { AfterRequestViewModel(deps, id) }
         val state by model.uiState.collectAsStateWithLifecycle()
+        ViewedContent(chrome, state.driving.policy, requestId = state.requests.valueOrNull()?.firstOrNull { it.encounterId == id }?.id)
         AfterRequestScreen(state, chrome, model::request, model::respond, model::askWithdraw,
             { model.navigate { open(HistoryDestination.AFTER_CONNECTIONS) } },
             { peer -> model.navigate { open(HistoryDestination.safety(peer)) } },

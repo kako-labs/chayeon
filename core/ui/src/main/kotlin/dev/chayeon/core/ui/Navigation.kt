@@ -16,11 +16,14 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.Alignment
@@ -41,7 +44,7 @@ import dev.chayeon.core.model.DrivingPolicy
 import dev.chayeon.core.model.Gear
 
 @Composable
-fun GearStrip(gear: Gear, policy: DrivingPolicy, syntheticLocation: Boolean, modifier: Modifier = Modifier) {
+fun GearStrip(gear: Gear, policy: DrivingPolicy, syntheticLocation: Boolean, modifier: Modifier = Modifier, onDemo: (() -> Unit)? = null) {
     Row(modifier.fillMaxWidth().heightIn(min = ChayeonDimensions.GearStrip), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.AvatarGap)) {
         val gearLabel = when (gear) { Gear.PARK -> "P"; Gear.REVERSE -> "R"; Gear.NEUTRAL -> "N"; Gear.DRIVE -> "D"; Gear.UNKNOWN -> "—" }
         Box(Modifier.size(ChayeonDimensions.GearBadge).background(ChayeonColors.Glow.copy(alpha = .24f), RoundedCornerShape(ChayeonRadii.Small))
@@ -55,6 +58,11 @@ fun GearStrip(gear: Gear, policy: DrivingPolicy, syntheticLocation: Boolean, mod
         }, style = ChayeonType.Label, color = ChayeonColors.Secondary)
         Spacer(Modifier.weight(1f))
         if (syntheticLocation) StatusChip("합성 위치", variant = StatusVariant.SYNTHETIC)
+        if (onDemo != null && policy == DrivingPolicy.ALLOWED) Box(
+            Modifier.heightIn(min = ChayeonSpacing.Touch).widthIn(min = ChayeonSpacing.Touch)
+                .testTag("demo-control-chip").clickable(role = Role.Button, onClick = onDemo),
+            contentAlignment = Alignment.Center,
+        ) { StatusChip("시연 제어", variant = StatusVariant.SYNTHETIC) }
     }
 }
 
@@ -135,6 +143,7 @@ fun BottomNav(selected: NavigationItem, discoveryOn: Boolean, onSelect: (Navigat
 class ScreenChrome(
     val topBar: @Composable () -> Unit,
     val bottomBar: @Composable (NavigationItem) -> Unit,
+    val onViewing: (requestId: String?, relationshipId: String?) -> (() -> Unit) = { _, _ -> {} },
 )
 
 @Composable
@@ -165,5 +174,14 @@ fun ScreenScaffold(
                 bottomBar()
             }
         }
+    }
+}
+
+@Composable
+fun ViewedContent(chrome: ScreenChrome, policy: DrivingPolicy, requestId: String? = null, relationshipId: String? = null) {
+    DisposableEffect(chrome, policy, requestId, relationshipId) {
+        val release = if (policy == DrivingPolicy.ALLOWED && (requestId != null || relationshipId != null))
+            chrome.onViewing(requestId, relationshipId) else ({})
+        onDispose { release() }
     }
 }

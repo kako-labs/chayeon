@@ -28,6 +28,40 @@ class SignatureInteractionTest {
 
     @After fun clearModels() { compose.runOnIdle { models.clear() } }
 
+    @Test fun unavailableTraitsShowOffWithoutLosingTheirStoredPreference() {
+        val signature = mutableStateOf(f.signature.copy(visibility = VisibilitySettings(publishSignature = true)))
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+            SignatureVisibilityScreen(VisibilityUiState(driving = f.driving, signature = f.ready(signature.value)),
+                previewChrome(), {}, { _, _ -> error("Unavailable trait must be disabled") }, {}, {})
+        } }
+        compose.onNodeWithTag("visibility-SIGNAL_MANNERS").performScrollTo().assertIsOff().assertIsNotEnabled()
+        compose.onNodeWithTag("visibility-BATTERY_KIND").performScrollTo().assertIsOff().assertIsNotEnabled()
+        compose.onNodeWithText("이번 합성 주행에는 없는 특성이에요").assertExists()
+        compose.runOnIdle {
+            assertTrue(TraitId.BATTERY_KIND in signature.value.visibility.visibleTraits)
+            signature.value = signature.value.copy(evidence = signature.value.evidence.map {
+                if (it.trait == TraitId.BATTERY_KIND) it.copy(availability = TraitAvailability.AVAILABLE,
+                    level = TraitLevel.VISIBLE, validTripCount = 3) else it
+            })
+        }
+        compose.onNodeWithTag("visibility-BATTERY_KIND").assertIsOn().assertIsEnabled()
+    }
+
+    @Test fun firstSyntheticMomentKeepsCareAmongAtMostThreeTraitsAndHidesExclusion() {
+        val recap = f.recap.copy(firstSignature = true, changes = listOf(TraitId.GENTLE_RIDE,
+            TraitId.EARLY_BRAKE, TraitId.SIGNAL_MANNERS, TraitId.ENERGY_PLANNER).map {
+            TraitChange(it, TraitLevel.RECORDING, if (it == TraitId.ENERGY_PLANNER) TraitLevel.STEADY else TraitLevel.SIGNATURE, "")
+        })
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+            TripRecapScreen(TripRecapUiState(driving = f.driving, recap = f.ready(recap)), previewChrome(), {}, {}, {}, {})
+        } }
+        compose.onNodeWithText("이 주행이 매듭이 됐어요").assertIsDisplayed()
+        compose.onNodeWithText("미리 채우는 습관").assertIsDisplayed()
+        compose.onNodeWithText("깜빡이 매너").assertDoesNotExist()
+        compose.onNodeWithTag("exclude-trip").assertDoesNotExist()
+        compose.onRoot().captureRoboImage("src/test/screenshots/first_moment_care.png")
+    }
+
     @Test fun traitToggleChangesTheActualPublishedProjection() {
         val deps = SignatureTestDeps()
         val model = SignatureVisibilityViewModel(deps).also { models.put("visibility", it) }
@@ -93,6 +127,7 @@ class SignatureInteractionTest {
 
     @Test fun recapExclusionRemovesTheTripAndRetractsItsPublicTraits() {
         val deps = SignatureTestDeps()
+        deps.signatureRepository.recap.value = f.ready(f.recap.copy(source = DataSource.VEHICLE))
         val model = TripRecapViewModel(deps, f.recap.id).also { models.put("recap", it) }
         compose.setContent {
             val state by model.uiState.collectAsState()
@@ -111,6 +146,7 @@ class SignatureInteractionTest {
 
     @Test fun recapFailureKeepsTheSameTripForRetry() {
         val deps = SignatureTestDeps()
+        deps.signatureRepository.recap.value = f.ready(f.recap.copy(source = DataSource.VEHICLE))
         deps.signatureRepository.exclusionError = AppError.Network
         val model = TripRecapViewModel(deps, f.recap.id).also { models.put("recap", it) }
         compose.setContent {

@@ -16,6 +16,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 interface MessageNotifier { fun notifyMessage(id: String) }
 
@@ -42,6 +43,18 @@ class AppEvents(private val graph: AppGraph, private val notifier: MessageNotifi
     private val observed = mutableSetOf<String>()
     private val notified = mutableSetOf<String>()
     private var started = false
+    private val viewing = mutableMapOf<Any, Pair<String?, String?>>()
+
+    fun viewing(requestId: String?, relationshipId: String?): () -> Unit {
+        val token = Any()
+        viewing[token] = requestId to relationshipId
+        pending.update { events -> events.filterNot(::isViewed) }
+        return { viewing.remove(token); Unit }
+    }
+
+    private fun isViewed(event: AppEvent): Boolean = viewing.values.any { (request, relationship) ->
+        (request != null && request == event.requestId) || (relationship != null && relationship == event.relationshipId)
+    }
 
     fun acknowledge(id: String) { pending.update { list -> list.filterNot { it.id == id } } }
 
@@ -49,7 +62,7 @@ class AppEvents(private val graph: AppGraph, private val notifier: MessageNotifi
         if (!observed.add(event.id)) return
         val settings = (graph.profileRepository.settings.first() as? LoadState.Ready)?.value
         val enabled = if (event.greeting) settings?.notifyGreetings != false else settings?.notifyRequests != false
-        if (!enabled) return
+        if (!enabled || isViewed(event)) return
         pending.update { it + event }
         if (graph.currentPolicy() != DrivingPolicy.ALLOWED && notified.add(event.id)) notifier.notifyMessage(event.id)
     }
@@ -57,6 +70,13 @@ class AppEvents(private val graph: AppGraph, private val notifier: MessageNotifi
     fun start() {
         if (started) return
         started = true
+        scope.launch {
+            combine(pending.map { it.firstOrNull() }.distinctUntilChanged(), graph.drivingStateProvider.drivingState) { event, driving ->
+                event.takeIf { driving.policy == DrivingPolicy.ALLOWED }
+            }.distinctUntilChanged().collectLatest { event ->
+                if (event != null) { delay(5_000); acknowledge(event.id) }
+            }
+        }
         scope.launch {
             graph.sessionRepository.session.map { (it as? SessionState.Active)?.session?.id }.distinctUntilChanged().collectLatest { id ->
                 pending.value = emptyList()

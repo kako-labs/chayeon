@@ -34,6 +34,7 @@ fun HomeScreen(
     onConnected: () -> Unit,
     onMySignature: () -> Unit,
     onLocationSettings: () -> Unit,
+    onCreateSignature: () -> Unit = onMySignature,
 ) {
     if (state.driving.policy != DrivingPolicy.ALLOWED) {
         DrivingScreen(state.driving, chrome)
@@ -56,7 +57,7 @@ fun HomeScreen(
                         onRequests, Modifier.fillMaxWidth(), JellyVariant.WHITE)
                 }
                 MeetError(state.refresh.error)
-                if (state.profileLoaded && state.profile?.signature == null) MeetSignatureInvitation(onMySignature)
+                if (state.profileLoaded && state.profile?.signature == null) MeetSignatureInvitation(onCreateSignature)
                 val experience = state.discovery.status.experienceState
                 when {
                     state.discovery.mode == DiscoveryMode.OFF -> MeetDiscoveryFacts()
@@ -110,6 +111,7 @@ fun RequestScreen(
         DrivingScreen(state.driving, chrome)
         return
     }
+    ViewedContent(chrome, state.driving.policy, requestId = state.request?.id)
     val request = state.request
     val incoming = request?.direction == RequestDirection.INCOMING
     val pending = request?.status == ConnectionRequestStatus.PENDING
@@ -165,6 +167,7 @@ fun ConnectedScreen(
         MeetConnectedDriving(state, chrome, onLeave)
         return
     }
+    ViewedContent(chrome, state.driving.policy, relationshipId = state.connection?.id)
     val connection = state.connection
     val canSend = connection?.status == ConnectionStatus.CONNECTED && !state.leave.inProgress && state.observationError == null
     ScreenScaffold(
@@ -230,6 +233,7 @@ fun EndedScreen(
         DrivingScreen(state.driving, chrome)
         return
     }
+    ViewedContent(chrome, state.driving.policy, relationshipId = state.connection?.id)
     val connection = state.connection
     val ended = connection?.status == ConnectionStatus.ENDED
     val endReason = connection?.endReason
@@ -360,6 +364,7 @@ private fun MeetConnectedDriving(state: ConnectedUiState, chrome: ScreenChrome, 
         DrivingScreen(state.driving, chrome, state.canLeave, state.leave, onLeave)
         return
     }
+    ViewedContent(chrome, state.driving.policy, relationshipId = state.connection?.id)
     val connection = state.connection
     CompositionLocalProvider(LocalDecorativeMotion provides false) {
         ScreenScaffold(

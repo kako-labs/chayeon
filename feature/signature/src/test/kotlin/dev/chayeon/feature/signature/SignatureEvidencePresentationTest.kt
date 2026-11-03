@@ -43,7 +43,8 @@ class SignatureEvidencePresentationTest {
     @Test
     fun `unsupported and recording notes never call missing evidence a low score`() {
         val unsupported = evidence().copy(availability = TraitAvailability.UNSUPPORTED)
-        assertTrue(unsupported.levelExplanation().startsWith("이 차량에서 제공되지 않아요"))
+        assertTrue(unsupported.levelExplanation().startsWith("이번 합성 주행에는 없는 특성이에요"))
+        assertTrue(unsupported.copy(source = DataSource.VEHICLE).levelExplanation().startsWith("이 차량에서 제공되지 않아요"))
         assertFalse(unsupported.levelExplanation().contains("0"))
         val recording = evidence().copy(level = TraitLevel.RECORDING, validTripCount = 2)
         assertTrue(recording.levelExplanation().contains("유효한 주행이 3회 이상"))

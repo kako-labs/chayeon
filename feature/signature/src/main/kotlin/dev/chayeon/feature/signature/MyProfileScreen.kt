@@ -43,7 +43,7 @@ fun MyProfileScreen(
                                             if (signature.value.isRecording && state.consoleAvailable) {
                                                 ChayeonText("주행 3번이 모이면 주차 후 나에게 먼저 보여 드려요. 공개는 내가 골라요.",
                                                     style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
-                                                JellyButton("합성 주행으로 먼저 만나보기", { onExit(SignatureExit.OpenDemoConsole) }, Modifier.fillMaxWidth())
+                                                JellyButton("합성 주행으로 먼저 만나보기", { onExit(SignatureExit.CreateSignature) }, Modifier.fillMaxWidth())
                                             } else JellyButton("내 시그니처 보기", onSignature, Modifier.fillMaxWidth())
                                         }
                                     }
@@ -67,7 +67,6 @@ fun MyProfileScreen(
                 SettingsRow(ChayeonIcon.LOCK, "차량 데이터와 위치 사용", "어떤 정보를 읽고 사용하는지 확인해요.", { onExit(SignatureExit.OpenConsent) })
                 SettingsRow(ChayeonIcon.PEOPLE, "차단과 신고", "차단한 사람을 확인하고 관리해요.", { onExit(SignatureExit.OpenBlocks) })
                 SettingsRow(ChayeonIcon.HISTORY, "기록과 계정 정리", "무엇이 지워지고 무엇이 남는지 확인해요.", { onExit(SignatureExit.OpenCleanup) })
-                if (state.consoleAvailable) SettingsRow(ChayeonIcon.KNOT, "시연 제어", "세 가지 합성 주행으로 서로 다른 시그니처를 만나봐요.", { onExit(SignatureExit.OpenDemoConsole) })
                 GlassCard(Modifier.fillMaxWidth()) {
                     InfoRow(ChayeonIcon.LOCK, "차량 정보는 보이지 않아요",
                         body = "상대에게는 공개한 시그니처와 관심사만 보여요. 개인 주행 수치는 이 차 안에 남아요.")

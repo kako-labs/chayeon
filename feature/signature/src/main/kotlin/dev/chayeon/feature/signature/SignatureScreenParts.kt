@@ -106,7 +106,7 @@ internal fun SignatureRecording(consoleAvailable: Boolean, onDemo: () -> Unit) {
         action = if (consoleAvailable) "합성 주행으로 먼저 만나보기" else null,
         onAction = onDemo,
     )
-    if (consoleAvailable) ChayeonText("시연 제어에서 합성 주행을 채워 볼 수 있어요.",
+    if (consoleAvailable) ChayeonText("세 가지 주행 중 나를 닮은 모습을 골라 볼 수 있어요.",
         style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
 }
 

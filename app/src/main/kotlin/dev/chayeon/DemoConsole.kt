@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 const val DEMO_ROUTE = "app/demo"
+const val CREATE_SIGNATURE_ROUTE = "app/create-signature"
 
 data class DemoUiState(val driving: DrivingState = DrivingState(), val console: ConsoleState = ConsoleState(),
     val busy: Boolean = false, val message: String? = null,
@@ -91,7 +92,7 @@ class DemoConsoleViewModel(private val graph: AppGraph) : ViewModel() {
 
 }
 
-internal val signatureScenarios = listOf(DriveScenario.GENTLE, DriveScenario.SIGNAL_MANNERS, DriveScenario.CARE)
+internal val signatureScenarios = listOf(DriveScenario.CARE, DriveScenario.GENTLE, DriveScenario.SIGNAL_MANNERS)
 
 private fun DriveScenario.demoLabel() = when (this) {
     DriveScenario.GENTLE -> "편안하게 달리는 사람"
@@ -104,7 +105,7 @@ private fun DriveScenario.demoLabel() = when (this) {
 @Composable
 fun DemoConsoleScreen(state: DemoUiState, chrome: ScreenChrome, realVehicle: Boolean, enabled: Boolean,
     onGear: (Gear) -> Unit, onReplay: (DriveScenario) -> Unit, onFill: (DriveScenario) -> Unit,
-    onPresence: (SyntheticPresence) -> Unit, onBack: () -> Unit, returnToConnection: Boolean = false) {
+    onPresence: (SyntheticPresence) -> Unit, onBack: () -> Unit, returnToConnection: Boolean = false, onCreate: () -> Unit = {}) {
     val allowed = state.driving.policy == DrivingPolicy.ALLOWED
     BackHandler { if (allowed && !state.busy) onBack() }
     ScreenScaffold(topBar = {
@@ -125,19 +126,10 @@ fun DemoConsoleScreen(state: DemoUiState, chrome: ScreenChrome, realVehicle: Boo
                 ChayeonText("이 앱에서는 시연 제어를 제공하지 않아요")
                 JellyButton("돌아가기", onBack)
             } else {
-                HeroPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues(ChayeonSpacing.Screen)) {
-                    Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
-                        StatusChip("합성 주행", variant = StatusVariant.SYNTHETIC)
-                        SectionTitle("어떤 주행이 나를 닮았나요?", subtitle = "한 가지를 고르면 합성 주행 3번이 매듭이 돼요. 공개는 다음 화면에서 직접 골라요.")
-                        signatureScenarios.forEach { scenario ->
-                            JellyButton(scenario.demoLabel(), { onFill(scenario) }, Modifier.fillMaxWidth().testTag("fill-${scenario.name}"),
-                                JellyVariant.SECONDARY, enabled = !state.busy)
-                        }
-                        ChayeonText(if (state.busy && state.fillProgress != null) "합성 주행 ${state.fillProgress}/3" else "이전에 넣은 합성 주행은 빼고 새로 만들어요. 실제 주행은 그대로예요.",
-                            Modifier.semantics { liveRegion = LiveRegionMode.Polite }.testTag("demo-progress"),
-                            style = if (state.busy) ChayeonType.Section else ChayeonType.Minimum, color = ChayeonColors.Secondary)
-                        state.message?.let { ChayeonText(it, style = ChayeonType.Secondary) }
-                    }
+                GlassCard(Modifier.fillMaxWidth()) {
+                    SectionTitle("합성 주행", subtitle = "주행을 더하거나 제공되지 않는 특성을 살펴봐요")
+                    JellyButton("시그니처 만들기", onCreate, Modifier.fillMaxWidth(), enabled = !state.busy)
+                    state.message?.let { ChayeonText(it, style = ChayeonType.Secondary) }
                 }
                 GlassCard(Modifier.fillMaxWidth()) {
                     Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
@@ -168,10 +160,10 @@ fun DemoConsoleScreen(state: DemoUiState, chrome: ScreenChrome, realVehicle: Boo
                     }
                 }
             }
-            GlassCard(Modifier.fillMaxWidth()) {
+            if (!realVehicle) GlassCard(Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
                     SectionTitle("기어 제어")
-                    ChayeonText(if (realVehicle) "실제 차량 서비스가 있어요. 기어는 차량의 Virtual Console에서 바꿔 주세요." else "가상 차량에서만 기어를 바꿀 수 있어요. 주행 중에는 시연 조작도 잠겨요.", style = ChayeonType.Secondary)
+                    ChayeonText("가상 차량에서만 기어를 바꿀 수 있어요. 주행 중에는 시연 조작도 잠겨요.", style = ChayeonType.Secondary)
                     if (!realVehicle) Gear.entries.filter { it != Gear.UNKNOWN }.chunked(2).forEach { row ->
                         Row(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
                             row.forEach { gear ->

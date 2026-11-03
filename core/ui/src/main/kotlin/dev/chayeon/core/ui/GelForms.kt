@@ -60,6 +60,7 @@ fun GelTextField(
     enabled: Boolean = true,
     singleLine: Boolean = true,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    maxLines: Int = Int.MAX_VALUE,
 ) {
     require(maxLength == null || maxLength > 0)
     val interactive = enabled && LocalDrivingPolicy.current == DrivingPolicy.ALLOWED
@@ -81,6 +82,7 @@ fun GelTextField(
             },
             enabled = interactive,
             singleLine = singleLine,
+            maxLines = if (singleLine) 1 else maxLines,
             keyboardOptions = keyboardOptions,
             textStyle = ChayeonType.Body.copy(color = ChayeonColors.Text),
             cursorBrush = SolidColor(ChayeonColors.Pink),

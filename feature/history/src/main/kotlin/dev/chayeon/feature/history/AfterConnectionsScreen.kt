@@ -1,12 +1,17 @@
 package dev.chayeon.feature.history
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import dev.chayeon.core.model.*
 import dev.chayeon.core.ui.*
 
@@ -16,6 +21,7 @@ fun AfterConnectionsScreen(state: HistoryUiState, chrome: ScreenChrome, onSelect
     onRetryMessage: (String) -> Unit, onRetry: (String) -> Unit, onEnd: () -> Unit, onSafety: (String) -> Unit,
     onConfirm: () -> Unit, onDismiss: () -> Unit) {
     val relationship = state.selectedRelationship
+    ViewedContent(chrome, state.driving.policy, relationshipId = relationship?.id)
     HistoryFrame(state, chrome, "이어진 인연", "서로 수락해서 이어진 사람들이에요", tab = NavigationItem.AFTER, ratio = .42f,
         bottom = {
             if (relationship != null) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
@@ -32,59 +38,26 @@ fun AfterConnectionsScreen(state: HistoryUiState, chrome: ScreenChrome, onSelect
                 }
                 Loaded(state.relationships, "아직 이어진 인연이 없어요") { relationships ->
                     relationships.forEach { connection ->
-                        GlassCard { ContentColumn {
-                            PeerHeader(connection.peer, size = PeerHeaderSize.SMALL)
-                            ChayeonText(if (connection.status == AfterConnectionStatus.CONNECTED) "서로 이어졌어요" else "관계가 끝났어요", style = ChayeonType.Secondary)
-                            if (connection.id == state.selectedRelationshipId) StatusChip(if (connection.status == AfterConnectionStatus.CONNECTED) "대화 중인 인연" else "선택한 인연")
-                            else JellyButton("대화 보기", { onSelect(connection.id) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
-                        } }
-                    }
-                }
-            }
-        }, secondary = {
-            if (relationship == null) EmptyCard("마음을 다시 이어봐요", "스친 인연에서 애프터를 신청할 수 있어요")
-            else ContentColumn {
-                HeroPanel(contentPadding = PaddingValues(ChayeonSpacing.Large)) {
-                    Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
-                        GradientText(if (relationship.status == AfterConnectionStatus.CONNECTED) "${relationship.peer.nickname} 님과 이어졌어요" else "관계를 마쳤어요", style = ChayeonType.Title)
-                        ChayeonText(relationship.peer.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
-                        relationship.peer.signature?.let { ChayeonText("${it.title} · ${it.source.label}", style = ChayeonType.Secondary) }
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
-                            state.myProfile?.publicProfile?.let { AvatarDish(MochiAvatar.from(it.avatar), Modifier.size(ChayeonDimensions.PeerSmall)) }
-                            key(relationship.id, relationship.status) {
-                                ThreadView(if (relationship.status == AfterConnectionStatus.CONNECTED) ThreadStage.AFTER_CONNECTED else ThreadStage.ENDED,
-                                    Modifier.weight(1f).height(ChayeonDimensions.MiniKnot), animateTransition = relationship.status == AfterConnectionStatus.CONNECTED)
-                            }
-                            AvatarDish(MochiAvatar.from(relationship.peer.avatar), Modifier.size(ChayeonDimensions.PeerSmall))
-                        }
-                    }
-                }
-                if (relationship.status == AfterConnectionStatus.CONNECTED) {
-                    val conversation: @Composable () -> Unit = {
-                        GlassCard { Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
-                        SectionTitle("이어진 대화")
-                        val messageScroll = rememberScrollState()
-                        Column(Modifier.heightIn(max = ChayeonDimensions.Avatar).scrollEdgeFade(messageScroll).verticalScroll(messageScroll), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
-                        Loaded(state.messages, "첫 인사를 건네보세요") { messages ->
-                            messages.forEach { message ->
-                                if (state.outbox.none { it.request.clientMessageId == message.clientMessageId }) {
-                                    MessageRow(message.content, message.author == MessageAuthor.SELF, message.delivery)
-                                    if (message.author == MessageAuthor.SELF && message.delivery == DeliveryState.FAILED) JellyButton("이 메시지 다시 보내기", { onRetryMessage(message.clientMessageId) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
+                        val selected = connection.id == state.selectedRelationshipId
+                        GlassCard(Modifier.fillMaxWidth().testTag("relationship-${connection.id}").then(
+                            if (!selected) Modifier.clickable(role = Role.Button) { onSelect(connection.id) } else Modifier),
+                            contentPadding = PaddingValues(ChayeonSpacing.Medium)) {
+                            Row(Modifier.heightIn(min = ChayeonSpacing.Touch), verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
+                                ChayeonIcon(ChayeonIcon.KNOT, Modifier.size(ChayeonDimensions.UtilityIcon))
+                                Column(Modifier.weight(1f)) {
+                                    ChayeonText(connection.peer.nickname, style = ChayeonType.Label)
+                                    ChayeonText(if (selected && connection.status == AfterConnectionStatus.CONNECTED) "대화 중인 인연"
+                                        else if (connection.status == AfterConnectionStatus.CONNECTED) "서로 이어졌어요" else "관계가 끝났어요",
+                                        style = ChayeonType.Secondary, color = ChayeonColors.Pink)
+                                    ChayeonText(connection.peer.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
                                 }
+                                if (!selected) ChayeonIcon(ChayeonIcon.FORWARD, Modifier.size(ChayeonDimensions.UtilityIcon))
                             }
                         }
-                        state.outbox.filter { it.request.afterConnectionId == relationship.id }.forEach { pending ->
-                            MessageRow(pending.request.content, true, pending.delivery)
-                            if (pending.delivery == DeliveryState.FAILED) JellyButton("이 메시지 다시 보내기", { onRetryMessage(pending.request.clientMessageId) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
-                        }
-                        }
-                        GelTextField(state.messageDrafts[relationship.id].orEmpty(), onText, "메시지", placeholder = "편하게 인사를 건네보세요",
-                            maxLength = AfterConnectionsViewModel.AFTER_TEXT_LIMIT, singleLine = false, enabled = !state.command("compose:${relationship.id}").running)
-                        JellyButton("메시지 보내기", onSend, Modifier.fillMaxWidth(), enabled = state.messageDrafts[relationship.id].orEmpty().isNotBlank() && !state.command("compose:${relationship.id}").running)
-                        CommandFeedback(state.command("compose:${relationship.id}"), { onRetry("compose:${relationship.id}") })
-                    } }
                     }
-                    val presets: @Composable () -> Unit = {
+                }
+                if (relationship?.status == AfterConnectionStatus.CONNECTED) {
                         GlassCard(contentPadding = PaddingValues(horizontal = ChayeonSpacing.CardHorizontal, vertical = ChayeonSpacing.Medium)) {
                             Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
                             SectionTitle("인사 보내기")
@@ -99,15 +72,60 @@ fun AfterConnectionsScreen(state: HistoryUiState, chrome: ScreenChrome, onSelect
                                 }
                             }
                         } }
-                    }
-                    BoxWithConstraints {
-                        if (maxWidth >= ChayeonSpacing.NarrowBreakpoint - ChayeonSpacing.Screen * 2) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
-                                Box(Modifier.weight(1f)) { conversation() }
-                                Box(Modifier.weight(1.2f)) { presets() }
+                }
+            }
+        }, secondary = {
+            if (relationship == null) EmptyCard("마음을 다시 이어봐요", "스친 인연에서 애프터를 신청할 수 있어요")
+            else Column(Modifier.fillMaxWidth().then(if (LocalHistoryPaneHeight.current > 0.dp)
+                Modifier.height(LocalHistoryPaneHeight.current) else Modifier), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+                HeroPanel(contentPadding = PaddingValues(horizontal = ChayeonSpacing.Large, vertical = ChayeonSpacing.Medium)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
+                        GradientText(if (relationship.status == AfterConnectionStatus.CONNECTED) "${relationship.peer.nickname} 님과 이어졌어요" else "관계를 마쳤어요", style = ChayeonType.Title)
+                        ChayeonText(listOfNotNull(relationship.peer.kind.label, relationship.peer.signature?.let {
+                            "${it.title} · ${it.source.label}"
+                        }).joinToString(" · "), style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
+                            state.myProfile?.publicProfile?.let { AvatarDish(MochiAvatar.from(it.avatar), Modifier.size(ChayeonSpacing.Touch)) }
+                            key(relationship.id, relationship.status) {
+                                ThreadView(if (relationship.status == AfterConnectionStatus.CONNECTED) ThreadStage.AFTER_CONNECTED else ThreadStage.ENDED,
+                                    Modifier.weight(1f).height(ChayeonSpacing.Touch), animateTransition = relationship.status == AfterConnectionStatus.CONNECTED)
                             }
-                        } else ContentColumn { conversation(); presets() }
+                            AvatarDish(MochiAvatar.from(relationship.peer.avatar), Modifier.size(ChayeonSpacing.Touch))
+                        }
                     }
+                }
+                if (relationship.status == AfterConnectionStatus.CONNECTED) {
+                    GlassCard(Modifier.fillMaxWidth().then(if (LocalHistoryPaneHeight.current > 0.dp) Modifier.weight(1f) else Modifier),
+                        contentPadding = PaddingValues(ChayeonSpacing.Large)) { Column(Modifier.fillMaxWidth().then(
+                            if (LocalHistoryPaneHeight.current > 0.dp) Modifier.fillMaxHeight() else Modifier),verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
+                        SectionTitle("이어진 대화")
+                        val messageScroll = rememberScrollState()
+                        LaunchedEffect(relationship.id, state.messages, state.outbox, messageScroll.maxValue) {
+                            messageScroll.scrollTo(messageScroll.maxValue)
+                        }
+                        Column(Modifier.fillMaxWidth().testTag("after-message-list").then(
+                            if (LocalHistoryPaneHeight.current > 0.dp) Modifier.weight(1f) else Modifier.heightIn(max = ChayeonDimensions.Knot))
+                            .scrollEdgeFade(messageScroll).verticalScroll(messageScroll), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
+                        Loaded(state.messages, "첫 인사를 건네보세요") { messages ->
+                            messages.forEach { message ->
+                                if (state.outbox.none { it.request.clientMessageId == message.clientMessageId }) {
+                                    MessageRow(message.content, message.author == MessageAuthor.SELF, message.delivery)
+                                    if (message.author == MessageAuthor.SELF && message.delivery == DeliveryState.FAILED) JellyButton("이 메시지 다시 보내기", { onRetryMessage(message.clientMessageId) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
+                                }
+                            }
+                        }
+                        state.outbox.filter { it.request.afterConnectionId == relationship.id }.forEach { pending ->
+                            MessageRow(pending.request.content, true, pending.delivery)
+                            if (pending.delivery == DeliveryState.FAILED) JellyButton("이 메시지 다시 보내기", { onRetryMessage(pending.request.clientMessageId) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
+                        }
+                        }
+                        GelTextField(state.messageDrafts[relationship.id].orEmpty(), onText, "메시지", placeholder = "편하게 인사를 건네보세요",
+                            maxLength = AfterConnectionsViewModel.AFTER_TEXT_LIMIT, singleLine = false, maxLines = 2, enabled = !state.command("compose:${relationship.id}").running)
+                        JellyButton("메시지 보내기", onSend, Modifier.fillMaxWidth().testTag("after-send"), enabled = state.messageDrafts[relationship.id].orEmpty().isNotBlank() && !state.command("compose:${relationship.id}").running)
+                        state.command("compose:${relationship.id}").error?.let {
+                            ChayeonText(it.copy(), style = ChayeonType.Minimum, color = ChayeonColors.Pink)
+                        }
+                    } }
                     CommandFeedback(state.command("end:${relationship.id}"), { onRetry("end:${relationship.id}") })
                 } else EmptyCard("이 대화는 닫혔어요", "끝난 관계는 다시 열리지 않아요. 처음 스친 기록은 남아요.")
             }

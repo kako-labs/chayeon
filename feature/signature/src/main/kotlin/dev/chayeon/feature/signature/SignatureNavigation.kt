@@ -25,7 +25,7 @@ sealed interface SignatureExit {
     data object OpenConsent : SignatureExit
     data object OpenBlocks : SignatureExit
     data object OpenCleanup : SignatureExit
-    data object OpenDemoConsole : SignatureExit
+    data object CreateSignature : SignatureExit
 }
 
 object SignatureDestination {
@@ -64,7 +64,7 @@ fun NavGraphBuilder.signatureGraph(
         MySignatureScreen(state, chrome, back,
             onVisibility = { allowed { navController.navigate(SignatureDestination.VISIBILITY) { launchSingleTop = true } } },
             onTrait = { trait -> allowed { navController.navigate(SignatureDestination.trait(trait.name)) { launchSingleTop = true } } },
-            onDemo = { allowed { onExit(SignatureExit.OpenDemoConsole) } }, onRetry = model::retry)
+            onDemo = { allowed { onExit(SignatureExit.CreateSignature) } }, onRetry = model::retry)
     }
     composable(SignatureDestination.TRAIT, arguments = listOf(navArgument("traitId") { type = NavType.StringType })) { entry ->
         val trait = TraitId.entries.firstOrNull { it.name == entry.arguments?.getString("traitId") }

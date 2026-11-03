@@ -116,27 +116,26 @@ class DefaultSignatureEngineTest {
         assertEquals("둘 다 깜빡이를 챙겨요", engine.chemistry(signal, signal).lines.single().text)
     }
 
-    @Test fun `knot matches UI mixer and one level changes one small geometry byte`() {
-        val base = engine.knot(emptyList())
-        val changed = engine.knot(listOf(evidence(TraitId.GENTLE_RIDE, TraitLevel.VISIBLE)))
-        fun mix(value: Long): Long {
-            val a = (value xor (value ushr 30)) * -4658895280553007687L
-            val b = (a xor (a ushr 27)) * -7723592293110705685L
-            return b xor (b ushr 31)
+    @Test fun `version two knot preserves categorical levels without packing private evidence`() {
+        val evidence = TraitId.entries.map { evidence(it, TraitLevel.STEADY) }
+        val seed = engine.knot(evidence)
+        assertEquals(2, seed.algorithmVersion)
+        TraitId.entries.forEach { trait ->
+            assertEquals(2L, (seed.value ushr (trait.ordinal * 2)) and 3)
         }
-        val first = mix(base.value)
-        val second = mix(changed.value)
-        assertEquals(128, (first and 255).toInt())
-        assertEquals(96, ((first ushr 8) and 255).toInt())
-        assertEquals(12, (((second ushr 8) and 255) - ((first ushr 8) and 255)).toInt())
-        assertEquals(first and 0xFFFF00FFL, second and 0xFFFF00FFL)
-        assertEquals(changed, engine.knot(listOf(evidence(TraitId.GENTLE_RIDE, TraitLevel.VISIBLE))))
+        assertEquals(seed, engine.knot(evidence.reversed()))
+        assertEquals(0L, seed.value ushr 24)
+        val changed = engine.knot(evidence.map { if (it.trait == TraitId.GENTLE_RIDE) it.copy(level = TraitLevel.SIGNATURE) else it })
+        assertEquals(1L, seed.value xor changed.value)
     }
 
-    @Test fun `quantized private metric changes preserve visible geometry`() {
-        fun seed(value: Double) = engine.knot(listOf(evidence(TraitId.GENTLE_RIDE, TraitLevel.STEADY).copy(metrics = listOf(PrivateMetric(MetricId.GENTLE_BRAKE_RATIO, value, MetricUnit.RATIO)))))
-        assertEquals(seed(.71), seed(.72))
-        assertNotEquals(seed(.71), seed(.99))
+    @Test fun `private metrics counts and timestamps cannot be recovered from the seed`() {
+        val original = listOf(evidence(TraitId.GENTLE_RIDE, TraitLevel.STEADY))
+        for (value in listOf(.01, .71, .72, .99, 8.0)) {
+            val changed = original.map { it.copy(metrics = listOf(PrivateMetric(MetricId.GENTLE_BRAKE_RATIO, value, MetricUnit.RATIO)),
+                sampleCount = 12_345, validTripCount = 99, window = EvidenceWindow(1, 9_999)) }
+            assertEquals(engine.knot(original), engine.knot(changed))
+        }
     }
 
     @Test fun `recap explains improvements warmly and exclusions create no praise`() {

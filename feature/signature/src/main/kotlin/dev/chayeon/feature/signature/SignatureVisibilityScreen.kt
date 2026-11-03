@@ -47,12 +47,12 @@ fun SignatureVisibilityScreen(
                                     TraitId.entries.filter { it.presentation.category == category }.forEach { trait ->
                                         val evidence = loaded.value.evidence.firstOrNull { it.trait == trait }
                                         Column {
-                                            GelToggle(trait in visibility.visibleTraits, { onTraitVisible(trait, it) },
+                                            GelToggle(evidence?.isPublishable == true && trait in visibility.visibleTraits, { onTraitVisible(trait, it) },
                                                 trait.presentation.name, Modifier.fillMaxWidth().testTag("visibility-${trait.name}"),
-                                                enabled = !state.savingVisibility && !state.publishing && evidence?.availability != TraitAvailability.UNSUPPORTED)
+                                                enabled = !state.savingVisibility && !state.publishing && evidence?.isPublishable == true)
                                             when {
                                                 evidence?.availability == TraitAvailability.UNSUPPORTED ->
-                                                    ChayeonText("이 차량에서 제공되지 않아요", style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+                                                    ChayeonText(evidence.unsupportedLabel, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
                                                 evidence == null || evidence.level == TraitLevel.RECORDING ->
                                                     ChayeonText("기록 중이에요. 근거가 모이기 전에는 공개하지 않아요.", style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
                                             }

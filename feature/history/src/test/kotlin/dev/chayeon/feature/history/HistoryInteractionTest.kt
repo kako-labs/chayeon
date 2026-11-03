@@ -1,7 +1,13 @@
 package dev.chayeon.feature.history
 
 import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
+import androidx.compose.ui.semantics.SemanticsProperties
+import com.github.takahirom.roborazzi.captureRoboImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.lifecycle.ViewModelStore
 import androidx.navigation.compose.NavHost
@@ -24,6 +30,68 @@ class HistoryInteractionTest {
     @get:Rule val compose = createComposeRule()
     private val store = ViewModelStore()
     @After fun close() { store.clear() }
+
+    @Test fun latestWrappedReplyComposerAndSendFitWithoutPageScrolling() {
+        val reply = "다시 이야기하게 되어 반가워요. 야경 보는 걸 좋아하세요? 함께 나누고 싶은 풍경 이야기가 많아요. " +
+            "저는 해 질 무렵의 하늘과 조용한 산책길을 좋아해요. 다음에는 좋아하는 음악 이야기도 천천히 나눠 보고 싶어요."
+        val older = (1..12).map { index -> AfterMessage("older-$index", 1, "after", "older-$index", MessageAuthor.PEER,
+            AfterMessageContent.Text("지난 대화 $index · 함께 나누었던 이야기를 다시 읽어 봐요"), index.toLong(), DeliveryState.SENT) }
+        val state = screenState(HistoryScreen.AFTER_CONNECTED, ScreenScenario.POPULATED).copy(
+            messages = LoadState.Ready(older + AfterMessage("reply", 2, "after", "reply", MessageAuthor.PEER,
+                AfterMessageContent.Text(reply), 20, DeliveryState.SENT), 2),
+        )
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+            val chrome = previewChrome()
+            val appChrome = ScreenChrome(topBar = {
+                Box(Modifier.height(ChayeonDimensions.Banner), contentAlignment = Alignment.Center) { chrome.topBar() }
+            }, bottomBar = chrome.bottomBar)
+            AfterConnectionsScreen(state, appChrome, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        } }
+        val message = compose.onNodeWithText(reply).assertIsDisplayed().getUnclippedBoundsInRoot()
+        val viewport = compose.onNodeWithTag("after-message-list").getUnclippedBoundsInRoot()
+        val composer = compose.onNodeWithContentDescription("메시지").assertIsDisplayed().getUnclippedBoundsInRoot()
+        val send = compose.onNodeWithTag("after-send").assertIsDisplayed().getUnclippedBoundsInRoot()
+        assertTrue("The peer reply must wrap onto multiple lines", (message.bottom - message.top).value >= ChayeonType.Body.lineHeight.value * 2)
+        assertTrue(message.top >= viewport.top && message.bottom <= viewport.bottom)
+        assertTrue("The whole latest reply must clear the older-message fade", message.top >= viewport.top + ChayeonDimensions.ScrollFade)
+        assertTrue(viewport.bottom <= composer.top && composer.bottom <= send.top)
+        assertTrue(send.bottom - send.top >= ChayeonSpacing.Touch)
+        val scroll = compose.onNodeWithTag("after-message-list").fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange]
+        assertTrue("Older messages must scroll inside the conversation", scroll.maxValue() > 0f)
+        assertEquals(scroll.maxValue(), scroll.value(), 1f)
+        compose.onNodeWithText("지난 대화 1 · 함께 나누었던 이야기를 다시 읽어 봐요").assertIsNotDisplayed()
+        compose.onRoot().captureRoboImage("src/test/screenshots/after_wrapped_reply.png")
+        compose.onNodeWithTag("after-message-list").performScrollToNode(hasText("지난 대화 1 · 함께 나누었던 이야기를 다시 읽어 봐요"))
+        compose.onNodeWithText("지난 대화 1 · 함께 나누었던 이야기를 다시 읽어 봐요").assertIsDisplayed()
+        assertEquals(composer, compose.onNodeWithContentDescription("메시지").getUnclippedBoundsInRoot())
+        assertEquals(send, compose.onNodeWithTag("after-send").getUnclippedBoundsInRoot())
+    }
+
+    @Test fun multipleRelationshipRowsAndPresetsRemainReachable() {
+        val base = screenState(HistoryScreen.AFTER_CONNECTED, ScreenScenario.POPULATED)
+        val selected = base.selectedRelationship!!
+        val state = base.copy(relationships = LoadState.Ready(listOf(selected) + (1..6).map {
+            selected.copy(id = "other-$it", peer = selected.peer.copy(id = "peer-$it", nickname = "산책길$it"))
+        }, 2))
+        var chosen: String? = null
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+            AfterConnectionsScreen(state, previewChrome(), { chosen = it }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        } }
+        compose.onNodeWithTag("relationship-${selected.id}").assertHasNoClickAction()
+        compose.onNodeWithText("대화 중인 인연").assertIsDisplayed()
+        val last = compose.onNodeWithTag("relationship-other-6").performScrollTo().assertIsDisplayed()
+        val bounds = last.getUnclippedBoundsInRoot()
+        assertTrue(bounds.bottom - bounds.top >= ChayeonSpacing.Touch)
+        last.performClick()
+        assertEquals("other-6", chosen)
+        selected.availablePresets.forEach { code ->
+            compose.onNode(hasText(code.label) and hasClickAction()).performScrollTo().assertIsDisplayed()
+        }
+        compose.onNode(hasText(PresetCode.ADMIRE_EARLY_BRAKE.label) and hasClickAction()).performScrollTo()
+        compose.onRoot().captureRoboImage("src/test/screenshots/after_multiple_relationships.png")
+        compose.onNodeWithText("관계 끝내기").assertIsDisplayed()
+        compose.onNodeWithTag("after-send").assertIsDisplayed()
+    }
 
     @Test fun profileSaveFailureRetainsTextAndRetryUsesOriginalCommand() {
         val deps = FakeHistoryDeps().apply { error = AppError.Network }

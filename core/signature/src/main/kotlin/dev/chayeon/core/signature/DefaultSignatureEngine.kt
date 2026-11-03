@@ -1,7 +1,6 @@
 package dev.chayeon.core.signature
 
 import dev.chayeon.core.model.*
-import kotlin.math.roundToLong
 
 class DefaultSignatureEngine : SignatureEngine {
     override fun aggregate(
@@ -111,20 +110,14 @@ class DefaultSignatureEngine : SignatureEngine {
     }
 
     override fun knot(evidence: List<TraitEvidence>): KnotSeed {
-        val levels = TraitId.entries.associateWith { trait ->
-            evidence.firstOrNull { it.trait == trait && it.availability == TraitAvailability.AVAILABLE }?.level?.ordinal ?: 0
+        // Version 2 contains only categorical levels. Metrics, sample counts and timestamps
+        // never enter the seed, including the private rendering seed.
+        val value = TraitId.entries.fold(0L) { bits, trait ->
+            val level = evidence.filter { it.trait == trait && it.availability == TraitAvailability.AVAILABLE }
+                .maxOfOrNull { it.level.ordinal } ?: 0
+            bits or (level.toLong() shl (trait.ordinal * 2))
         }
-        // SignatureKnot mixes the seed before reading these four parameter bytes. Invert that
-        // permutation so one coarse level changes only a small, independent geometry parameter.
-        val tilt = 96 + levels.getValue(TraitId.GENTLE_RIDE) * 12 + levels.getValue(TraitId.EARLY_BRAKE) * 4 + levels.getValue(TraitId.BELT_FIRST) * 2 + levels.getValue(TraitId.BATTERY_KIND)
-        val width = 96 + levels.getValue(TraitId.LONG_ROAD) * 16 + levels.getValue(TraitId.NIGHT_DRIVE) * 4 + levels.getValue(TraitId.ENERGY_PLANNER) * 2 + levels.getValue(TraitId.FLUID_READY)
-        val lobe = 96 + levels.getValue(TraitId.STEADY_PACE) * 10 + levels.getValue(TraitId.SIGNAL_MANNERS) * 5 + levels.getValue(TraitId.TIRE_CARE) * 2 + levels.getValue(TraitId.CABIN_CARE)
-        var hash = 128L or (tilt.toLong() shl 8) or (width.toLong() shl 16) or (lobe.toLong() shl 24)
-        TraitId.entries.forEach { trait -> hash = hash or (levels.getValue(trait).toLong() shl (32 + trait.ordinal * 2)) }
-        // Quantized metrics affect only unused high bits, retaining a stable visible silhouette.
-        val metricBucket = evidence.flatMap { it.metrics }.filter { it.value.isFinite() }.sumOf { (it.value.coerceIn(0.0, 10.0) * 4).roundToLong() } and 255
-        hash = hash or (metricBucket shl 56)
-        return KnotSeed(unmix(hash))
+        return KnotSeed(value, algorithmVersion = 2)
     }
 
     override fun recap(previous: MySignature, current: MySignature, trip: DerivedTripMetrics): TripRecap {
@@ -155,18 +148,6 @@ class DefaultSignatureEngine : SignatureEngine {
         ratio >= SignaturePolicy.STEADY_RATIO -> TraitLevel.STEADY
         ratio >= SignaturePolicy.VISIBLE_RATIO -> TraitLevel.VISIBLE
         else -> TraitLevel.RECORDING
-    }
-
-    private fun unmix(value: Long): Long {
-        fun undoRightXor(input: Long, shift: Int): Long {
-            var output = input
-            var distance = shift
-            while (distance < 64) { output = output xor (input ushr distance); distance += shift }
-            return output
-        }
-        val b = undoRightXor(value, 31) * 3573116690164977347L
-        val a = undoRightXor(b, 27) * -7575587736534282103L
-        return undoRightXor(a, 30)
     }
 
     private fun signals(trait: TraitId): Set<SignalKind> = when (trait) {

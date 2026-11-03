@@ -1,5 +1,6 @@
 package dev.chayeon.feature.signature
 
+import dev.chayeon.core.model.DataSource
 import dev.chayeon.core.model.AppError
 import dev.chayeon.core.model.EvidenceWindow
 import dev.chayeon.core.model.MetricId
@@ -81,9 +82,15 @@ internal fun SignalKind.noteLabel(): String = when (this) {
     SignalKind.AIR_CLEANING -> "실내 공기청정 사용"
 }
 
+internal val TraitEvidence.unsupportedLabel: String get() = if (source == DataSource.SYNTHETIC)
+    "이번 합성 주행에는 없는 특성이에요" else "이 차량에서 제공되지 않아요"
+
+internal val TraitEvidence.isPublishable: Boolean get() = availability == TraitAvailability.AVAILABLE &&
+    level != TraitLevel.RECORDING && validTripCount >= 3
+
 internal fun TraitEvidence.levelExplanation(): String {
     if (availability == TraitAvailability.UNSUPPORTED) {
-        return "이 차량에서 제공되지 않아요. 이 특성은 계산하지 않고, 상대에게도 보이지 않아요."
+        return "$unsupportedLabel. 이 특성은 계산하지 않고, 상대에게도 보이지 않아요."
     }
     if (availability == TraitAvailability.INSUFFICIENT_EVIDENCE || level == TraitLevel.RECORDING) {
         return if (validTripCount < 3) {

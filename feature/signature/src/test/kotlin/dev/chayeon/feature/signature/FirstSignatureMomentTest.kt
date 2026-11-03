@@ -37,11 +37,11 @@ class FirstSignatureMomentTest {
         show(1f)
         compose.mainClock.advanceTimeByFrame()
         compose.mainClock.advanceTimeBy(600)
-        compose.onNodeWithText("내 주행이 매듭이 됐어요").assertDoesNotExist()
+        compose.onNodeWithText("이 주행이 매듭이 됐어요").assertDoesNotExist()
         compose.onNodeWithText("합성 주행").assertIsDisplayed()
         compose.onNodeWithTag("signature-screen").captureRoboImage("src/test/screenshots/moment_reveal_600ms.png")
         compose.mainClock.advanceTimeBy(800)
-        compose.onNodeWithText("내 주행이 매듭이 됐어요").assertIsDisplayed()
+        compose.onNodeWithText("이 주행이 매듭이 됐어요").assertIsDisplayed()
         compose.onNodeWithText(TraitId.EARLY_BRAKE.presentation.publicPhrase).assertDoesNotExist()
         compose.onNodeWithTag("signature-screen").captureRoboImage("src/test/screenshots/moment_title_1400ms.png")
         compose.mainClock.advanceTimeBy(1_600)
@@ -54,10 +54,10 @@ class FirstSignatureMomentTest {
         var visibilityCalls = 0
         var signatureCalls = 0
         show(0f, { visibilityCalls++ }, { signatureCalls++ })
-        compose.onNodeWithText("내 주행이 매듭이 됐어요").assertIsDisplayed()
+        compose.onNodeWithText("이 주행이 매듭이 됐어요").assertIsDisplayed()
         compose.onNodeWithTag("recap-open-visibility").performClick()
         compose.onNodeWithTag("recap-open-signature").performClick()
-        compose.onNodeWithTag("exclude-trip").assertIsDisplayed()
+        compose.onNodeWithTag("exclude-trip").assertDoesNotExist()
         assertEquals(1, visibilityCalls)
         assertEquals(1, signatureCalls)
         compose.onNodeWithTag("signature-screen").captureRoboImage("src/test/screenshots/moment_motion_off.png")
@@ -68,7 +68,8 @@ class FirstSignatureMomentTest {
         show(0f)
         compose.onNodeWithTag("signature-screen").captureRoboImage("src/test/screenshots/moment_narrow.png")
         compose.onNodeWithTag("recap-open-visibility").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithTag("exclude-trip").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("recap-open-signature").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("exclude-trip").assertDoesNotExist()
     }
 
     @Test fun firstRealDriveUsesTheSameMomentAndLabelsItsSource() {
@@ -78,6 +79,7 @@ class FirstSignatureMomentTest {
             }
         }
         compose.onNodeWithText("차량 주행").assertIsDisplayed()
+        compose.onNodeWithTag("exclude-trip").assertIsDisplayed()
         compose.onNodeWithText("내 주행이 매듭이 됐어요").assertIsDisplayed()
         compose.onNodeWithTag("signature-screen").captureRoboImage("src/test/screenshots/moment_vehicle.png")
     }
@@ -110,17 +112,17 @@ class FirstSignatureMomentTest {
         compose.runOnIdle { policy.value = DrivingPolicy.UNKNOWN }
         compose.mainClock.advanceTimeByFrame()
         compose.onNodeWithTag("recap-knot", useUnmergedTree = true).assertIsDisplayed()
-        compose.onNodeWithText("내 주행이 매듭이 됐어요", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("이 주행이 매듭이 됐어요", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithText(TraitId.TIRE_CARE.presentation.publicPhrase, useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithTag("recap-open-visibility", useUnmergedTree = true).assertIsNotEnabled()
         compose.onNodeWithTag("recap-open-signature", useUnmergedTree = true).assertIsNotEnabled()
-        compose.onNodeWithTag("exclude-trip", useUnmergedTree = true).assertIsNotEnabled()
+        compose.onNodeWithTag("exclude-trip", useUnmergedTree = true).assertDoesNotExist()
         compose.onNodeWithTag("signature-screen").captureRoboImage("src/test/screenshots/moment_unknown.png")
         compose.mainClock.autoAdvance = true
         compose.runOnIdle { policy.value = DrivingPolicy.RESTRICTED }
         compose.onNodeWithText("주행 중", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithTag("recap-open-visibility", useUnmergedTree = true).assertIsNotEnabled()
-        compose.onNodeWithTag("exclude-trip", useUnmergedTree = true).assertIsNotEnabled()
+        compose.onNodeWithTag("exclude-trip", useUnmergedTree = true).assertDoesNotExist()
         compose.onNodeWithTag("signature-screen").captureRoboImage("src/test/screenshots/moment_restricted.png")
     }
 
@@ -149,7 +151,7 @@ class FirstSignatureMomentTest {
             }
         }
         compose.onNodeWithText("다시 시도").assertIsDisplayed()
-        compose.onNodeWithTag("exclude-trip").assertIsDisplayed()
+        compose.onNodeWithTag("exclude-trip").assertDoesNotExist()
         compose.onNodeWithTag("signature-screen").captureRoboImage("src/test/screenshots/moment_command_failure.png")
     }
 
