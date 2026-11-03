@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>연결 종료</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Asta+Sans:wght@300..800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070304}
+a{color:inherit;text-decoration:none}
+a:focus-visible{outline:3px solid #FFFFFF;outline-offset:3px}
+</style>
+</helmet>
+<div style="position:relative;width:1600px;height:1280px;box-sizing:border-box;padding:18px 32px 22px;display:flex;flex-direction:column;gap:14px;overflow:hidden;word-break:keep-all;color:#FFF5F6;font-family:'Asta Sans','Noto Sans KR',system-ui,sans-serif;font-variant-numeric:tabular-nums;background:radial-gradient(1100px 620px at 82% 4%,#5A0714 0%,rgba(90,7,20,0) 62%),radial-gradient(900px 620px at 4% 58%,#33050D 0%,rgba(51,5,13,0) 60%),radial-gradient(1000px 480px at 60% 104%,#45060F 0%,rgba(69,6,15,0) 62%),#070304">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;height:46px;flex:none;font-size:22px;color:#F3D4D9">
+    <div style="display:flex;align-items:center;gap:22px"><span style="font-size:26px;font-weight:700;color:#FFFFFF">오후 7:30</span><span style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;background:rgba(230,30,60,.24);border:1.5px solid rgba(255,120,135,.6);font-weight:800;color:#FFC2CB">P</span><span>주차 중</span></div>
+    <div style="display:flex;align-items:center;gap:20px"><span style="display:flex;align-items:center;height:40px;box-sizing:border-box;padding:0 16px;border-radius:20px;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.4);font-size:21px;font-weight:700;color:#FFF5F6">합성 위치</span><span style="font-weight:600">5G</span></div>
+  </div>
+
+  <section style="position:relative;overflow:hidden;flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;padding:40px 44px;border-radius:32px;background:radial-gradient(1000px 460px at 50% 52%,#3E0812 0%,rgba(62,8,18,0) 72%),linear-gradient(160deg,#1E040A 0%,#100306 60%,#090304 100%);border:1.5px solid rgba(255,200,208,.26);box-shadow:0 26px 60px rgba(0,0,0,.7),inset 0 1.5px 0 rgba(255,255,255,.18);text-align:center">
+    <span style="display:flex;align-items:center;height:50px;box-sizing:border-box;padding:0 22px;border-radius:25px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.18);font-size:24px;font-weight:700;color:#F3D4D9">{{tag}}</span>
+    <h1 style="margin:22px 0 0;font-size:70px;line-height:1.18;font-weight:800;letter-spacing:-0.03em;background:linear-gradient(180deg,#FFFFFF 30%,#FFC2CB 100%);-webkit-background-clip:text;background-clip:text;color:transparent">{{title}}</h1>
+    <p style="margin:14px 0 0;font-size:29px;line-height:1.45;color:#F7DDE1">{{body}}</p>
+
+    <div style="display:flex;align-items:flex-start;justify-content:center;margin-top:44px">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:300px;flex:none">
+        <img src="/_blob/0f904edde89f1735c44ed93beec99bb1" alt="" style="width:270px;height:270px;filter:drop-shadow(0 20px 24px rgba(0,0,0,.7)) saturate(.85)">
+        <span style="font-size:34px;font-weight:800;letter-spacing:-0.02em;color:#FFFFFF">새벽드라이브</span>
+      </div>
+      <div style="display:flex;align-items:center;height:270px;flex:none">
+        <img src="/_blob/119fab748dadabbe445f47cdc18d20ee" alt="" style="width:840px;height:168px;filter:drop-shadow(0 12px 14px rgba(0,0,0,.6)) drop-shadow(0 0 8px rgba(240,40,70,.3))">
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:300px;flex:none">
+        <img src="/_blob/c6f3bc14f5339443dc40ef660adcf415" alt="" style="width:270px;height:270px;filter:drop-shadow(0 20px 24px rgba(0,0,0,.7)) saturate(.85)">
+        <span style="font-size:34px;font-weight:800;letter-spacing:-0.02em;color:#FFFFFF">느린오후</span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;width:100%;margin-top:40px">
+      <div style="display:flex;flex-direction:column;gap:4px;box-sizing:border-box;padding:20px 28px;border-radius:30px;background:rgba(0,0,0,.42);border:1.5px solid rgba(255,200,208,.2);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.1);text-align:left"><span style="font-size:23px;color:#F3D4D9">함께한 시간</span><span style="font-size:42px;font-weight:800;color:#FFFFFF">18분</span></div>
+      <div style="display:flex;flex-direction:column;gap:4px;box-sizing:border-box;padding:20px 28px;border-radius:30px;background:rgba(0,0,0,.42);border:1.5px solid rgba(255,200,208,.2);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.1);text-align:left"><span style="font-size:23px;color:#F3D4D9">끝난 시각</span><span style="font-size:42px;font-weight:800;color:#FFFFFF">오후 7:30</span></div>
+      <div style="display:flex;flex-direction:column;gap:4px;box-sizing:border-box;padding:20px 28px;border-radius:30px;background:rgba(0,0,0,.42);border:1.5px solid rgba(255,200,208,.2);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.1);text-align:left"><span style="font-size:23px;color:#F3D4D9">끝난 이유</span><span style="font-size:42px;font-weight:800;color:#FFFFFF">{{short}}</span></div>
+    </div>
+  </section>
+
+  <div style="display:grid;grid-template-columns:1fr 2fr;gap:14px;flex:none">
+    <a href="RedHome.dc.html" style="display:flex;align-items:center;justify-content:center;height:112px;box-sizing:border-box;border-radius:40px;background:linear-gradient(155deg,rgba(255,255,255,.18),rgba(120,30,45,.16));border:1.5px solid rgba(255,210,216,.36);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.28),inset 0 -5px 10px rgba(0,0,0,.25),0 8px 20px rgba(0,0,0,.35);font-size:28px;font-weight:700;color:#FFFFFF">오늘의 인연으로</a>
+    <a href="RedEncounterDetail.dc.html" style="display:flex;align-items:center;justify-content:center;height:112px;box-sizing:border-box;border-radius:40px;background:linear-gradient(180deg,#FF4A5E 0%,#D5102F 52%,#A50A23 100%);border:1.5px solid rgba(255,190,198,.7);box-shadow:0 0 36px rgba(230,30,60,.55),inset 0 2.5px 0 rgba(255,255,255,.45),inset 0 -7px 14px rgba(90,0,15,.55);font-size:36px;font-weight:800;color:#FFFFFF">기록 보기</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"reason":{"editor":"enum","options":["멀어짐","상대가 나감","내가 나감","상태 확인 불가","발견 끔"],"default":"멀어짐"},"$preview":{"width":1600,"height":1280}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const tail = '스친 인연에 시각과 기간만 남겨요. 위치와 경로는 남기지 않아요.';
+    const map = {
+      '멀어짐': { tag: '연결 종료', title: '멀어져서 연결이 끝났어요', body: tail, short: '멀어짐' },
+      '상대가 나감': { tag: '연결 종료', title: '느린오후 님이 연결을 마쳤어요', body: tail, short: '상대가 나감' },
+      '내가 나감': { tag: '연결 종료', title: '연결을 마쳤어요', body: tail, short: '내가 나감' },
+      '상태 확인 불가': { tag: '상태 확인 불가', title: '연결 상태를 확인할 수 없어 끝냈어요', body: '위치나 통신이 오래 끊겼어요. 멀어졌다고 판단한 것은 아니에요.', short: '확인 불가' },
+      '발견 끔': { tag: '연결 종료', title: '발견을 꺼서 연결이 끝났어요', body: tail, short: '발견 끔' },
+    };
+    return map[this.props.reason ?? '멀어짐'] || map['멀어짐'];
+  }
+}
+</script>
+</body>
+</html>

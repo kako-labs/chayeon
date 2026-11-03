@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>프로필 등록·편집</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Asta+Sans:wght@300..800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070304}
+a{color:inherit;text-decoration:none}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid #FFFFFF;outline-offset:3px}
+input::placeholder{color:#E0B4BC}
+</style>
+</helmet>
+<div style="position:relative;width:1600px;height:1280px;box-sizing:border-box;padding:18px 32px 22px;display:flex;flex-direction:column;gap:14px;overflow:hidden;word-break:keep-all;color:#FFF5F6;font-family:'Asta Sans','Noto Sans KR',system-ui,sans-serif;font-variant-numeric:tabular-nums;background:radial-gradient(1100px 620px at 82% 4%,#5A0714 0%,rgba(90,7,20,0) 62%),radial-gradient(900px 620px at 4% 58%,#33050D 0%,rgba(51,5,13,0) 60%),radial-gradient(1000px 480px at 60% 104%,#45060F 0%,rgba(69,6,15,0) 62%),#070304">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;height:46px;flex:none;font-size:22px;color:#F3D4D9">
+    <div style="display:flex;align-items:center;gap:22px"><span style="font-size:26px;font-weight:700;color:#FFFFFF">오후 7:13</span><span style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;background:rgba(230,30,60,.24);border:1.5px solid rgba(255,120,135,.6);font-weight:800;color:#FFC2CB">P</span><span>주차 중</span></div>
+    <div style="display:flex;align-items:center;gap:20px"><span style="display:flex;align-items:center;height:40px;box-sizing:border-box;padding:0 16px;border-radius:20px;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.4);font-size:21px;font-weight:700;color:#FFF5F6">합성 위치</span><span style="font-weight:600">5G</span></div>
+  </div>
+
+  <header style="display:flex;align-items:center;gap:18px;height:92px;flex:none">
+    <a href="RedFirstRun.dc.html" aria-label="뒤로" style="display:flex;align-items:center;justify-content:center;width:76px;height:76px;flex:none;border-radius:50%;background:linear-gradient(155deg,rgba(255,255,255,.22),rgba(120,30,45,.18));border:1.5px solid rgba(255,210,216,.36);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.3),0 10px 26px rgba(0,0,0,.5)"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></a>
+    <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
+      <h1 style="margin:0;font-size:44px;line-height:1.12;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(180deg,#FFFFFF 20%,#FF9AA6 100%);-webkit-background-clip:text;background-clip:text;color:transparent">프로필 만들기</h1>
+      <span style="font-size:23px;color:#F3D4D9">언제든 내 정보에서 고칠 수 있어요</span>
+    </div>
+    <ol aria-label="참여 준비 단계" style="display:flex;align-items:center;gap:12px;margin:0;padding:0;list-style:none">
+      <li style="display:flex;align-items:center;gap:10px;height:56px;box-sizing:border-box;padding:0 22px 0 8px;border-radius:28px;background:rgba(0,0,0,.3);border:1.5px solid rgba(255,200,208,.3);font-size:23px;color:#F3D4D9"><span style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.12);font-size:21px">1</span>계정</li>
+      <li style="display:flex;align-items:center;gap:10px;height:56px;box-sizing:border-box;padding:0 22px 0 8px;border-radius:28px;background:linear-gradient(180deg,#FFFFFF,#F0E4E6);box-shadow:inset 0 -3px 6px rgba(120,60,70,.2),0 8px 18px rgba(0,0,0,.4);font-size:23px;font-weight:800;color:#A50A23"><span style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 34% 24%,#FF8A96,#D5102F 60%,#8E0A20);font-size:21px;color:#FFFFFF">2</span>프로필</li>
+      <li style="display:flex;align-items:center;gap:10px;height:56px;box-sizing:border-box;padding:0 22px 0 8px;border-radius:28px;background:rgba(0,0,0,.3);border:1.5px solid rgba(255,200,208,.3);font-size:23px;color:#F3D4D9"><span style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.12);font-size:21px">3</span>위치·공개 범위</li>
+    </ol>
+  </header>
+
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:560px 1fr;gap:14px">
+    <section style="position:relative;overflow:hidden;display:flex;flex-direction:column;box-sizing:border-box;padding:36px 38px;border-radius:32px;background:linear-gradient(160deg,#4A0812 0%,#1E040A 60%,#0C0305 100%);border:1.5px solid rgba(255,200,208,.3);box-shadow:0 26px 60px rgba(0,0,0,.7),inset 0 1.5px 0 rgba(255,255,255,.2)">
+      <h2 style="margin:0;font-size:30px;font-weight:800;color:#FFFFFF">상대에게 이렇게 보여요</h2>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:22px;margin:auto 0;text-align:center">
+        <span style="display:flex;width:320px;height:320px;flex:none;overflow:hidden;border-radius:50%;background:radial-gradient(circle at 50% 38%,#7A1424 0%,#3A0A14 58%,#150408 100%);box-shadow:0 0 0 2.5px rgba(255,190,198,.6),0 24px 50px rgba(0,0,0,.65),0 0 60px rgba(230,30,60,.45),inset 0 3px 0 rgba(255,255,255,.28)"><img src="{{previewImg}}" alt="" style="width:320px;height:320px"></span>
+        <span style="font-size:54px;line-height:1.2;font-weight:800;letter-spacing:-0.025em;color:#FFFFFF">{{nickShown}}</span>
+        <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px">
+          <sc-for list="{{chosen}}" as="c" hint-placeholder-count="4">
+            <span style="display:flex;align-items:center;height:48px;box-sizing:border-box;padding:0 20px;border-radius:24px;background:linear-gradient(180deg,#FFFFFF,#F0E4E6);box-shadow:inset 0 -3px 6px rgba(120,60,70,.2),0 6px 14px rgba(0,0,0,.35);font-size:23px;font-weight:800;color:#A50A23">{{c}}</span>
+          </sc-for>
+        </div>
+      </div>
+      <p style="margin:0;font-size:24px;line-height:1.45;color:#F7DDE1">사진, 연락처, 차량 정보는 프로필에 넣지 않아요.</p>
+    </section>
+
+    <section style="display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box;padding:28px 34px;min-height:0;border-radius:32px;background:linear-gradient(155deg,rgba(255,255,255,.12) 0%,rgba(150,40,55,.1) 55%,rgba(20,4,8,.4) 100%);border:1.5px solid rgba(255,200,208,.24);box-shadow:0 18px 44px rgba(0,0,0,.6),inset 0 1.5px 0 rgba(255,255,255,.2)">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <label for="nick" style="font-size:28px;font-weight:800;color:#FFFFFF">닉네임</label>
+        <input id="nick" type="text" value="{{nick}}" onChange="{{setNick}}" placeholder="실명 대신 부를 이름" style="height:84px;box-sizing:border-box;padding:0 28px;border-radius:30px;background:rgba(0,0,0,.45);border:1.5px solid rgba(255,200,208,.4);box-shadow:inset 0 3px 8px rgba(0,0,0,.6);font-family:inherit;font-size:32px;font-weight:600;color:#FFFFFF">
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:28px;font-weight:800;color:#FFFFFF">가상 아바타</span>
+        <div style="display:flex;justify-content:space-between">
+          <sc-for list="{{avatars}}" as="a" hint-placeholder-count="6">
+            <button type="button" onClick="{{a.pick}}" aria-label="{{a.label}}" aria-pressed="{{a.selected}}" style="display:flex;width:128px;height:128px;padding:0;overflow:hidden;border:none;border-radius:50%;background:radial-gradient(circle at 50% 38%,#7A1424 0%,#3A0A14 58%,#150408 100%);box-shadow:{{a.ring}};cursor:pointer"><img src="{{a.img}}" alt="" style="width:128px;height:128px"></button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <span style="font-size:28px;font-weight:800;color:#FFFFFF">관심사</span>
+          <span style="font-size:23px;color:#F3D4D9">{{count}}개 선택 · 최대 5개</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:12px">
+          <sc-for list="{{tags}}" as="t" hint-placeholder-count="12">
+            <button type="button" onClick="{{t.flip}}" aria-pressed="{{t.selected}}" style="display:flex;align-items:center;height:60px;box-sizing:border-box;padding:0 24px;border-radius:30px;background:{{t.bg}};border:{{t.bd}};box-shadow:{{t.sh}};font-family:inherit;font-size:25px;font-weight:{{t.fw}};color:{{t.fg}};cursor:pointer">{{t.name}}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <label style="position:relative;display:flex;align-items:center;gap:20px;box-sizing:border-box;padding:20px 24px;border-radius:30px;background:rgba(0,0,0,.4);border:1.5px solid rgba(255,200,208,.2);cursor:pointer">
+        <span aria-hidden="true" style="display:flex;align-items:center;justify-content:center;width:56px;height:56px;flex:none;box-sizing:border-box;border-radius:18px;border:2px solid {{checkBd}};background:{{checkBg}};box-shadow:inset 0 1.5px 0 rgba(255,255,255,.4)"><sc-if value="{{adult}}" hint-placeholder-val="{{ true }}"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l6 6L20 6"></path></svg></sc-if></span>
+        <span style="display:flex;flex-direction:column;gap:2px">
+          <span style="font-size:27px;font-weight:700;color:#FFFFFF">성인이고, 새로운 만남에 직접 참여해요</span>
+          <span style="font-size:22px;color:#F3D4D9">시연용 자기 확인이에요. 실제 연령 인증이 아니에요.</span>
+        </span>
+        <input type="checkbox" checked="{{adult}}" onChange="{{flipAdult}}" aria-label="성인 참여 확인" style="position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer">
+      </label>
+    </section>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 2fr;gap:14px;flex:none">
+    <a href="RedFirstRun.dc.html" style="display:flex;align-items:center;justify-content:center;height:108px;box-sizing:border-box;border-radius:40px;background:linear-gradient(155deg,rgba(255,255,255,.18),rgba(120,30,45,.16));border:1.5px solid rgba(255,210,216,.36);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.28),inset 0 -5px 10px rgba(0,0,0,.25),0 8px 20px rgba(0,0,0,.35);font-size:28px;font-weight:700;color:#FFFFFF">이전</a>
+    <a href="RedConsent.dc.html" style="display:flex;align-items:center;justify-content:center;height:108px;box-sizing:border-box;border-radius:40px;background:linear-gradient(180deg,#FF4A5E 0%,#D5102F 52%,#A50A23 100%);border:1.5px solid rgba(255,190,198,.7);box-shadow:0 0 36px rgba(230,30,60,.55),inset 0 2.5px 0 rgba(255,255,255,.45),inset 0 -7px 14px rgba(90,0,15,.55);font-size:36px;font-weight:800;color:#FFFFFF">저장하고 다음</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":1280}}'>
+class Component extends DCLogic {
+  state = { nick: '새벽드라이브', av: 0, picked: { '야경': true, '재즈': true, '드라이브 음악': true, '커피': true }, adult: true };
+  renderVals() {
+    const AV = [
+      { label: '초승달 찹쌀떡', img: '/_blob/0f904edde89f1735c44ed93beec99bb1' },
+      { label: '햇님 찹쌀떡', img: '/_blob/c6f3bc14f5339443dc40ef660adcf415' },
+      { label: '음표 찹쌀떡', img: '/_blob/4016572205c37833d7bdd88c57a3d6e4' },
+      { label: '물결 찹쌀떡', img: '/_blob/a56219198cbe1e2bf511644706f7f11b' },
+      { label: '새싹 찹쌀떡', img: '/_blob/0f3091f5366b2936b5a3fd9791755cdc' },
+      { label: '별 찹쌀떡', img: '/_blob/e656d9d0d2a0c82029ccd6b9fa1a0b34' },
+    ];
+    const NAMES = ['야경', '재즈', '드라이브 음악', '커피', '전시', '필름 사진', '캠핑', '러닝', '와인', '영화', '반려견', '여행'];
+    const picked = this.state.picked;
+    const chosen = NAMES.filter((n) => picked[n]);
+    return {
+      nick: this.state.nick,
+      nickShown: this.state.nick || '닉네임',
+      setNick: (e) => this.setState({ nick: e.target.value }),
+      previewImg: AV[this.state.av].img,
+      chosen,
+      count: chosen.length,
+      avatars: AV.map((a, i) => {
+        const selected = this.state.av === i;
+        return { ...a, selected, ring: selected ? '0 0 0 4px #FFFFFF,0 0 30px rgba(230,30,60,.8),0 12px 24px rgba(0,0,0,.6)' : '0 0 0 1.5px rgba(255,190,198,.4),0 10px 20px rgba(0,0,0,.5)', pick: () => this.setState({ av: i }) };
+      }),
+      tags: NAMES.map((name) => {
+        const selected = !!picked[name];
+        return {
+          name,
+          selected,
+          bg: selected ? 'linear-gradient(180deg,#FFFFFF,#F0E4E6)' : 'rgba(0,0,0,.35)',
+          bd: selected ? '1.5px solid #FFFFFF' : '1.5px solid rgba(255,200,208,.28)',
+          sh: selected ? 'inset 0 -3px 6px rgba(120,60,70,.2),0 6px 14px rgba(0,0,0,.35)' : 'none',
+          fg: selected ? '#A50A23' : '#F3D4D9',
+          fw: selected ? 800 : 500,
+          flip: () => {
+            if (!selected && chosen.length >= 5) return;
+            this.setState({ picked: { ...picked, [name]: !selected } });
+          },
+        };
+      }),
+      adult: this.state.adult,
+      flipAdult: () => this.setState({ adult: !this.state.adult }),
+      checkBd: this.state.adult ? 'rgba(255,225,230,.95)' : 'rgba(255,200,208,.5)',
+      checkBg: this.state.adult ? 'linear-gradient(180deg,#FF4A5E,#C20D29)' : 'rgba(0,0,0,.5)',
+    };
+  }
+}
+</script>
+</body>
+</html>

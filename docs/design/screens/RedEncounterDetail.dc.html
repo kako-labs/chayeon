@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>기록 상세</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Asta+Sans:wght@300..800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070304}
+a{color:inherit;text-decoration:none}
+a:focus-visible{outline:3px solid #FFFFFF;outline-offset:3px}
+</style>
+</helmet>
+<div style="position:relative;width:1600px;height:1280px;box-sizing:border-box;padding:18px 32px 22px;display:flex;flex-direction:column;gap:14px;overflow:hidden;word-break:keep-all;color:#FFF5F6;font-family:'Asta Sans','Noto Sans KR',system-ui,sans-serif;font-variant-numeric:tabular-nums;background:radial-gradient(1100px 620px at 82% 4%,#5A0714 0%,rgba(90,7,20,0) 62%),radial-gradient(900px 620px at 4% 58%,#33050D 0%,rgba(51,5,13,0) 60%),radial-gradient(1000px 480px at 60% 104%,#45060F 0%,rgba(69,6,15,0) 62%),#070304">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;height:46px;flex:none;font-size:22px;color:#F3D4D9">
+    <div style="display:flex;align-items:center;gap:22px"><span style="font-size:26px;font-weight:700;color:#FFFFFF">오후 7:32</span><span style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;background:rgba(230,30,60,.24);border:1.5px solid rgba(255,120,135,.6);font-weight:800;color:#FFC2CB">P</span><span>주차 중</span></div>
+    <div style="display:flex;align-items:center;gap:20px"><span style="display:flex;align-items:center;height:40px;box-sizing:border-box;padding:0 16px;border-radius:20px;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.4);font-size:21px;font-weight:700;color:#FFF5F6">합성 위치</span><span style="font-weight:600">5G</span></div>
+  </div>
+
+  <header style="display:flex;align-items:center;gap:18px;height:92px;flex:none">
+    <a href="RedEncounters.dc.html" aria-label="뒤로" style="display:flex;align-items:center;justify-content:center;width:76px;height:76px;flex:none;border-radius:50%;background:linear-gradient(155deg,rgba(255,255,255,.22),rgba(120,30,45,.18));border:1.5px solid rgba(255,210,216,.36);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.3),0 10px 26px rgba(0,0,0,.5)"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></a>
+    <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
+      <h1 style="margin:0;font-size:44px;line-height:1.12;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(180deg,#FFFFFF 20%,#FF9AA6 100%);-webkit-background-clip:text;background-clip:text;color:transparent">느린오후</h1>
+      <span style="font-size:23px;color:#F3D4D9">11월 3일에 스친 인연</span>
+    </div>
+  </header>
+
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:1fr 620px;gap:14px">
+    <section style="display:flex;flex-direction:column;gap:18px;box-sizing:border-box;padding:24px 30px 28px;min-height:0;border-radius:32px;background:linear-gradient(155deg,rgba(255,255,255,.12) 0%,rgba(150,40,55,.1) 55%,rgba(20,4,8,.4) 100%);border:1.5px solid rgba(255,200,208,.24);box-shadow:0 18px 44px rgba(0,0,0,.6),inset 0 1.5px 0 rgba(255,255,255,.2)">
+      <div style="display:flex;align-items:center;justify-content:center;flex:none">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:190px;flex:none">
+          <img src="/_blob/0f904edde89f1735c44ed93beec99bb1" alt="" style="width:180px;height:180px;filter:drop-shadow(0 14px 18px rgba(0,0,0,.65)) saturate(.85)">
+          <span style="font-size:24px;font-weight:700;color:#FFFFFF">나</span>
+        </div>
+        <img src="/_blob/119fab748dadabbe445f47cdc18d20ee" alt="" style="width:450px;height:90px;flex:none;filter:drop-shadow(0 8px 10px rgba(0,0,0,.6))">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:190px;flex:none">
+          <img src="/_blob/c6f3bc14f5339443dc40ef660adcf415" alt="" style="width:180px;height:180px;filter:drop-shadow(0 14px 18px rgba(0,0,0,.65)) saturate(.85)">
+          <span style="font-size:24px;font-weight:700;color:#FFFFFF">느린오후</span>
+        </div>
+      </div>
+
+      <div style="flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:12px">
+        <sc-for list="{{facts}}" as="f" hint-placeholder-count="4">
+          <div style="display:flex;flex-direction:column;justify-content:center;gap:6px;box-sizing:border-box;padding:0 30px;border-radius:30px;background:rgba(0,0,0,.42);border:1.5px solid rgba(255,200,208,.2);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.1)">
+            <span style="font-size:24px;color:#F3D4D9">{{f.label}}</span>
+            <span style="font-size:46px;line-height:1.15;font-weight:800;color:#FFFFFF">{{f.value}}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;flex:none">
+        <span style="margin-right:4px;font-size:25px;font-weight:700;color:#FFFFFF">겹친 관심사</span>
+        <span style="display:flex;align-items:center;height:48px;box-sizing:border-box;padding:0 20px;border-radius:24px;background:linear-gradient(180deg,#FFFFFF,#F0E4E6);box-shadow:inset 0 -3px 6px rgba(120,60,70,.2),0 6px 14px rgba(0,0,0,.35);font-size:23px;font-weight:800;color:#A50A23">재즈</span>
+        <span style="display:flex;align-items:center;height:48px;box-sizing:border-box;padding:0 20px;border-radius:24px;background:linear-gradient(180deg,#FFFFFF,#F0E4E6);box-shadow:inset 0 -3px 6px rgba(120,60,70,.2),0 6px 14px rgba(0,0,0,.35);font-size:23px;font-weight:800;color:#A50A23">야경</span>
+      </div>
+
+      <div style="flex:none;display:flex;align-items:center;gap:14px;box-sizing:border-box;padding:16px 22px;border-radius:24px;background:rgba(0,0,0,.4);border:1.5px solid rgba(255,200,208,.2)">
+        <svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FF9AA6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 11h12v10H6zM8.5 11V7.5a3.5 3.5 0 0 1 7 0V11"></path></svg>
+        <span style="font-size:23px;line-height:1.45;color:#F7DDE1">이 기록에는 만난 위치와 이동 경로가 없어요.</span>
+      </div>
+    </section>
+
+    <div style="display:flex;flex-direction:column;gap:14px;min-height:0">
+      <section style="position:relative;overflow:hidden;flex:1;min-height:0;display:flex;flex-direction:column;box-sizing:border-box;padding:34px 38px;border-radius:32px;background:radial-gradient(620px 360px at 62% 66%,#7A0E20 0%,rgba(122,14,32,0) 72%),linear-gradient(160deg,#3A0710 0%,#1A0408 60%,#0C0305 100%);border:1.5px solid rgba(255,200,208,.3);box-shadow:0 26px 60px rgba(0,0,0,.7),inset 0 1.5px 0 rgba(255,255,255,.22)">
+        <span style="align-self:flex-start;display:flex;align-items:center;height:44px;box-sizing:border-box;padding:0 18px;border-radius:22px;background:rgba(230,30,60,.24);border:1.5px solid rgba(255,120,135,.6);font-size:22px;font-weight:700;color:#FFC2CB">애프터 신청 가능</span>
+        <h2 style="margin:20px 0 0;font-size:56px;line-height:1.2;font-weight:800;letter-spacing:-0.03em;background:linear-gradient(180deg,#FFFFFF 30%,#FFC2CB 100%);-webkit-background-clip:text;background-clip:text;color:transparent">다시 이어가고 싶다면</h2>
+        <p style="margin:14px 0 0;font-size:27px;line-height:1.45;color:#F7DDE1">상대도 수락하면 새 대화가 열려요. 수락 전에는 대화도 연락처도 열리지 않아요.</p>
+        <img src="/_blob/152ea35bad46242bcf3889aacbd50f7d" alt="" style="display:block;width:544px;height:109px;margin:auto 0;filter:drop-shadow(0 0 16px rgba(240,40,70,.75)) drop-shadow(0 10px 12px rgba(0,0,0,.6))">
+        <a href="RedAfterRequest.dc.html" style="display:flex;align-items:center;justify-content:center;height:112px;flex:none;box-sizing:border-box;border-radius:40px;background:linear-gradient(180deg,#FF4A5E 0%,#D5102F 52%,#A50A23 100%);border:1.5px solid rgba(255,190,198,.7);box-shadow:0 0 36px rgba(230,30,60,.55),inset 0 2.5px 0 rgba(255,255,255,.45),inset 0 -7px 14px rgba(90,0,15,.55);font-size:36px;font-weight:800;color:#FFFFFF">애프터 신청</a>
+      </section>
+      <section style="flex:none;display:flex;flex-direction:column;gap:14px;box-sizing:border-box;padding:22px 26px;border-radius:32px;background:linear-gradient(155deg,rgba(255,255,255,.12) 0%,rgba(150,40,55,.1) 55%,rgba(20,4,8,.4) 100%);border:1.5px solid rgba(255,200,208,.24);box-shadow:0 18px 44px rgba(0,0,0,.6),inset 0 1.5px 0 rgba(255,255,255,.2)">
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+          <a href="RedCleanup.dc.html" style="display:flex;align-items:center;justify-content:center;height:84px;box-sizing:border-box;border-radius:34px;background:linear-gradient(155deg,rgba(255,255,255,.18),rgba(120,30,45,.16));border:1.5px solid rgba(255,210,216,.36);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.28),inset 0 -5px 10px rgba(0,0,0,.25);font-size:27px;font-weight:700;color:#FFFFFF">이 기록 삭제</a>
+          <a href="RedBlockReport.dc.html" style="display:flex;align-items:center;justify-content:center;height:84px;box-sizing:border-box;border-radius:34px;background:rgba(0,0,0,.35);border:1.5px solid rgba(255,107,125,.7);font-size:27px;font-weight:700;color:#FF9AA6">차단·신고</a>
+        </div>
+        <span style="font-size:23px;line-height:1.45;color:#F3D4D9">삭제해도 상대의 기록은 그대로예요. 삭제만으로 상대가 차단되지는 않아요.</span>
+      </section>
+    </div>
+  </div>
+
+  <nav aria-label="주요 메뉴" style="position:relative;display:grid;grid-template-columns:1fr 1fr 220px 1fr 1fr;align-items:center;height:100px;flex:none;border-radius:40px;background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(60,10,20,.45));border:1.5px solid rgba(255,200,208,.24);box-shadow:0 18px 44px rgba(0,0,0,.6),inset 0 1.5px 0 rgba(255,255,255,.2)">
+    <a href="RedHome.dc.html" style="display:flex;flex-direction:column;align-items:center;gap:4px;font-size:21px;color:#F3D4D9"><svg aria-hidden="true" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#F3D4D9" stroke-width="2" stroke-linecap="round"><path d="M6.5 17C6.5 9 17.5 15 17.5 7M6.5 19.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8zM17.5 9.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8z"></path></svg>오늘의 인연</a>
+    <a href="RedEncounters.dc.html" aria-current="page" style="display:flex;flex-direction:column;align-items:center;gap:4px;font-size:21px;font-weight:700;color:#FF9AA6"><svg aria-hidden="true" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#FF9AA6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 1 0-8.2-5.3M3 21v-5h5M12 7v5l3.5 2"></path></svg>스친 인연</a>
+    <a href="RedHome.dc.html" style="position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;justify-self:center;width:122px;height:122px;margin-top:-16px;box-sizing:border-box;border-radius:50%;background:radial-gradient(circle at 34% 24%,#FF8A96 0%,#E3173A 48%,#8E0A20 100%);border:2px solid rgba(255,220,225,.8);box-shadow:0 0 0 8px rgba(230,30,60,.16),0 0 56px rgba(230,30,60,.75),inset 0 2px 0 rgba(255,255,255,.55),inset 0 -8px 14px rgba(70,0,12,.5);font-weight:800;color:#FFFFFF"><svg aria-hidden="true" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"><path d="M6.5 17C6.5 9 17.5 15 17.5 7M6.5 19.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8zM17.5 9.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8z"></path></svg><span style="font-size:21px">발견 중</span></a>
+    <a href="RedAfterConnected.dc.html" style="display:flex;flex-direction:column;align-items:center;gap:4px;font-size:21px;color:#F3D4D9"><svg aria-hidden="true" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#F3D4D9" stroke-width="2" stroke-linecap="round"><path d="M8 8a4 4 0 1 0 0 8c2.5 0 5.5-8 8-8a4 4 0 1 1 0 8c-2.5 0-5.5-8-8-8z"></path></svg>이어진 인연</a>
+    <a href="RedSettings.dc.html" style="display:flex;flex-direction:column;align-items:center;gap:4px;font-size:21px;color:#F3D4D9"><svg aria-hidden="true" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#F3D4D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM3.5 21a8.5 8.5 0 0 1 17 0"></path></svg>내 정보</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":1280}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      facts: [
+        { label: '연결 시작', value: '오후 7:12' },
+        { label: '연결 종료', value: '오후 7:30' },
+        { label: '함께한 시간', value: '18분' },
+        { label: '끝난 이유', value: '멀어짐' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

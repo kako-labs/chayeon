@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>스친 인연</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Asta+Sans:wght@300..800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070304}
+a{color:inherit;text-decoration:none}
+a:focus-visible{outline:3px solid #FFFFFF;outline-offset:3px}
+</style>
+</helmet>
+<div style="position:relative;width:1600px;height:1280px;box-sizing:border-box;padding:18px 32px 22px;display:flex;flex-direction:column;gap:14px;overflow:hidden;word-break:keep-all;color:#FFF5F6;font-family:'Asta Sans','Noto Sans KR',system-ui,sans-serif;font-variant-numeric:tabular-nums;background:radial-gradient(1100px 620px at 82% 4%,#5A0714 0%,rgba(90,7,20,0) 62%),radial-gradient(900px 620px at 4% 58%,#33050D 0%,rgba(51,5,13,0) 60%),radial-gradient(1000px 480px at 60% 104%,#45060F 0%,rgba(69,6,15,0) 62%),#070304">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;height:46px;flex:none;font-size:22px;color:#F3D4D9">
+    <div style="display:flex;align-items:center;gap:22px"><span style="font-size:26px;font-weight:700;color:#FFFFFF">오후 7:32</span><span style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;background:rgba(230,30,60,.24);border:1.5px solid rgba(255,120,135,.6);font-weight:800;color:#FFC2CB">P</span><span>주차 중</span></div>
+    <div style="display:flex;align-items:center;gap:20px"><span style="display:flex;align-items:center;height:40px;box-sizing:border-box;padding:0 16px;border-radius:20px;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.4);font-size:21px;font-weight:700;color:#FFF5F6">합성 위치</span><span style="font-weight:600">5G</span></div>
+  </div>
+
+  <header style="display:flex;align-items:center;gap:18px;height:92px;flex:none">
+    <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
+      <h1 style="margin:0;font-size:50px;line-height:1.14;font-weight:800;letter-spacing:-0.025em;background:linear-gradient(180deg,#FFFFFF 20%,#FF9AA6 100%);-webkit-background-clip:text;background-clip:text;color:transparent">스친 인연</h1>
+      <span style="font-size:23px;color:#F3D4D9">실제로 연결된 사람만 남아요</span>
+    </div>
+  </header>
+
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:1060px 1fr;gap:14px">
+    <div style="display:flex;flex-direction:column;gap:10px;min-height:0;overflow:hidden">
+      <sc-for list="{{items}}" as="it" hint-placeholder-count="8">
+        <sc-if value="{{it.isHead}}" hint-placeholder-val="{{ false }}">
+          <h2 style="margin:4px 0 0;flex:none;height:32px;font-size:24px;line-height:32px;font-weight:800;color:#F3D4D9">{{it.head}}</h2>
+        </sc-if>
+        <sc-if value="{{it.isRow}}" hint-placeholder-val="{{ true }}">
+          <a href="RedEncounterDetail.dc.html" style="display:flex;align-items:center;gap:20px;height:146px;flex:none;box-sizing:border-box;padding:0 26px 0 14px;border-radius:40px;background:linear-gradient(155deg,rgba(255,255,255,.12) 0%,rgba(150,40,55,.1) 55%,rgba(20,4,8,.4) 100%);border:1.5px solid rgba(255,200,208,.24);box-shadow:0 12px 28px rgba(0,0,0,.45),inset 0 1.5px 0 rgba(255,255,255,.2)">
+            <img src="{{it.img}}" alt="" style="width:128px;height:128px;flex:none;filter:drop-shadow(0 10px 12px rgba(0,0,0,.6))">
+            <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+              <span style="font-size:36px;line-height:1.2;font-weight:800;letter-spacing:-0.02em;color:#FFFFFF">{{it.nick}}</span>
+              <span style="font-size:24px;color:#F3D4D9">{{it.meta}}</span>
+            </span>
+            <span style="display:flex;align-items:center;height:50px;flex:none;box-sizing:border-box;padding:0 22px;border-radius:25px;background:{{it.chipBg}};border:{{it.chipBd}};box-shadow:{{it.chipSh}};font-size:23px;font-weight:700;color:{{it.chipFg}};white-space:nowrap">{{it.after}}</span>
+            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F3D4D9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9 5l7 7-7 7"></path></svg>
+          </a>
+        </sc-if>
+      </sc-for>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px;min-height:0">
+      <section style="position:relative;overflow:hidden;display:flex;flex-direction:column;gap:14px;flex:none;box-sizing:border-box;padding:28px 30px;border-radius:32px;background:linear-gradient(160deg,#6A0C1C 0%,#2A050C 60%,#0F0406 100%);border:1.5px solid rgba(255,200,208,.3);box-shadow:0 26px 60px rgba(0,0,0,.7),inset 0 1.5px 0 rgba(255,255,255,.22)">
+        <h2 style="margin:0;font-size:40px;line-height:1.2;font-weight:800;letter-spacing:-0.025em;color:#FFFFFF">답을 기다리는 애프터 1건</h2>
+        <p style="margin:0;font-size:25px;line-height:1.4;color:#F7DDE1">기한이 지나면 신청이 만료돼요.</p>
+        <a href="RedAfterIncoming.dc.html" style="display:flex;align-items:center;justify-content:center;height:84px;box-sizing:border-box;border-radius:34px;background:linear-gradient(180deg,#FFFFFF,#F0E4E6);box-shadow:inset 0 -5px 10px rgba(120,60,70,.22),0 12px 28px rgba(0,0,0,.5);font-size:29px;font-weight:800;color:#A50A23">응답하기</a>
+      </section>
+      <section style="flex:1;min-height:0;display:flex;flex-direction:column;gap:14px;box-sizing:border-box;padding:26px 30px;border-radius:32px;background:linear-gradient(155deg,rgba(255,255,255,.12) 0%,rgba(150,40,55,.1) 55%,rgba(20,4,8,.4) 100%);border:1.5px solid rgba(255,200,208,.24);box-shadow:0 18px 44px rgba(0,0,0,.6),inset 0 1.5px 0 rgba(255,255,255,.2)">
+        <h2 style="margin:0;font-size:29px;font-weight:800;color:#FFFFFF">기록에 남아요</h2>
+        <ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px;font-size:26px;color:#FFF5F6">
+          <li style="display:flex;align-items:center;gap:14px"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF9AA6" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 12l6 6L20 6"></path></svg>상대 닉네임</li>
+          <li style="display:flex;align-items:center;gap:14px"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF9AA6" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 12l6 6L20 6"></path></svg>연결 시각과 기간</li>
+          <li style="display:flex;align-items:center;gap:14px"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF9AA6" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 12l6 6L20 6"></path></svg>끝난 이유와 애프터 상태</li>
+        </ul>
+        <h2 style="margin:14px 0 0;font-size:29px;font-weight:800;color:#FFFFFF">기록에 남지 않아요</h2>
+        <ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px;font-size:26px;color:#FFF5F6">
+          <li style="display:flex;align-items:center;gap:14px"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF9AA6" stroke-width="2.8" stroke-linecap="round" style="flex:none"><path d="M5 5l14 14M19 5L5 19"></path></svg>지나온 위치와 경로</li>
+          <li style="display:flex;align-items:center;gap:14px"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF9AA6" stroke-width="2.8" stroke-linecap="round" style="flex:none"><path d="M5 5l14 14M19 5L5 19"></path></svg>집과 목적지</li>
+          <li style="display:flex;align-items:center;gap:14px"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF9AA6" stroke-width="2.8" stroke-linecap="round" style="flex:none"><path d="M5 5l14 14M19 5L5 19"></path></svg>연결되지 않은 요청</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+
+  <nav aria-label="주요 메뉴" style="position:relative;display:grid;grid-template-columns:1fr 1fr 220px 1fr 1fr;align-items:center;height:100px;flex:none;border-radius:40px;background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(60,10,20,.45));border:1.5px solid rgba(255,200,208,.24);box-shadow:0 18px 44px rgba(0,0,0,.6),inset 0 1.5px 0 rgba(255,255,255,.2)">
+    <a href="RedHome.dc.html" style="display:flex;flex-direction:column;align-items:center;gap:4px;font-size:21px;color:#F3D4D9"><svg aria-hidden="true" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#F3D4D9" stroke-width="2" stroke-linecap="round"><path d="M6.5 17C6.5 9 17.5 15 17.5 7M6.5 19.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8zM17.5 9.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8z"></path></svg>오늘의 인연</a>
+    <a href="RedEncounters.dc.html" aria-current="page" style="display:flex;flex-direction:column;align-items:center;gap:4px;font-size:21px;font-weight:700;color:#FF9AA6"><svg aria-hidden="true" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#FF9AA6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 1 0-8.2-5.3M3 21v-5h5M12 7v5l3.5 2"></path></svg>스친 인연</a>
+    <a href="RedHome.dc.html" style="position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;justify-self:center;width:122px;height:122px;margin-top:-16px;box-sizing:border-box;border-radius:50%;background:radial-gradient(circle at 34% 24%,#FF8A96 0%,#E3173A 48%,#8E0A20 100%);border:2px solid rgba(255,220,225,.8);box-shadow:0 0 0 8px rgba(230,30,60,.16),0 0 56px rgba(230,30,60,.75),inset 0 2px 0 rgba(255,255,255,.55),inset 0 -8px 14px rgba(70,0,12,.5);font-weight:800;color:#FFFFFF"><svg aria-hidden="true" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"><path d="M6.5 17C6.5 9 17.5 15 17.5 7M6.5 19.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8zM17.5 9.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8z"></path></svg><span style="font-size:21px">발견 중</span></a>
+    <a href="RedAfterConnected.dc.html" style="display:flex;flex-direction:column;align-items:center;gap:4px;font-size:21px;color:#F3D4D9"><svg aria-hidden="true" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#F3D4D9" stroke-width="2" stroke-linecap="round"><path d="M8 8a4 4 0 1 0 0 8c2.5 0 5.5-8 8-8a4 4 0 1 1 0 8c-2.5 0-5.5-8-8-8z"></path></svg>이어진 인연</a>
+    <a href="RedSettings.dc.html" style="display:flex;flex-direction:column;align-items:center;gap:4px;font-size:21px;color:#F3D4D9"><svg aria-hidden="true" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#F3D4D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM3.5 21a8.5 8.5 0 0 1 17 0"></path></svg>내 정보</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":1280}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const img = {
+      slow: '/_blob/c6f3bc14f5339443dc40ef660adcf415',
+      sea: '/_blob/a56219198cbe1e2bf511644706f7f11b',
+      forest: '/_blob/0f3091f5366b2936b5a3fd9791755cdc',
+      star: '/_blob/e656d9d0d2a0c82029ccd6b9fa1a0b34',
+      jazz: '/_blob/4016572205c37833d7bdd88c57a3d6e4',
+    };
+    const tone = {
+      open: { chipBg: 'rgba(230,30,60,.24)', chipBd: '1.5px solid rgba(255,120,135,.6)', chipFg: '#FFC2CB', chipSh: 'none' },
+      wait: { chipBg: 'rgba(255,255,255,.12)', chipBd: '1.5px solid rgba(255,255,255,.18)', chipFg: '#F3D4D9', chipSh: 'none' },
+      answer: { chipBg: 'linear-gradient(180deg,#FF4A5E,#C20D29)', chipBd: '1.5px solid rgba(255,190,198,.7)', chipFg: '#FFFFFF', chipSh: 'inset 0 2px 0 rgba(255,255,255,.4),0 0 18px rgba(230,30,60,.5)' },
+      tied: { chipBg: 'linear-gradient(180deg,#FFFFFF,#F0E4E6)', chipBd: '1.5px solid #FFFFFF', chipFg: '#A50A23', chipSh: 'inset 0 -3px 6px rgba(120,60,70,.2)' },
+    };
+    const row = (who, nick, meta, after, t) => ({ isRow: true, isHead: false, nick, meta, after, img: img[who], ...tone[t] });
+    const head = (text) => ({ isHead: true, isRow: false, head: text });
+    return {
+      items: [
+        head('오늘 · 11월 3일'),
+        row('slow', '느린오후', '오후 7:12부터 18분 · 멀어짐', '애프터 신청 가능', 'open'),
+        row('sea', '바다보러가요', '오후 5:40부터 9분 · 내가 나감', '상대가 신청함', 'answer'),
+        head('어제 · 11월 2일'),
+        row('forest', '숲길산책', '오후 8:05부터 22분 · 멀어짐', '응답 기다리는 중', 'wait'),
+        row('star', '별보는밤', '오후 6:31부터 14분 · 상대가 나감', '이어진 인연', 'tied'),
+        head('10월 30일'),
+        row('jazz', '재즈한잔', '오후 9:10부터 31분 · 멀어짐', '이어진 인연', 'tied'),
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

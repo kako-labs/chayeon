@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>색·글자·컴포넌트</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Asta+Sans:wght@300..800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070304}
+</style>
+</helmet>
+<div style="position:relative;width:1600px;height:1280px;box-sizing:border-box;padding:32px;display:grid;grid-template-columns:760px 1fr;grid-template-rows:auto minmax(0,1fr);gap:16px;overflow:hidden;word-break:keep-all;color:#FFF5F6;font-family:'Asta Sans','Noto Sans KR',system-ui,sans-serif;font-variant-numeric:tabular-nums;background:radial-gradient(1100px 620px at 82% 4%,#5A0714 0%,rgba(90,7,20,0) 62%),radial-gradient(900px 620px at 4% 58%,#33050D 0%,rgba(51,5,13,0) 60%),radial-gradient(1000px 480px at 60% 104%,#45060F 0%,rgba(69,6,15,0) 62%),#070304">
+
+  <section style="grid-column:1 / -1;display:flex;flex-direction:column;gap:14px;box-sizing:border-box;padding:24px 30px;border-radius:32px;background:linear-gradient(155deg,rgba(255,255,255,.12) 0%,rgba(150,40,55,.1) 55%,rgba(20,4,8,.4) 100%);border:1.5px solid rgba(255,200,208,.24);box-shadow:0 18px 44px rgba(0,0,0,.6),inset 0 1.5px 0 rgba(255,255,255,.2)">
+    <h2 style="margin:0;font-size:30px;font-weight:800">색</h2>
+    <div style="display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:12px">
+      <sc-for list="{{colors}}" as="c" hint-placeholder-count="8">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="height:88px;border-radius:26px;border:1.5px solid rgba(255,200,208,.3);background:{{c.fill}};box-shadow:inset 0 2px 0 rgba(255,255,255,.28),inset 0 -6px 12px rgba(0,0,0,.22),0 10px 22px rgba(0,0,0,.45)"></div>
+          <span style="font-size:21px;font-weight:700;line-height:1.25">{{c.name}}</span>
+          <span style="font-size:20px;color:#F3D4D9">{{c.hex}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;box-sizing:border-box;padding:24px 30px;min-height:0;border-radius:32px;background:linear-gradient(155deg,rgba(255,255,255,.12) 0%,rgba(150,40,55,.1) 55%,rgba(20,4,8,.4) 100%);border:1.5px solid rgba(255,200,208,.24);box-shadow:0 18px 44px rgba(0,0,0,.6),inset 0 1.5px 0 rgba(255,255,255,.2)">
+    <h2 style="margin:0 0 10px;font-size:30px;font-weight:800">글자 · Asta Sans</h2>
+    <sc-for list="{{types}}" as="t" hint-placeholder-count="6">
+      <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1.5px solid rgba(255,200,208,.14)">
+        <span style="font-size:{{t.size}}px;font-weight:{{t.weight}};line-height:1.15;letter-spacing:-0.015em;white-space:nowrap">{{t.sample}}</span>
+        <span style="flex:none;font-size:20px;color:#F3D4D9">{{t.spec}}</span>
+      </div>
+    </sc-for>
+    <h2 style="margin:14px 0 8px;font-size:30px;font-weight:800">3D 아바타</h2>
+    <div style="display:flex;justify-content:space-between;flex:none">
+      <img src="/_blob/0f904edde89f1735c44ed93beec99bb1" alt="초승달 찹쌀떡" style="width:116px;height:116px;filter:drop-shadow(0 10px 12px rgba(0,0,0,.6))">
+      <img src="/_blob/c6f3bc14f5339443dc40ef660adcf415" alt="햇님 찹쌀떡" style="width:116px;height:116px;filter:drop-shadow(0 10px 12px rgba(0,0,0,.6))">
+      <img src="/_blob/4016572205c37833d7bdd88c57a3d6e4" alt="음표 찹쌀떡" style="width:116px;height:116px;filter:drop-shadow(0 10px 12px rgba(0,0,0,.6))">
+      <img src="/_blob/a56219198cbe1e2bf511644706f7f11b" alt="물결 찹쌀떡" style="width:116px;height:116px;filter:drop-shadow(0 10px 12px rgba(0,0,0,.6))">
+      <img src="/_blob/0f3091f5366b2936b5a3fd9791755cdc" alt="새싹 찹쌀떡" style="width:116px;height:116px;filter:drop-shadow(0 10px 12px rgba(0,0,0,.6))">
+      <img src="/_blob/e656d9d0d2a0c82029ccd6b9fa1a0b34" alt="별 찹쌀떡" style="width:116px;height:116px;filter:drop-shadow(0 10px 12px rgba(0,0,0,.6))">
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:12px;box-sizing:border-box;padding:24px 30px;min-height:0;border-radius:32px;background:linear-gradient(155deg,rgba(255,255,255,.12) 0%,rgba(150,40,55,.1) 55%,rgba(20,4,8,.4) 100%);border:1.5px solid rgba(255,200,208,.24);box-shadow:0 18px 44px rgba(0,0,0,.6),inset 0 1.5px 0 rgba(255,255,255,.2)">
+    <h2 style="margin:0;font-size:30px;font-weight:800">실의 모양이 곧 상태</h2>
+    <div style="display:flex;flex-direction:column;gap:4px;flex:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;height:64px"><img src="/_blob/976f6371700bffc072145686ec18e87d" alt="" style="width:320px;height:64px;flex:none;filter:drop-shadow(0 0 8px rgba(240,40,70,.55))"><span style="font-size:25px;font-weight:700">뻗음 · 요청 대기</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;height:64px"><img src="/_blob/02c94817e16fd7cb7629fe16b54d428b" alt="" style="width:320px;height:64px;flex:none;filter:drop-shadow(0 0 8px rgba(240,40,70,.55))"><span style="font-size:25px;font-weight:700">이어짐 · 일시 연결</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;height:64px"><img src="/_blob/119fab748dadabbe445f47cdc18d20ee" alt="" style="width:320px;height:64px;flex:none;filter:drop-shadow(0 0 8px rgba(240,40,70,.35))"><span style="font-size:25px;font-weight:700">끊김 · 연결 종료</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;height:64px"><img src="/_blob/a6fa7857596e175a368c107018c198e2" alt="" style="width:320px;height:64px;flex:none;filter:drop-shadow(0 0 8px rgba(240,40,70,.45))"><span style="font-size:25px;font-weight:700">구슬 · 애프터 대기</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;height:64px"><img src="/_blob/152ea35bad46242bcf3889aacbd50f7d" alt="" style="width:320px;height:64px;flex:none;filter:drop-shadow(0 0 8px rgba(240,40,70,.55))"><span style="font-size:25px;font-weight:700">매듭 · 이어진 인연</span></div>
+    </div>
+    <h2 style="margin:4px 0 0;font-size:30px;font-weight:800">컴포넌트</h2>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;flex:none">
+      <button type="button" style="height:84px;border-radius:36px;background:linear-gradient(180deg,#FF4A5E 0%,#D5102F 52%,#A50A23 100%);border:1.5px solid rgba(255,190,198,.7);box-shadow:0 0 30px rgba(230,30,60,.55),inset 0 2.5px 0 rgba(255,255,255,.45),inset 0 -6px 12px rgba(90,0,15,.55);font-family:inherit;font-size:28px;font-weight:800;color:#FFFFFF;cursor:pointer">기본 버튼</button>
+      <button type="button" style="height:84px;border-radius:36px;background:linear-gradient(155deg,rgba(255,255,255,.18),rgba(120,30,45,.16));border:1.5px solid rgba(255,210,216,.36);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.28),inset 0 -5px 10px rgba(0,0,0,.25),0 8px 20px rgba(0,0,0,.35);font-family:inherit;font-size:27px;font-weight:700;color:#FFFFFF;cursor:pointer">보조 버튼</button>
+      <button type="button" style="height:84px;border-radius:36px;background:linear-gradient(180deg,#FFFFFF,#F0E4E6);border:none;box-shadow:inset 0 -6px 12px rgba(120,60,70,.24),0 10px 24px rgba(0,0,0,.5);font-family:inherit;font-size:28px;font-weight:800;color:#A50A23;cursor:pointer">화이트 버튼</button>
+      <button type="button" style="height:84px;border-radius:36px;background:rgba(0,0,0,.35);border:1.5px solid rgba(255,107,125,.7);font-family:inherit;font-size:27px;font-weight:700;color:#FF9AA6;cursor:pointer">차단·삭제</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;flex:none">
+      <span aria-hidden="true" style="display:flex;align-items:center;justify-content:flex-end;width:112px;height:60px;flex:none;box-sizing:border-box;padding:5px;border-radius:30px;background:linear-gradient(180deg,#FF4A5E,#C20D29);box-shadow:inset 0 2px 0 rgba(255,255,255,.4),0 0 22px rgba(230,30,60,.6)"><span style="display:block;width:50px;height:50px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#FFFFFF,#EADCDF);box-shadow:0 3px 8px rgba(0,0,0,.5)"></span></span>
+      <span style="display:flex;align-items:center;height:44px;box-sizing:border-box;padding:0 18px;border-radius:22px;background:rgba(230,30,60,.24);border:1.5px solid rgba(255,120,135,.6);font-size:22px;font-weight:700;color:#FFC2CB">신청 가능</span>
+      <span style="display:flex;align-items:center;height:48px;box-sizing:border-box;padding:0 20px;border-radius:24px;background:linear-gradient(180deg,#FFFFFF,#F0E4E6);box-shadow:inset 0 -3px 6px rgba(120,60,70,.2);font-size:23px;font-weight:800;color:#A50A23">겹친 관심사</span>
+      <span style="display:flex;align-items:center;height:44px;box-sizing:border-box;padding:0 16px;border-radius:22px;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.4);font-size:21px;font-weight:700;color:#FFF5F6">합성 위치</span>
+    </div>
+    <div role="status" style="display:flex;align-items:center;gap:14px;flex:none;box-sizing:border-box;height:80px;padding:0 26px;border-radius:40px;background:linear-gradient(180deg,#FFFFFF,#F0E4E6);box-shadow:inset 0 -5px 10px rgba(120,60,70,.22),0 12px 28px rgba(0,0,0,.55);color:#1A0408">
+      <svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#A50A23" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3a6 6 0 0 0-6 6c0 5-2 6-2 8h16c0-2-2-3-2-8a6 6 0 0 0-6-6zM10 20a2 2 0 0 0 4 0"></path></svg>
+      <span style="font-size:25px;font-weight:800">새 연결 요청이 왔어요. 주차한 뒤 확인하세요.</span>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":1280}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      colors: [
+        { name: '바탕', hex: '#070304', fill: '#070304' },
+        { name: '깊은 와인', hex: '#3A0710', fill: '#3A0710' },
+        { name: '딥 레드', hex: '#A50A23', fill: '#A50A23' },
+        { name: '메인 레드', hex: '#D5102F', fill: 'linear-gradient(180deg,#FF4A5E,#D5102F 52%,#A50A23)' },
+        { name: '빛나는 레드', hex: '#FF4A5E', fill: '#FF4A5E' },
+        { name: '강조 글자', hex: '#FF9AA6', fill: '#FF9AA6' },
+        { name: '보조 글자', hex: '#F3D4D9', fill: '#F3D4D9' },
+        { name: '화이트', hex: '#FFFFFF', fill: 'linear-gradient(180deg,#FFFFFF,#F0E4E6)' },
+      ],
+      types: [
+        { size: 66, weight: 800, sample: '오늘의 인연', spec: '히어로 · 56~84 · 800' },
+        { size: 46, weight: 800, sample: '느린오후 님과 이어져요', spec: '큰 제목 · 44~54 · 800' },
+        { size: 32, weight: 800, sample: '구역 제목', spec: '구역 제목 · 28~38 · 800' },
+        { size: 27, weight: 500, sample: '본문과 안내 문장', spec: '본문 · 25~29' },
+        { size: 23, weight: 400, sample: '보조 설명과 항목', spec: '보조 · 21~24' },
+        { size: 20, weight: 400, sample: '가장 작은 글자', spec: '최소 · 20' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>차단·신고</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Asta+Sans:wght@300..800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070304}
+a{color:inherit;text-decoration:none}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid #FFFFFF;outline-offset:3px}
+</style>
+</helmet>
+<div style="position:relative;width:1600px;height:1280px;box-sizing:border-box;padding:18px 32px 22px;display:flex;flex-direction:column;gap:14px;overflow:hidden;word-break:keep-all;color:#FFF5F6;font-family:'Asta Sans','Noto Sans KR',system-ui,sans-serif;font-variant-numeric:tabular-nums;background:radial-gradient(1100px 620px at 82% 4%,#5A0714 0%,rgba(90,7,20,0) 62%),radial-gradient(900px 620px at 4% 58%,#33050D 0%,rgba(51,5,13,0) 60%),radial-gradient(1000px 480px at 60% 104%,#45060F 0%,rgba(69,6,15,0) 62%),#070304">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;height:46px;flex:none;font-size:22px;color:#F3D4D9">
+    <div style="display:flex;align-items:center;gap:22px"><span style="font-size:26px;font-weight:700;color:#FFFFFF">오후 8:12</span><span style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;background:rgba(230,30,60,.24);border:1.5px solid rgba(255,120,135,.6);font-weight:800;color:#FFC2CB">P</span><span>주차 중</span></div>
+    <div style="display:flex;align-items:center;gap:20px"><span style="display:flex;align-items:center;height:40px;box-sizing:border-box;padding:0 16px;border-radius:20px;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.4);font-size:21px;font-weight:700;color:#FFF5F6">합성 위치</span><span style="font-weight:600">5G</span></div>
+  </div>
+
+  <header style="display:flex;align-items:center;gap:18px;height:92px;flex:none">
+    <a href="RedSettings.dc.html" aria-label="뒤로" style="display:flex;align-items:center;justify-content:center;width:76px;height:76px;flex:none;border-radius:50%;background:linear-gradient(155deg,rgba(255,255,255,.22),rgba(120,30,45,.18));border:1.5px solid rgba(255,210,216,.36);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.3),0 10px 26px rgba(0,0,0,.5)"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></a>
+    <img src="/_blob/c6f3bc14f5339443dc40ef660adcf415" alt="" style="width:92px;height:92px;flex:none;filter:drop-shadow(0 8px 10px rgba(0,0,0,.6))">
+    <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
+      <h1 style="margin:0;font-size:44px;line-height:1.12;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(180deg,#FFFFFF 20%,#FF9AA6 100%);-webkit-background-clip:text;background-clip:text;color:transparent">차단·신고</h1>
+      <span style="font-size:23px;color:#F3D4D9">느린오후 님에 대한 조치예요</span>
+    </div>
+  </header>
+
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px">
+    <section style="display:flex;flex-direction:column;gap:18px;box-sizing:border-box;padding:32px 34px;min-height:0;border-radius:32px;background:linear-gradient(155deg,rgba(255,255,255,.12) 0%,rgba(150,40,55,.1) 55%,rgba(20,4,8,.4) 100%);border:1.5px solid rgba(255,200,208,.24);box-shadow:0 18px 44px rgba(0,0,0,.6),inset 0 1.5px 0 rgba(255,255,255,.2)">
+      <h2 style="margin:0;font-size:42px;line-height:1.2;font-weight:800;letter-spacing:-0.025em;color:#FFFFFF">차단하면</h2>
+      <ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:14px;font-size:27px;line-height:1.35;color:#FFF5F6">
+        <li style="display:flex;align-items:flex-start;gap:14px"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FF9AA6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:3px"><path d="M4 12l6 6L20 6"></path></svg>서로의 카드와 요청이 바로 사라져요</li>
+        <li style="display:flex;align-items:flex-start;gap:14px"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FF9AA6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:3px"><path d="M4 12l6 6L20 6"></path></svg>열려 있는 일시 연결과 후속 대화도 닫혀요</li>
+        <li style="display:flex;align-items:flex-start;gap:14px"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FF9AA6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:3px"><path d="M4 12l6 6L20 6"></path></svg>상대에게 이유를 알리지 않아요</li>
+        <li style="display:flex;align-items:flex-start;gap:14px"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FF9AA6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:3px"><path d="M4 12l6 6L20 6"></path></svg>차단을 풀어도 이전 대화와 관계는 돌아오지 않아요</li>
+      </ul>
+      <button type="button" onClick="{{block}}" style="height:100px;flex:none;box-sizing:border-box;border-radius:40px;background:linear-gradient(180deg,#FFFFFF,#F0E4E6);border:none;box-shadow:inset 0 -6px 12px rgba(120,60,70,.24),0 12px 28px rgba(0,0,0,.5);font-family:inherit;font-size:32px;font-weight:800;color:#A50A23;cursor:pointer">{{blockLabel}}</button>
+      <div style="height:1.5px;flex:none;background:rgba(255,200,208,.16)"></div>
+      <h3 style="margin:0;font-size:29px;font-weight:800;color:#FFFFFF">차단한 사람</h3>
+      <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;overflow:hidden">
+        <sc-for list="{{blocked}}" as="b" hint-placeholder-count="2">
+          <div style="display:flex;align-items:center;gap:16px;height:96px;flex:none;box-sizing:border-box;padding:0 12px 0 26px;border-radius:40px;background:rgba(0,0,0,.42);border:1.5px solid rgba(255,200,208,.2)">
+            <span style="flex:1;min-width:0;font-size:29px;font-weight:700;color:#FFFFFF">{{b.nick}}</span>
+            <button type="button" onClick="{{b.unblock}}" style="height:72px;flex:none;box-sizing:border-box;padding:0 30px;border-radius:36px;background:linear-gradient(155deg,rgba(255,255,255,.18),rgba(120,30,45,.16));border:1.5px solid rgba(255,210,216,.36);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.28);font-family:inherit;font-size:25px;font-weight:700;color:#FFFFFF;cursor:pointer">해제</button>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <section style="display:flex;flex-direction:column;gap:14px;box-sizing:border-box;padding:32px 34px;min-height:0;border-radius:32px;background:linear-gradient(155deg,rgba(255,255,255,.12) 0%,rgba(150,40,55,.1) 55%,rgba(20,4,8,.4) 100%);border:1.5px solid rgba(255,200,208,.24);box-shadow:0 18px 44px rgba(0,0,0,.6),inset 0 1.5px 0 rgba(255,255,255,.2)">
+      <h2 style="margin:0 0 4px;font-size:42px;line-height:1.2;font-weight:800;letter-spacing:-0.025em;color:#FFFFFF">신고 이유</h2>
+      <fieldset style="flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;margin:0;padding:0;border:none">
+        <legend style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)">신고 이유 선택</legend>
+        <sc-for list="{{reasons}}" as="r" hint-placeholder-count="5">
+          <label style="position:relative;flex:1;min-height:0;display:flex;align-items:center;gap:18px;box-sizing:border-box;padding:0 26px;border-radius:36px;border:2px solid {{r.border}};background:{{r.bg}};box-shadow:{{r.glow}};cursor:pointer">
+            <span aria-hidden="true" style="display:flex;align-items:center;justify-content:center;width:46px;height:46px;flex:none;box-sizing:border-box;border-radius:50%;border:2px solid {{r.mark}};background:{{r.markBg}};box-shadow:inset 0 1.5px 0 rgba(255,255,255,.4)"><sc-if value="{{r.selected}}" hint-placeholder-val="{{ false }}"><span style="display:block;width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#FFFFFF,#EADCDF)"></span></sc-if></span>
+            <span style="font-size:29px;font-weight:700;color:#FFFFFF">{{r.name}}</span>
+            <input type="radio" name="reason" checked="{{r.selected}}" onChange="{{r.pick}}" aria-label="{{r.name}}" style="position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer">
+          </label>
+        </sc-for>
+      </fieldset>
+      <button type="button" onClick="{{report}}" style="height:100px;flex:none;box-sizing:border-box;border-radius:40px;background:linear-gradient(180deg,#FF4A5E 0%,#D5102F 52%,#A50A23 100%);border:1.5px solid rgba(255,190,198,.7);box-shadow:0 0 36px rgba(230,30,60,.55),inset 0 2.5px 0 rgba(255,255,255,.45),inset 0 -7px 14px rgba(90,0,15,.55);font-family:inherit;font-size:32px;font-weight:800;color:#FFFFFF;cursor:pointer">{{reportLabel}}</button>
+      <div style="flex:none;display:flex;align-items:flex-start;gap:14px;box-sizing:border-box;padding:16px 22px;border-radius:28px;background:rgba(0,0,0,.42);border:1.5px solid rgba(255,200,208,.2)">
+        <svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FF9AA6" stroke-width="2" stroke-linecap="round" style="flex:none;margin-top:2px"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v5M12 8h.01"></path></svg>
+        <span style="font-size:23px;line-height:1.45;color:#F7DDE1">시연에서는 접수 내용만 저장해요. 운영 검토와 조치는 아직 제공하지 않아요.</span>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":1280}}'>
+class Component extends DCLogic {
+  state = { blocked: ['한밤드라이브', '터널끝에서'], didBlock: false, reason: '불쾌한 메시지', sent: false };
+  renderVals() {
+    const reasonNames = ['불쾌한 메시지', '원치 않는 접근', '사칭 의심', '미성년자로 보임', '기타'];
+    return {
+      blocked: this.state.blocked.map((nick) => ({
+        nick,
+        unblock: () => this.setState({ blocked: this.state.blocked.filter((n) => n !== nick) }),
+      })),
+      block: () => {
+        if (this.state.didBlock) return;
+        this.setState({ didBlock: true, blocked: ['느린오후'].concat(this.state.blocked) });
+      },
+      blockLabel: this.state.didBlock ? '느린오후 님을 차단했어요' : '느린오후 님 차단',
+      reasons: reasonNames.map((name) => {
+        const selected = this.state.reason === name;
+        return {
+          name,
+          selected,
+          border: selected ? 'rgba(255,225,230,.9)' : 'rgba(255,200,208,.2)',
+          bg: selected ? 'linear-gradient(180deg,rgba(230,30,60,.42),rgba(120,10,30,.42))' : 'rgba(0,0,0,.35)',
+          glow: selected ? '0 0 26px rgba(230,30,60,.45),inset 0 1.5px 0 rgba(255,255,255,.28)' : 'none',
+          mark: selected ? 'rgba(255,225,230,.95)' : 'rgba(255,200,208,.5)',
+          markBg: selected ? 'linear-gradient(180deg,#FF4A5E,#C20D29)' : 'rgba(0,0,0,.5)',
+          pick: () => this.setState({ reason: name, sent: false }),
+        };
+      }),
+      report: () => this.setState({ sent: true }),
+      reportLabel: this.state.sent ? '신고를 저장했어요' : '신고 보내기',
+    };
+  }
+}
+</script>
+</body>
+</html>

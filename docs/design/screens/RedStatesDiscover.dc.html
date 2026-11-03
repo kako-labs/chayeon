@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>상태 모음 · 발견</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Asta+Sans:wght@300..800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070304}
+</style>
+</helmet>
+<div style="position:relative;width:1600px;height:1280px;box-sizing:border-box;padding:32px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));gap:16px;overflow:hidden;word-break:keep-all;color:#FFF5F6;font-family:'Asta Sans','Noto Sans KR',system-ui,sans-serif;font-variant-numeric:tabular-nums;background:radial-gradient(1100px 620px at 82% 4%,#5A0714 0%,rgba(90,7,20,0) 62%),radial-gradient(900px 620px at 4% 58%,#33050D 0%,rgba(51,5,13,0) 60%),radial-gradient(1000px 480px at 60% 104%,#45060F 0%,rgba(69,6,15,0) 62%),#070304">
+  <sc-for list="{{cards}}" as="c" hint-placeholder-count="9">
+    <section style="display:flex;flex-direction:column;gap:12px;box-sizing:border-box;padding:26px 28px;min-height:0;border-radius:32px;background:linear-gradient(155deg,rgba(255,255,255,.12) 0%,rgba(150,40,55,.1) 55%,rgba(20,4,8,.4) 100%);border:1.5px solid rgba(255,200,208,.24);box-shadow:0 18px 44px rgba(0,0,0,.6),inset 0 1.5px 0 rgba(255,255,255,.2)">
+      <div style="display:flex;align-items:center;gap:14px">
+        <span style="display:flex;align-items:center;justify-content:center;width:68px;height:68px;flex:none;border-radius:50%;background:{{c.orb}};box-shadow:{{c.orbSh}}"><svg aria-hidden="true" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="{{c.ic}}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="{{c.d}}"></path></svg></span>
+        <span style="flex:1;min-width:0;font-size:22px;color:#F3D4D9">{{c.where}}</span>
+        <span style="flex:none;padding:6px 16px;border-radius:18px;background:{{c.chip}};font-size:21px;font-weight:700;color:{{c.fg}}">{{c.tag}}</span>
+      </div>
+      <span style="font-size:33px;line-height:1.24;font-weight:800;letter-spacing:-0.02em;color:#FFFFFF">{{c.title}}</span>
+      <span style="font-size:23px;line-height:1.45;color:#F3D4D9">{{c.body}}</span>
+      <sc-if value="{{c.action}}" hint-placeholder-val="{{ false }}">
+        <button type="button" style="margin-top:auto;height:70px;flex:none;border-radius:32px;background:linear-gradient(155deg,rgba(255,255,255,.18),rgba(120,30,45,.16));border:1.5px solid rgba(255,210,216,.36);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.28),inset 0 -5px 10px rgba(0,0,0,.25);font-family:inherit;font-size:24px;font-weight:700;color:#FFFFFF;cursor:pointer">{{c.action}}</button>
+      </sc-if>
+    </section>
+  </sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":1280}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const info = { ic: '#FFE3E7', fg: '#FFC2CB', chip: 'rgba(230,30,60,.24)', orb: 'radial-gradient(circle at 32% 26%,rgba(255,170,180,.6),rgba(150,20,40,.45) 60%,rgba(30,4,8,.7))', orbSh: 'inset 0 1.5px 0 rgba(255,255,255,.45),inset 0 -4px 8px rgba(40,0,8,.5),0 8px 16px rgba(0,0,0,.4)' };
+    const warn = { ic: '#A50A23', fg: '#1A0408', chip: 'linear-gradient(180deg,#FFFFFF,#F0E4E6)', orb: 'radial-gradient(circle at 34% 28%,#FFFFFF,#EADCDF 62%,#C9B5BA)', orbSh: 'inset 0 -4px 8px rgba(120,60,70,.3),0 8px 16px rgba(0,0,0,.45)' };
+    const plain = { ic: '#F3D4D9', fg: '#F3D4D9', chip: 'rgba(255,255,255,.12)', orb: 'radial-gradient(circle at 32% 26%,rgba(255,255,255,.28),rgba(90,40,50,.36) 60%,rgba(20,6,10,.7))', orbSh: 'inset 0 1.5px 0 rgba(255,255,255,.35),0 8px 16px rgba(0,0,0,.4)' };
+    const icon = {
+      refresh: 'M4 12a8 8 0 0 1 13.7-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.7 5.6L4 15M4 20v-5h5',
+      pin: 'M12 21s7-6.2 7-11.5a7 7 0 1 0-14 0C5 14.8 12 21 12 21zM12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+      clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3.5 2',
+      people: 'M9 11a3.4 3.4 0 1 0 0-6.8A3.4 3.4 0 0 0 9 11zM3 20a6 6 0 0 1 12 0M16 11.5a2.5 2.5 0 1 0 0-5M16.5 15.2a4.6 4.6 0 0 1 4.5 4.8',
+      offline: 'M2 8.5a15 15 0 0 1 6-3.4M22 8.5a15 15 0 0 0-11-4M5.5 12.5a10 10 0 0 1 3.6-2.2M18.5 12.5a10 10 0 0 0-4-2.5M9 16a5 5 0 0 1 6 0M12 20h.01M3 3l18 18',
+      car: 'M3 15l2.4-6.2C6 7.2 7 6 9 6h6c2 0 3 1.2 3.6 2.8L21 15v4H3zM7.5 15.5h.01M16.5 15.5h.01',
+      warn: 'M12 4l9.5 16.5h-19zM12 10v4.5M12 17.5h.01',
+      thread: 'M6.5 17C6.5 9 17.5 15 17.5 7M6.5 19.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8zM17.5 9.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8z',
+      edit: 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4',
+    };
+    return {
+      cards: [
+        { ...info, d: icon.refresh, where: '발견', tag: '준비 중', title: '근처 참여자를 찾고 있어요', body: '잠시 후 카드가 나타나요. 내 카드도 이때부터 보여요.', action: '' },
+        { ...warn, d: icon.pin, where: '위치', tag: '권한 꺼짐', title: '위치 사용이 꺼져 있어요', body: '위치가 없으면 근처 사람을 찾을 수 없어요. 내 카드도 보이지 않아요.', action: '설정 열기' },
+        { ...warn, d: icon.clock, where: '위치', tag: '오래됨', title: '위치 정보가 오래됐어요', body: '새 위치를 받을 때까지 카드를 보여주지 않아요.', action: '다시 확인' },
+        { ...plain, d: icon.people, where: '오늘의 인연', tag: '후보 없음', title: '지금은 근처에 아무도 없어요', body: '발견을 켜두면 새 참여자가 생길 때 보여드려요.', action: '' },
+        { ...warn, d: icon.offline, where: '통신', tag: '연결 실패', title: '서버에 연결하지 못했어요', body: '네트워크를 확인하고 다시 시도하세요. 이전 카드는 보여주지 않아요.', action: '다시 시도' },
+        { ...warn, d: icon.car, where: '주행 상태', tag: '주행 제한', title: '주차하면 볼 수 있어요', body: '주행 중에는 카드 보기, 요청, 수락을 막아요.', action: '' },
+        { ...warn, d: icon.warn, where: '주행 상태', tag: '확인 불가', title: '주행 상태를 확인하지 못했어요', body: '확인될 때까지 주행 중과 똑같이 조작을 막아요.', action: '' },
+        { ...plain, d: icon.thread, where: '연결', tag: '이미 연결 중', title: '한 번에 한 사람과 연결돼요', body: '지금 연결을 마치면 다시 요청할 수 있어요.', action: '연결 보기' },
+        { ...warn, d: icon.edit, where: '프로필', tag: '저장 실패', title: '프로필을 저장하지 못했어요', body: '입력한 내용은 그대로 있어요. 다시 저장해보세요.', action: '다시 저장' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
