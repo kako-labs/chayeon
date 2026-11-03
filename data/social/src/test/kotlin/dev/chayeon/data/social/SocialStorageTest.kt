@@ -27,6 +27,21 @@ class SocialStorageTest {
         File(context.noBackupFilesDir, "chayeon-social").deleteRecursively()
     }
 
+    @Test fun personaChoicesMatchEngineDefaultsAndDoNotCollideWithCast() = runTest {
+        val graph = SocialGraph(context, null, rules, { AppResult.Success(Unit) })
+        try {
+            val personas = (graph.sessionRepository.personas.first() as LoadState.Ready).value
+            assertEquals(PersonaCode.entries.toSet(), personas.map { it.code }.toSet())
+            val engine = ChayeonEngine(rules)
+            personas.forEach { persona ->
+                engine.enterSession(persona.id, EnterSessionRequest(CommandMeta(persona.id), SessionMode.SOLO, persona.code))
+                val profile = (engine.snapshotFor(persona.id) as AppResult.Success).value.profile!!.publicProfile
+                assertEquals(profile.nickname, persona.nickname)
+                assertFalse(dev.chayeon.core.engine.DemoCast.peers.any { it.nickname == persona.nickname })
+            }
+        } finally { graph.close() }
+    }
+
     @Test fun `sessions are backup excluded endpoint scoped and clearable`() {
         val session = SocialCoordinatorTest.testSession(SessionMode.SERVER_DEMO)
         PrivateSessionStorage(context, "remote-session.json", "https://one.example").write(session)
@@ -91,7 +106,7 @@ class SocialStorageTest {
         success(engine.enterSession("account_b", EnterSessionRequest(CommandMeta("enter-b"), SessionMode.SOLO, PersonaCode.ACCOUNT_B)))
         for (actor in listOf("account_a", "account_b")) {
             success(engine.saveProfile(actor, SaveProfileRequest(CommandMeta("profile-$actor"),
-                ProfileDraft(if (actor == "account_a") "새벽드라이브" else "느린오후", AvatarId.DAWN, setOf(InterestId.JAZZ)))))
+                ProfileDraft(if (actor == "account_a") "새벽드라이브" else "노을산책", AvatarId.DAWN, setOf(InterestId.JAZZ)))))
             for (consent in ConsentScope.entries) success(engine.recordConsent(actor, RecordConsentRequest(
                 CommandMeta("consent-$actor-$consent"), consent, ConsentAction.GRANT, session.policy.consentDocumentVersion)))
             success(engine.setSyntheticPresence(actor, SetSyntheticPresenceRequest(CommandMeta("near-$actor"), SyntheticPresence.NEARBY)))

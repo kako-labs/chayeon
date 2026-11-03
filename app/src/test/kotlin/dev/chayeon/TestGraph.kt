@@ -17,6 +17,8 @@ internal class TestGraph(vehicleConsole: VehicleConsole = EmptyVehicleConsole())
     val requests = MutableStateFlow<LoadState<List<ConnectionRequest>>>(LoadState.Ready(emptyList(), 0))
     val connection = MutableStateFlow<LoadState<Connection?>>(LoadState.Ready(null, 0))
     val greetings = MutableStateFlow<LoadState<List<ConnectionGreeting>>>(LoadState.Ready(emptyList(), 0))
+    val afterConnections = MutableStateFlow<LoadState<List<AfterConnection>>>(LoadState.Ready(emptyList(), 0))
+    val afterMessages = MutableStateFlow<LoadState<List<AfterMessage>>>(LoadState.Ready(emptyList(), 0))
     val discovery = MutableStateFlow(DiscoveryState())
     val signatures = MutableStateFlow<LoadState<MySignature>>(LoadState.Ready(MySignature(), 0))
     val recaps = MutableStateFlow<LoadState<List<TripRecap>>>(LoadState.Ready(emptyList(), 0))
@@ -47,7 +49,15 @@ internal class TestGraph(vehicleConsole: VehicleConsole = EmptyVehicleConsole())
             override val connection = this@TestGraph.connection
             override fun observeGreetings(connectionId: String) = greetings
         },
-        EmptyEncounterRepository(), EmptyAfterRepository(), EmptySafetyRepository(),
+        EmptyEncounterRepository(), object : AfterRepository by EmptyAfterRepository() {
+            override val connections = afterConnections
+            override fun observeMessages(afterConnectionId: String) = afterMessages.map { state ->
+                when (state) {
+                    is LoadState.Ready -> LoadState.Ready(state.value.filter { it.afterConnectionId == afterConnectionId }, state.version)
+                    else -> state
+                }
+            }
+        }, EmptySafetyRepository(),
         object : DrivingStateProvider { override val drivingState = driving },
         object : SignatureRepository by EmptySignatureRepository() {
             override val signature = signatures

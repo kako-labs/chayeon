@@ -233,7 +233,7 @@ def assert_locked(device, hidden_peers=()):
 def enter_solo(device, prefix=""):
     device.launch()
     device.wait("이 계정으로 시작")
-    device.capture(prefix + "01-first-run", ["혼자 둘러보기(가상 상대)", "주차 중"])
+    device.capture(prefix + "01-first-run", ["혼자 둘러보기(가상 상대)", "주차 중", "가상 프로필 · 계정 A", "노을산책"])
     device.tap("이 계정으로 시작")
     device.wait("저장하고 다음")
     device.capture(prefix + "02-profile", ["프로필 만들기", "가상 프로필"])
@@ -316,13 +316,20 @@ def create_signature(device, choice, prefix=""):
     if len(titles) != 1:
         raise AssertionError("첫 시그니처 칭호가 하나가 아니에요: " + str(titles))
     title = titles[0]
+    expected_title, title_trait = {
+        "떠나기 전에 챙기는 사람": ("떠나기 전에 살피는 드라이버", "타이어 관리"),
+        "편안하게 달리는 사람": ("함께 타면 편안한 드라이버", "부드러운 주행"),
+        "다음 움직임을 알려 주는 사람": ("깜빡이를 잊지 않는 드라이버", "깜빡이 매너"),
+    }[choice]
+    if title != expected_title:
+        raise AssertionError("선택한 주행의 칭호가 아니에요: " + title)
     tree = device.tree()
     care_traits = ["타이어 관리", "미리 채우는 습관", "배터리 아끼기", "소모품 점검", "실내 공기 챙김"]
     if not any(device.find(trait, tree) is not None for trait in care_traits):
         raise AssertionError("첫 시그니처 순간에 차량 관리 특성이 보이지 않아요")
     if device.find("내가 운전하지 않았어요", tree) is not None:
         raise AssertionError("합성 주행에 실제 운전 제외 동작이 보여요")
-    device.capture(prefix + "05-first-signature", ["이 주행이 매듭이 됐어요", title, "합성 주행"])
+    device.capture(prefix + "05-first-signature", ["이 주행이 매듭이 됐어요", title, title_trait, "합성 주행"])
     device.tap("상대에게 어떻게 보일지 고르기")
     device.wait("공개 범위")
     device.capture(prefix + "05-private-preview", ["나만 간직해요", "상대에게 이렇게 보여요"])

@@ -26,7 +26,7 @@ internal class SocialSessionRepository(
     override val availableModes: Flow<Set<SessionMode>> = flowOf(modes)
     override val personas: Flow<LoadState<List<Persona>>> = flowOf(LoadState.Ready(listOf(
         Persona("account-a", 1, PersonaCode.ACCOUNT_A, "새벽드라이브", AvatarId.DAWN),
-        Persona("account-b", 1, PersonaCode.ACCOUNT_B, "느린오후", AvatarId.SLOW),
+        Persona("account-b", 1, PersonaCode.ACCOUNT_B, "노을산책", AvatarId.SLOW),
     ), 1))
     override suspend fun enter(request: EnterSessionRequest) = coordinator.enter(request)
     override suspend fun signOut(request: SignOutRequest) = coordinator.signOut(request)

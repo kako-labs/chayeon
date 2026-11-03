@@ -24,7 +24,7 @@ internal object HistoryFixtures {
     val settings = ParticipationSettings("settings", 1)
     val block = Block("block", 1, peer, 1_800_000_000_000)
     val message = AfterMessage("message", 1, relationship.id, "client-message", MessageAuthor.PEER, AfterMessageContent.Preset(PresetCode.NICE_TO_MEET_AGAIN), 1_800_000_080_000, DeliveryState.SENT)
-    val personas = listOf(Persona("a", 1, PersonaCode.ACCOUNT_A, mine.nickname, mine.avatar), Persona("b", 1, PersonaCode.ACCOUNT_B, peer.nickname, peer.avatar))
+    val personas = listOf(Persona("a", 1, PersonaCode.ACCOUNT_A, mine.nickname, mine.avatar), Persona("b", 1, PersonaCode.ACCOUNT_B, "노을산책", peer.avatar))
     val state = HistoryUiState(
         driving = DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK), session = SessionState.Active(session),
         modes = setOf(SessionMode.SOLO, SessionMode.SERVER_DEMO), personas = LoadState.Ready(personas, 1),

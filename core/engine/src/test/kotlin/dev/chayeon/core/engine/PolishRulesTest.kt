@@ -7,6 +7,19 @@ import org.junit.Test
 import kotlin.test.*
 
 class PolishRulesTest {
+    @Test fun `persona default nicknames never collide with the demo cast`() {
+        val f = Fixture()
+        val names = PersonaCode.entries.map { persona ->
+            val actor = persona.name
+            f.engine.enterSession(actor, EnterSessionRequest(f.meta(), SessionMode.SOLO, persona)).ok()
+            f.snap(actor).profile!!.publicProfile.nickname
+        }
+        assertEquals(listOf("새벽드라이브", "노을산책"), names)
+        assertEquals(names.size, names.toSet().size)
+        assertTrue(names.none { name -> DemoCast.peers.any { it.nickname == name } })
+        assertEquals("느린오후", DemoCast.peers.single { it.id == "demo-slow" }.nickname)
+    }
+
     @Test fun `shared presets require both public traits and commands recheck after withdrawal`() {
         for (trait in listOf(TraitId.LONG_ROAD, TraitId.NIGHT_DRIVE)) {
             val code = PresetCode.valueOf("SHARE_$trait")

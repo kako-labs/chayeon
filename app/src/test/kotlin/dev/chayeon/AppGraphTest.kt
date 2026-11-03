@@ -13,9 +13,107 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AppGraphTest {
+    private class FakeNotifier : MessageNotifier {
+        val active = mutableSetOf<String>()
+        val cancelled = mutableListOf<String>()
+        override fun notifyMessage(id: String) { active += id }
+        override fun cancelMessage(id: String) { active -= id; cancelled += id }
+    }
+
+    @Test fun viewingAfterConversationCancelsOnlyItsNotificationsEvenAfterBannerTimeout() = runTest {
+        val fixture = TestGraph().apply { ready(); driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED) }
+        val notifier = FakeNotifier()
+        val events = AppEvents(fixture.graph, notifier, backgroundScope)
+        events.start()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { events.banner.collect {} }
+        runCurrent()
+        fixture.requests.value = LoadState.Ready(listOf(ConnectionRequest("request", 2, fixture.publicProfile,
+            RequestDirection.INCOMING, ConnectionRequestStatus.PENDING, 0, 100_000, Chemistry())), 2)
+        fixture.afterConnections.value = LoadState.Ready(listOf("after", "other").map {
+            AfterConnection(it, 2, "after-request-$it", "encounter-$it", fixture.publicProfile,
+                AfterConnectionStatus.CONNECTED, 0, Chemistry())
+        }, 2)
+        fixture.afterMessages.value = LoadState.Ready(listOf("after", "other").map {
+            AfterMessage("message-$it", 2, it, "client-$it", MessageAuthor.PEER,
+                AfterMessageContent.Text("반가워요"), 0, DeliveryState.SENT)
+        }, 2)
+        runCurrent()
+        assertEquals(setOf("request", "message-after", "message-other"), notifier.active)
+        fixture.driving.value = DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK)
+        runCurrent()
+        advanceTimeBy(15_001); runCurrent()
+        assertNull(events.banner.value)
+        val release = events.viewing(null, "after")
+        assertEquals(listOf("message-after"), notifier.cancelled)
+        assertEquals(setOf("request", "message-other"), notifier.active)
+        fixture.afterMessages.value = LoadState.Ready((fixture.afterMessages.value as LoadState.Ready).value +
+            AfterMessage("reply", 3, "after", "reply", MessageAuthor.PEER,
+                AfterMessageContent.Text("저도 반가워요"), 1, DeliveryState.SENT), 3)
+        runCurrent()
+        assertEquals(setOf("request", "message-other"), notifier.active)
+        release()
+        events.viewing("request", null)
+        assertEquals(setOf("message-other"), notifier.active)
+        events.viewing(null, "other")
+        assertTrue(notifier.active.isEmpty())
+    }
+
+    @Test fun restrictedSignalIsCancelledWhenItsConversationBecomesReadableAndIsAlreadyViewed() = runTest {
+        val fixture = TestGraph().apply { ready(); driving.value = DrivingState() }
+        val signals = MutableStateFlow<List<String>>(emptyList())
+        val notifier = FakeNotifier()
+        val events = AppEvents(fixture.graph, notifier, backgroundScope, signals)
+        events.start()
+        runCurrent()
+        signals.value = listOf("greeting")
+        runCurrent()
+        assertEquals(setOf("greeting"), notifier.active)
+        fixture.driving.value = DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK)
+        events.viewing(null, "connection")
+        fixture.connection.value = LoadState.Ready(Connection("connection", 2, "request", fixture.publicProfile,
+            ConnectionStatus.CONNECTED, 0, Chemistry()), 2)
+        fixture.greetings.value = LoadState.Ready(listOf(ConnectionGreeting("greeting", 2, "connection", "client",
+            MessageAuthor.PEER, PresetCode.HELLO, 0, DeliveryState.SENT)), 2)
+        runCurrent()
+        assertEquals(listOf("greeting"), notifier.cancelled)
+        assertTrue(notifier.active.isEmpty())
+        fixture.driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED)
+        signals.value += "unread"
+        runCurrent()
+        assertEquals(setOf("unread"), notifier.active)
+        fixture.sessions.value = SessionState.SignedOut()
+        runCurrent()
+        assertTrue(notifier.active.isEmpty())
+    }
+
+    @Test fun restoredNotificationIsCancelledFromHistoricalMessageIdsAfterRestart() = runTest {
+        for (viewBeforeRestore in listOf(false, true)) {
+            val fixture = TestGraph().apply { ready() }
+            val notifier = FakeNotifier().apply { active += "historical" }
+            val events = AppEvents(fixture.graph, notifier, backgroundScope, MutableStateFlow(listOf("historical")))
+            events.start()
+            runCurrent()
+            if (viewBeforeRestore) events.viewing(null, "connection")
+            fixture.connection.value = LoadState.Ready(Connection("connection", 2, "request", fixture.publicProfile,
+                ConnectionStatus.CONNECTED, 0, Chemistry()), 2)
+            fixture.greetings.value = LoadState.Ready(listOf(ConnectionGreeting("historical", 2, "connection", "client",
+                MessageAuthor.PEER, PresetCode.HELLO, 0, DeliveryState.SENT)), 2)
+            runCurrent()
+            if (!viewBeforeRestore) {
+                assertEquals(setOf("historical"), notifier.active)
+                events.viewing(null, "connection")
+            }
+            assertEquals(listOf("historical"), notifier.cancelled)
+            assertTrue(notifier.active.isEmpty())
+            fixture.greetings.value = LoadState.Ready((fixture.greetings.value as LoadState.Ready).value, 3)
+            runCurrent()
+            assertEquals(listOf("historical"), notifier.cancelled)
+        }
+    }
+
     @Test fun openingTheRelevantContentClearsOnlyItsBannerAndSuppressesNewArrivals() = runTest {
         val fixture = TestGraph().apply { ready() }
-        val events = AppEvents(fixture.graph, object : MessageNotifier { override fun notifyMessage(id: String) = Unit }, backgroundScope)
+        val events = AppEvents(fixture.graph, FakeNotifier(), backgroundScope)
         events.start()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { events.banner.collect {} }
         runCurrent()
@@ -49,7 +147,7 @@ class AppGraphTest {
 
     @Test fun bannerDismissesAfterFiveVisibleSecondsAndDoesNotReappear() = runTest {
         val fixture = TestGraph().apply { ready() }
-        val events = AppEvents(fixture.graph, object : MessageNotifier { override fun notifyMessage(id: String) = Unit }, backgroundScope)
+        val events = AppEvents(fixture.graph, FakeNotifier(), backgroundScope)
         events.start()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { events.banner.collect {} }
         runCurrent()
@@ -100,7 +198,9 @@ class AppGraphTest {
     @Test fun incomingRequestIsQueuedWhileLockedAndNotifiedWithoutPayload() = runTest {
         val fixture = TestGraph().apply { ready(); driving.value = DrivingState() }
         val notifications = mutableListOf<String>()
-        val events = AppEvents(fixture.graph, object : MessageNotifier { override fun notifyMessage(id: String) { notifications += id } }, backgroundScope)
+        val events = AppEvents(fixture.graph, object : MessageNotifier {
+            override fun cancelMessage(id: String) = Unit
+            override fun notifyMessage(id: String) { notifications += id } }, backgroundScope)
         events.start()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { events.banner.collect {} }
         runCurrent()
@@ -124,6 +224,7 @@ class AppGraphTest {
             val ready = MutableStateFlow(false)
             val notifications = mutableListOf<String>()
             val events = AppEvents(fixture.graph, object : MessageNotifier {
+                override fun cancelMessage(id: String) = Unit
                 override fun notifyMessage(id: String) { notifications += id }
             }, backgroundScope, signals, ready)
             events.start()
@@ -143,6 +244,7 @@ class AppGraphTest {
         val signals = MutableStateFlow((1..30).map { "old-$it" })
         val notifications = mutableListOf<String>()
         val events = AppEvents(fixture.graph, object : MessageNotifier {
+            override fun cancelMessage(id: String) = Unit
             override fun notifyMessage(id: String) { notifications += id }
         }, backgroundScope, signals)
         events.start()
@@ -179,7 +281,7 @@ class AppGraphTest {
 
     @Test fun endedRelationshipRemovesItsGreetingBanner() = runTest {
         val fixture = TestGraph().apply { ready() }
-        val events = AppEvents(fixture.graph, object : MessageNotifier { override fun notifyMessage(id: String) = Unit }, backgroundScope)
+        val events = AppEvents(fixture.graph, FakeNotifier(), backgroundScope)
         events.start()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { events.banner.collect {} }
         val connection = Connection("connection", 1, "request", fixture.publicProfile, ConnectionStatus.CONNECTED, 0, Chemistry())
