@@ -37,6 +37,16 @@ class SocialStorageTest {
         assertFalse(file.exists())
     }
 
+    @Test fun installSecretSurvivesStorageRecreationAndSessionCleanup() {
+        val original = PrivateClientSecretStorage(context).getOrCreate("https://one.example", "room")
+        PrivateSessionStorage(context, "remote-session.json").clear()
+        val restored = PrivateClientSecretStorage(context)
+        assertEquals(original, restored.getOrCreate("https://one.example", "room"))
+        assertNotEquals(original, restored.getOrCreate("https://one.example", "other"))
+        assertNotEquals(original, restored.getOrCreate("https://two.example", "room"))
+        assertTrue(File(context.noBackupFilesDir, "chayeon-social/client-secrets.json").isFile)
+    }
+
     @Test fun `cleanup marker survives a new storage instance and contains no credential`() {
         val record = CleanupRecord(ApiRoutes.SIGN_OUT,
             socialJson.encodeToString(SignOutRequest.serializer(), SignOutRequest(CommandMeta("out"))),

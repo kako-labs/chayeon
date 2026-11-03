@@ -46,7 +46,7 @@ class ChayeonEngine(
     fun snapshotFor(actor: String): AppResult<SyncSnapshot> = synchronized(lock) {
         try {
             tick()
-            AppResult.Success(working().snapshot(actor))
+            AppResult.Success(project(working().snapshot(actor), actor))
         } catch (e: Rejected) { AppResult.Failure(e.error) }
         catch (_: kotlinx.serialization.SerializationException) { AppResult.Failure(AppError.Restricted) }
         catch (_: Exception) { AppResult.Failure(AppError.Unknown) }
@@ -55,6 +55,7 @@ class ChayeonEngine(
     private fun working() = Room(state, locations.toMutableMap(), rules, policy, idGenerator, roomId, demoEnabled, state.lastTick)
 
     private fun commit(room: Room) {
+        room.updateViews()
         if (room.state != state) store.save(room.state)
         state = room.state
         locations = room.locations
@@ -67,6 +68,7 @@ class ChayeonEngine(
         try {
             tick()
             val room = working()
+            room.expectedRevision = state.viewRevisions[actor] ?: 0
             ensure(room.validIdentifier(meta.commandId))
             val digest = MessageDigest.getInstance("SHA-256").digest(
                 (kotlinx.serialization.serializer<R>().descriptor.serialName + json.encodeToString(request)).toByteArray()
@@ -83,9 +85,11 @@ class ChayeonEngine(
             if (!enter) room.account(actor)
             val result: AppResult<T> = try { AppResult.Success(room.action()) }
                 catch (e: Rejected) { return@synchronized rememberFailure(actor, meta, digest, e.error) }
-            cache(room, CachedCommand(actor, meta.commandId, digest, json.encodeToJsonElement(result)))
+            room.updateViews()
+            val projected = json.decodeFromJsonElement<AppResult<T>>(withVersion(json.encodeToJsonElement(result), room.state.viewRevisions[actor] ?: 0))
+            cache(room, CachedCommand(actor, meta.commandId, digest, json.encodeToJsonElement(projected)))
             commit(room)
-            result
+            projected
         } catch (e: Rejected) { AppResult.Failure(e.error) }
         catch (_: kotlinx.serialization.SerializationException) { AppResult.Failure(AppError.Restricted) }
         catch (_: Exception) { AppResult.Failure(AppError.Unknown) }
@@ -116,21 +120,22 @@ class ChayeonEngine(
         val value = wrapper["value"] as? JsonObject ?: return result
         if ("candidates" in value) {
             val discovery = json.encodeToJsonElement(room.discovery(actor)).jsonObject
-            return JsonObject(wrapper + ("value" to JsonObject(discovery + value.filterKeys { it == "type" })))
+            return withVersion(JsonObject(wrapper + ("value" to JsonObject(discovery + value.filterKeys { it == "type" }))), state.viewRevisions[actor] ?: 0)
         }
         val fields = value.toMutableMap()
         val peer = value["peer"] as? JsonObject
         val own = value["publicProfile"] as? JsonObject
         if (peer != null) {
             val owner = state.accounts.values.firstOrNull { it.profile.id == peer["id"]?.jsonPrimitive?.content }?.id ?: return result
-            fields["peer"] = json.encodeToJsonElement(room.publicProfile(owner, actor))
+            fields["peer"] = withVersion(json.encodeToJsonElement(room.publicProfile(owner, actor)), state.viewRevisions[actor] ?: 0)
             if ("chemistry" in value) fields["chemistry"] = json.encodeToJsonElement(room.chemistry(actor, owner))
-            if ("availablePresets" in value) fields["availablePresets"] = json.encodeToJsonElement(
-                if (room.blocked(actor, owner)) emptySet() else room.presets(actor, owner))
         }
-        if (own != null && actor in state.accounts) fields["publicProfile"] = json.encodeToJsonElement(room.publicProfile(actor, actor))
+        if (own != null && actor in state.accounts) fields["publicProfile"] = withVersion(json.encodeToJsonElement(room.publicProfile(actor, actor)), state.viewRevisions[actor] ?: 0)
         return JsonObject(wrapper + ("value" to JsonObject(fields)))
     }
+
+    private inline fun <reified T> project(value: T, actor: String): T =
+        json.decodeFromJsonElement(withVersion(json.encodeToJsonElement(value), state.viewRevisions[actor] ?: 0))
 
     fun enterSession(actor: String, request: EnterSessionRequest): AppResult<Session> =
         command(actor, request.meta, request, enter = true) { enterSession(actor, request) }

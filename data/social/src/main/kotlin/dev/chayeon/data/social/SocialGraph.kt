@@ -22,7 +22,8 @@ class SocialGraph(
         put(SessionMode.SOLO, LocalBackend(context.applicationContext, rules))
         if (!serverUrl.isNullOrBlank()) {
             put(SessionMode.SERVER_DEMO, RemoteBackend(serverUrl,
-                PrivateSessionStorage(context.applicationContext, "remote-session.json", serverUrl.trimEnd('/'))))
+                PrivateSessionStorage(context.applicationContext, "remote-session.json", serverUrl.trimEnd('/')),
+                secretStorage = PrivateClientSecretStorage(context.applicationContext)))
         }
     }
     private val coordinator = SocialCoordinator(backends, scope, {

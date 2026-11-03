@@ -22,6 +22,8 @@ class MemoryEngineStore(initial: EngineState? = null) : EngineStore {
 @Serializable
 data class EngineState(
     val revision: Long = 0,
+    val viewRevisions: Map<String, Long> = emptyMap(),
+    val viewDigests: Map<String, String> = emptyMap(),
     val lastTick: Long = 0,
     val accounts: Map<String, EngineAccount> = emptyMap(),
     val requests: Map<String, RequestRecord> = emptyMap(),

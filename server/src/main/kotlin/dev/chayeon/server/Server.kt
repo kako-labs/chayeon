@@ -76,8 +76,11 @@ fun Application.chayeonModule(registry: RoomRegistry = RoomRegistry(defaultRules
             val rawSince = call.request.queryParameters[ApiRoutes.SINCE_QUERY]
             val since = rawSince?.toLongOrNull() ?: if (rawSince == null) 0 else -1
             if (since < 0) { call.failure(AppError.Restricted, HttpStatusCode.BadRequest); return@get }
-            if (engine.revision.value <= since) withTimeoutOrNull(registry.policy.pollTimeoutMillis) {
-                engine.revision.first { it > since }
+            withTimeoutOrNull(registry.policy.pollTimeoutMillis) {
+                engine.revision.first {
+                    val visible = registry.snapshot(header)
+                    visible !is AppResult.Success || visible.value.version > since
+                }
             }
             val snapshot = registry.snapshot(header)
             if (snapshot == null) { call.failure(AppError.NotAuthorized, HttpStatusCode.Unauthorized); return@get }

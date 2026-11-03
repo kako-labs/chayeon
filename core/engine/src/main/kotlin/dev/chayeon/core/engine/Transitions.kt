@@ -148,6 +148,7 @@ internal fun Room.advance(until: Long) {
     val target = maxOf(until, state.lastTick)
     now = state.lastTick
     evaluateConnections()
+    updateViews()
     while (true) {
         val event = scheduled().filter { it.at <= target }.minWithOrNull(compareBy<Scheduled> { it.at }.thenBy { it.key }) ?: break
         now = maxOf(now, event.at)
@@ -159,6 +160,7 @@ internal fun Room.advance(until: Long) {
         }
         state = state.copy(demoEvents = state.demoEvents + event.key)
         evaluateConnections()
+        updateViews()
     }
     now = target
     evaluateConnections()
