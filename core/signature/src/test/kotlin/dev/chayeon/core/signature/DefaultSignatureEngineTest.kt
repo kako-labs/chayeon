@@ -86,10 +86,7 @@ class DefaultSignatureEngineTest {
         val old = public(listOf(PublicTrait(TraitId.NIGHT_DRIVE, TraitLevel.SIGNATURE)))
         val a = MySignature(publicSignature = old, evidence = listOf(evidence(TraitId.GENTLE_RIDE, TraitLevel.RECORDING)))
         assertNull(engine.publicProjection(a))
-        val projected = engine.publicProjection(a.copy(visibility = VisibilitySettings(publishSignature = true)))!!
-        assertTrue(projected.traits.isEmpty())
-        assertEquals(SignatureLanguage.RECORDING_TITLE, projected.title)
-        assertEquals(EvidenceBucket.RECORDING, projected.evidenceBucket)
+        assertNull(engine.publicProjection(a.copy(visibility = VisibilitySettings(publishSignature = true))))
     }
 
     @Test fun `title is independent of input order and uses strongest trait and preference noun`() {
@@ -101,8 +98,8 @@ class DefaultSignatureEngineTest {
 
     @Test fun `every modifier noun combination is enumerated for Korean editorial review`() {
         val combinations = SignatureLanguage.titleCombinations()
-        assertEquals(36, combinations.size)
-        assertEquals(36, combinations.toSet().size)
+        assertEquals(34, combinations.size)
+        assertEquals(34, combinations.toSet().size)
         combinations.forEach { println(it); assertTrue(it.length in 8..30); assertFalse(it.contains("  ")) }
     }
 
@@ -146,7 +143,7 @@ class DefaultSignatureEngineTest {
         val trip = trip("recap")
         val current = MySignature(version = 2, evidence = listOf(evidence(TraitId.EARLY_BRAKE, TraitLevel.VISIBLE)))
         val recap = engine.recap(MySignature(), current, trip)
-        assertEquals("이번 주행으로 여유로운 제동의 모습이 조금 더 쌓였어요", recap.changes.single().explanation)
+        assertEquals("여유로운 제동의 매력이 조금 더 쌓였어요", recap.changes.single().explanation)
         assertTrue(recap.included)
         val excluded = engine.recap(MySignature(), current, trip.copy(excluded = true))
         assertFalse(excluded.included)
@@ -156,7 +153,7 @@ class DefaultSignatureEngineTest {
     @Test fun `belt recap uses a natural Korean habit name`() {
         val current = MySignature(version = 2, evidence = listOf(evidence(TraitId.BELT_FIRST, TraitLevel.VISIBLE)))
         val recap = engine.recap(MySignature(), current, trip("belt"))
-        assertEquals("이번 주행으로 출발 전 벨트 습관의 모습이 조금 더 쌓였어요", recap.changes.single().explanation)
+        assertEquals("출발 전 벨트 습관의 매력이 조금 더 쌓였어요", recap.changes.single().explanation)
     }
 
     private fun trip(id: String, passing: Int = 100) = DerivedTripMetrics(id, 0, end - 300_000, end - 100_000, DataSource.VEHICLE, TripEligibility.ELIGIBLE,

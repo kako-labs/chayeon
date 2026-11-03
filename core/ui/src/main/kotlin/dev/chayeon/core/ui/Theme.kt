@@ -1,5 +1,7 @@
 package dev.chayeon.core.ui
 
+import android.icu.text.BreakIterator
+import java.util.Locale
 import android.database.ContentObserver
 import android.os.Handler
 import android.os.Looper
@@ -16,6 +18,10 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.font.Font
@@ -129,6 +135,7 @@ object ChayeonDimensions {
     val HeroKnot = 300.dp
     val PickerAvatar = 100.dp
     val ConfirmWidth = 720.dp
+    val ScrollFade = 40.dp
     val CountdownTrack = 6.dp
     val ProgressDot = 12.dp
     val ProgressActive = 36.dp
@@ -221,6 +228,27 @@ fun ChayeonText(
     style: TextStyle = ChayeonType.Body,
     color: Color = ChayeonColors.Text,
     maxLines: Int = Int.MAX_VALUE,
+    onTextLayout: ((TextLayoutResult) -> Unit)? = null,
 ) {
-    BasicText(text, modifier, style.copy(color = color), maxLines = maxLines, overflow = TextOverflow.Ellipsis)
+    val rendered = remember(text) { keepHangulWords(text) }
+    BasicText(rendered, modifier.clearAndSetSemantics { this.text = AnnotatedString(text) },
+        style.copy(color = color), maxLines = maxLines, overflow = TextOverflow.Ellipsis,
+        onTextLayout = onTextLayout)
+}
+
+private val HangulWordPattern = Regex("\\S+")
+
+internal fun keepHangulWords(text: String): String = HangulWordPattern.replace(text) { word ->
+    if (word.value.none { it in '\uAC00'..'\uD7A3' || it in '\u1100'..'\u11FF' || it in '\u3130'..'\u318F' }) word.value
+    else buildString {
+        val characters = BreakIterator.getCharacterInstance(Locale.KOREAN).apply { setText(word.value) }
+        var start = characters.first()
+        var end = characters.next()
+        while (end != BreakIterator.DONE) {
+            if (start > 0) append('\u2060')
+            append(word.value, start, end)
+            start = end
+            end = characters.next()
+        }
+    }
 }

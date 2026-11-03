@@ -65,14 +65,11 @@ class DefaultSignatureEngine : SignatureEngine {
         val visible = signature.evidence.filter {
             it.trait in signature.visibility.visibleTraits && it.availability == TraitAvailability.AVAILABLE && it.level != TraitLevel.RECORDING && it.validTripCount >= SignaturePolicy.MIN_VALID_TRIPS
         }.distinctBy { it.trait }.sortedBy { it.trait.ordinal }
+        if (visible.isEmpty()) return null
         val publicTraits = visible.map { PublicTrait(it.trait, it.level) }
         // Rebuild exclusively from public levels; even the private seed must not cross this boundary.
         val publicSeedEvidence = visible.map { it.copy(metrics = emptyList(), sampleCount = 0, recentChanges = emptyList()) }
-        val bucket = when {
-            visible.isEmpty() -> EvidenceBucket.RECORDING
-            visible.all { it.level == TraitLevel.SIGNATURE } -> EvidenceBucket.ESTABLISHED
-            else -> EvidenceBucket.GROWING
-        }
+        val bucket = if (visible.all { it.level == TraitLevel.SIGNATURE }) EvidenceBucket.ESTABLISHED else EvidenceBucket.GROWING
         return PublicSignature("public-signature", signature.version, title(publicTraits), publicTraits, knot(publicSeedEvidence), source(signature.evidence), bucket)
     }
 
@@ -84,24 +81,33 @@ class DefaultSignatureEngine : SignatureEngine {
         }
         val complementary = listOf(
             Triple(TraitId.EARLY_BRAKE, TraitId.STEADY_PACE, "한 분은 미리 멈추고, 한 분은 흐름을 지켜요"),
-            Triple(TraitId.GENTLE_RIDE, TraitId.CABIN_CARE, "한 분은 편안하게 달리고, 한 분은 쾌적함을 챙겨요"),
-            Triple(TraitId.LONG_ROAD, TraitId.ENERGY_PLANNER, "한 분은 긴 여정을 즐기고, 한 분은 미리 채워요"),
+            Triple(TraitId.GENTLE_RIDE, TraitId.CABIN_CARE, "한 분은 편안하게 달리고, 한 분은 함께 타는 공기까지 신경 써요"),
+            Triple(TraitId.LONG_ROAD, TraitId.ENERGY_PLANNER, "한 분은 먼 길을 즐기고, 한 분은 기다리지 않도록 미리 채워 둬요"),
         ).filter { (x, y) -> (x in a && y in b) || (y in a && x in b) }.map { (x, y, text) ->
             ChemistryLine(ChemistryKind.COMPLEMENTARY, x, y, text)
         }
-        return Chemistry((shared + complementary).take(3))
+        fun category(trait: TraitId) = when (trait) {
+            TraitId.LONG_ROAD, TraitId.NIGHT_DRIVE -> 1
+            TraitId.TIRE_CARE, TraitId.ENERGY_PLANNER, TraitId.BATTERY_KIND, TraitId.FLUID_READY, TraitId.CABIN_CARE -> 2
+            else -> 0
+        }
+        return Chemistry((shared + complementary).sortedWith(
+            compareBy<ChemistryLine> { maxOf(category(it.firstTrait), category(it.secondTrait)) }
+                .thenBy { it.kind.ordinal }.thenBy { it.firstTrait.ordinal }.thenBy { it.secondTrait.ordinal },
+        ).take(3))
     }
 
     override fun title(traits: List<PublicTrait>): String {
         val sorted = traits.filter { it.level != TraitLevel.RECORDING }.groupBy { it.trait }.values.map { matching -> matching.maxBy { it.level.ordinal } }
-            .sortedWith(compareByDescending<PublicTrait> { it.level.ordinal }.thenBy { it.trait.ordinal })
+            .sortedWith(compareByDescending<PublicTrait> { it.level.ordinal }.thenBy { SignatureLanguage.titlePriority.indexOf(it.trait) })
         if (sorted.isEmpty()) return SignatureLanguage.RECORDING_TITLE
-        val noun = when (sorted.firstOrNull { it.trait == TraitId.LONG_ROAD || it.trait == TraitId.NIGHT_DRIVE }?.trait) {
+        val modifierTrait = sorted.first().trait
+        val noun = when (sorted.drop(1).firstOrNull { it.trait == TraitId.LONG_ROAD || it.trait == TraitId.NIGHT_DRIVE }?.trait) {
             TraitId.LONG_ROAD -> SignatureLanguage.nouns[1]
             TraitId.NIGHT_DRIVE -> SignatureLanguage.nouns[2]
             else -> SignatureLanguage.nouns[0]
         }
-        return "${SignatureLanguage.modifiers.getValue(sorted.first().trait)} $noun"
+        return "${SignatureLanguage.modifiers.getValue(modifierTrait)} ${noun.takeIf { it in SignatureLanguage.nounsFor(modifierTrait) } ?: SignatureLanguage.nouns[0]}"
     }
 
     override fun knot(evidence: List<TraitEvidence>): KnotSeed {
@@ -122,13 +128,19 @@ class DefaultSignatureEngine : SignatureEngine {
     }
 
     override fun recap(previous: MySignature, current: MySignature, trip: DerivedTripMetrics): TripRecap {
+        val firstSignature = previous.publicSignature == null && current.publicSignature != null &&
+            !trip.excluded && trip.eligibility == TripEligibility.ELIGIBLE
         val changes = if (trip.excluded || trip.eligibility != TripEligibility.ELIGIBLE) emptyList() else current.evidence.mapNotNull { evidence ->
             val previousLevel = previous.evidence.firstOrNull { it.trait == evidence.trait }?.level ?: TraitLevel.RECORDING
             if (evidence.level == previousLevel) null else TraitChange(evidence.trait, previousLevel, evidence.level,
-                if (evidence.level.ordinal > previousLevel.ordinal) "이번 주행으로 ${traitName(evidence.trait)}의 모습이 조금 더 쌓였어요" else "최근 주행을 모아 ${traitName(evidence.trait)}의 모습을 다시 살펴봤어요")
+                when {
+                    firstSignature && evidence.level != TraitLevel.RECORDING -> "${traitName(evidence.trait)}의 매력이 첫 시그니처에 담겼어요"
+                    evidence.level.ordinal > previousLevel.ordinal -> "${traitName(evidence.trait)}의 매력이 조금 더 쌓였어요"
+                    else -> "${traitName(evidence.trait)}의 이야기를 새롭게 모아 가요"
+                })
         }
         return TripRecap("recap-${trip.id}", current.version, trip.id, trip.endedAtEpochMillis, trip.source,
-            previous.knotSeed, current.knotSeed, changes, included = !trip.excluded && trip.eligibility == TripEligibility.ELIGIBLE)
+            previous.knotSeed, current.knotSeed, changes, included = !trip.excluded && trip.eligibility == TripEligibility.ELIGIBLE, firstSignature = firstSignature)
     }
 
     private fun eligibleTrips(trips: List<DerivedTripMetrics>, window: EvidenceWindow): List<DerivedTripMetrics> = trips.groupBy { it.id }.values.map { versions ->

@@ -152,7 +152,8 @@ fun ScreenScaffold(
             Column(Modifier.fillMaxSize().padding(horizontal = ChayeonSpacing.Screen, vertical = ChayeonSpacing.ChipHorizontal), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
                 topBar()
                 if (narrow) {
-                    Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+                    val scroll = rememberScrollState()
+                    Column(Modifier.weight(1f).fillMaxWidth().scrollEdgeFade(scroll).verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
                         primary()
                         secondary?.invoke()
                     }

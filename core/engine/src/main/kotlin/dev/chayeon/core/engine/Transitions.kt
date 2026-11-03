@@ -71,7 +71,20 @@ internal fun Room.evaluateConnections() {
 
 internal fun Room.seedDemo() {
     if (!demoEnabled) return
-    DemoCast.peers.filter { it.id !in state.accounts }.forEachIndexed { index, demo ->
+    DemoCast.peers.forEachIndexed { index, demo ->
+        val existing = state.accounts[demo.id]
+        if (existing != null) {
+            val profile = existing.profile.publicProfile
+            val signature = profile.signature
+            if (profile.kind == ProfileKind.DEMO_PEER && !existing.deleted && signature != null &&
+                (signature.traits != demo.traits || signature.title != rules.title(demo.traits))) {
+                stamp()
+                put(existing.copy(profile = existing.profile.copy(version = v, publicProfile = profile.copy(
+                    version = v, signature = signature.copy(version = v, traits = demo.traits, title = rules.title(demo.traits)),
+                ))))
+            }
+            return@forEachIndexed
+        }
         stamp()
         val profileId = "profile-${demo.id}"
         val signature = PublicSignature("signature-${demo.id}", v, rules.title(demo.traits), demo.traits,
@@ -127,12 +140,37 @@ private fun Room.scheduled(): List<Scheduled> = buildList {
         state.connections.values.lastOrNull { demo.id in setOf(it.first, it.second) }?.let { c ->
             add(Scheduled(c.startedAt + demo.greetingDelayMillis, "demo-greeting-${c.id}-${demo.id}") {
                 val other = peer(c.first, c.second, demo.id)
+                if (state.greetings.values.any { it.greeting.connectionId == c.id && it.author == other }) return@Scheduled
                 val code = presets(demo.id, other).firstOrNull { it !in Room.BASE_PRESETS } ?: PresetCode.NICE_TO_MEET_YOU
                 sendGreeting(demo.id, SendGreetingRequest(CommandMeta("demo-greeting-${c.id}"), c.id, "demo-greeting-${c.id}", code))
             })
             demo.presenceScript.forEach { step ->
                 add(Scheduled(c.startedAt + step.afterConnectionMillis, "demo-presence-${c.id}-${demo.id}-${step.afterConnectionMillis}") {
                     setSyntheticPresence(demo.id, SetSyntheticPresenceRequest(CommandMeta("demo-presence-${c.id}-${step.afterConnectionMillis}"), step.presence))
+                })
+            }
+        }
+        state.connections.values.filter { it.status == ConnectionStatus.CONNECTED && demo.id in setOf(it.first, it.second) }.forEach { c ->
+            val messages = state.greetings.values.filter { it.greeting.connectionId == c.id }.sortedBy { it.greeting.version }
+            val pending = messages.drop(messages.indexOfLast { it.author == demo.id } + 1).firstOrNull { it.author != demo.id }
+            if (pending != null && demo.greetingReplies.isNotEmpty()) {
+                val key = "demo-reply-${c.id}-${pending.greeting.id}"
+                val turn = messages.count { it.author == demo.id && it.greeting.clientMessageId.startsWith("demo-reply-") }
+                add(Scheduled(pending.greeting.sentAtEpochMillis + demo.replyDelayMillis, key) {
+                    sendGreeting(demo.id, SendGreetingRequest(CommandMeta(key), c.id, key,
+                        demo.greetingReplies[turn % demo.greetingReplies.size]))
+                })
+            }
+        }
+        state.afterConnections.values.filter { it.status == AfterConnectionStatus.CONNECTED && demo.id in setOf(it.first, it.second) }.forEach { c ->
+            val messages = state.messages.values.filter { it.message.afterConnectionId == c.id }.sortedBy { it.message.version }
+            val pending = messages.drop(messages.indexOfLast { it.author == demo.id } + 1).firstOrNull { it.author != demo.id }
+            if (pending != null && demo.afterReplies.isNotEmpty()) {
+                val key = "demo-after-reply-${c.id}-${pending.message.id}"
+                val turn = messages.count { it.author == demo.id }
+                add(Scheduled(pending.message.sentAtEpochMillis + demo.replyDelayMillis, key) {
+                    sendAfterMessage(demo.id, SendAfterMessageRequest(CommandMeta(key), c.id, key,
+                        AfterMessageContent.Text(demo.afterReplies[turn % demo.afterReplies.size])))
                 })
             }
         }

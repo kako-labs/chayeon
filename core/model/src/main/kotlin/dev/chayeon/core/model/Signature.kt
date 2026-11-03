@@ -141,6 +141,7 @@ data class TripRecap(
     val changes: List<TraitChange>,
     val included: Boolean = true,
     val seen: Boolean = false,
+    val firstSignature: Boolean = false,
 ) : VersionedEntity
 
 /** Passed from the vehicle worker to the signature worker; no raw signal stream is retained. */
