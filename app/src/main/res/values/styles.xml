@@ -1,0 +1,11 @@
+<resources>
+    <style name="Theme.Chayeon" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">@color/chayeon_background</item>
+        <item name="android:statusBarColor">@color/chayeon_background</item>
+        <item name="android:navigationBarColor">@color/chayeon_background</item>
+        <item name="android:fontFamily">@font/asta_sans</item>
+    </style>
+</resources>
