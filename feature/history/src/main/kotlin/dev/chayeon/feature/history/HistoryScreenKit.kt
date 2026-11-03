@@ -1,15 +1,24 @@
 package dev.chayeon.feature.history
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import dev.chayeon.core.model.*
 import dev.chayeon.core.ui.*
 import java.time.Instant
@@ -29,9 +38,13 @@ internal fun HistoryFrame(
     tab: NavigationItem? = null,
     ratio: Float = 1f,
     onLeave: (() -> Unit)? = null,
+    headerPeer: PublicProfile? = null,
+    bottom: (@Composable () -> Unit)? = null,
+    secondaryFirstWhenNarrow: Boolean = false,
     primary: @Composable () -> Unit,
     secondary: (@Composable () -> Unit)? = null,
 ) {
+    BackHandler(enabled = state.driving.policy != DrivingPolicy.ALLOWED) {}
     ScreenScaffold(
         modifier = Modifier.testTag("screen"),
         topBar = {
@@ -41,16 +54,23 @@ internal fun HistoryFrame(
                     verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.ChipHorizontal)) {
                         if (onBack != null) BackButton(onBack)
+                        if (headerPeer != null) AvatarDish(MochiAvatar.from(headerPeer.avatar), Modifier.size(ChayeonSpacing.Touch))
                         if (title == "차연") AppHeader(Modifier.widthIn(max = ChayeonDimensions.ChemistryKnot)) else Column {
                             GradientText(title, style = ChayeonType.Title)
                             ChayeonText(subtitle, style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
+                            if (headerPeer != null) ChayeonText(headerPeer.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
                         }
                     }
                     if (step != null) StepIndicator(step)
                 }
             }
         },
-        bottomBar = { if (tab != null) chrome.bottomBar(tab) },
+        bottomBar = {
+            Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+                if (state.driving.policy == DrivingPolicy.ALLOWED) bottom?.invoke()
+                if (tab != null) chrome.bottomBar(tab)
+            }
+        },
         primary = {
             if (state.driving.policy != DrivingPolicy.ALLOWED) {
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
@@ -61,7 +81,10 @@ internal fun HistoryFrame(
             } else {
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
                     if (maxWidth < ChayeonSpacing.NarrowBreakpoint - ChayeonSpacing.Screen * 2) {
-                        Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) { primary(); secondary?.invoke() }
+                        Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+                            if (secondaryFirstWhenNarrow) { secondary?.invoke(); primary() }
+                            else { primary(); secondary?.invoke() }
+                        }
                     } else {
                         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
                             ScrollPane(Modifier.weight(ratio)) { primary() }
@@ -74,9 +97,53 @@ internal fun HistoryFrame(
     )
 }
 
+internal val OnboardingPanelArrangement = object : Arrangement.Vertical {
+    override val spacing = ChayeonSpacing.Large
+    override fun Density.arrange(totalSize: Int, sizes: IntArray, outPositions: IntArray) {
+        val minimumGap = spacing.roundToPx()
+        val gap = if (sizes.size > 1) maxOf(minimumGap, (totalSize - sizes.sum()) / (sizes.size - 1)) else 0
+        var position = 0
+        sizes.forEachIndexed { index, size -> outPositions[index] = position; position += size + gap }
+    }
+}
+
+internal val LocalHistoryPaneHeight = staticCompositionLocalOf { 0.dp }
+
 @Composable
 private fun ScrollPane(modifier: Modifier, content: @Composable () -> Unit) {
-    Column(modifier.fillMaxHeight().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) { content() }
+    BoxWithConstraints(modifier.fillMaxHeight()) {
+        val scroll = rememberScrollState()
+        CompositionLocalProvider(LocalHistoryPaneHeight provides maxHeight) {
+            Column(Modifier.fillMaxSize().scrollEdgeFade(scroll).verticalScroll(scroll),
+                verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) { content() }
+        }
+    }
+}
+
+@Composable
+internal fun StretchPanels(content: @Composable () -> Unit) {
+    val minimumHeight = LocalHistoryPaneHeight.current
+    Layout(content, Modifier.fillMaxWidth()) { measurables, constraints ->
+        val gap = ChayeonSpacing.Large.roundToPx()
+        var used = 0
+        val children = measurables.mapIndexed { index, measurable ->
+            val remaining = if (index == measurables.lastIndex) (minimumHeight.roundToPx() - used).coerceAtLeast(0) else 0
+            measurable.measure(constraints.copy(minHeight = remaining)).also { used += it.height + gap }
+        }
+        layout(constraints.maxWidth, (used - gap).coerceAtLeast(0)) {
+            var y = 0
+            children.forEach { child -> child.placeRelative(0, y); y += child.height + gap }
+        }
+    }
+}
+
+@Composable
+internal fun OnboardingActions(label: String, enabled: Boolean, onContinue: () -> Unit, onBack: (() -> Unit)? = null) {
+    Row(Modifier.fillMaxWidth().testTag("onboarding-actions"), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+        if (onBack == null) Spacer(Modifier.weight(1f))
+        else JellyButton("이전", onBack, Modifier.weight(1f), JellyVariant.SECONDARY)
+        JellyButton(label, onContinue, Modifier.weight(2f).testTag("onboarding-primary"), enabled = enabled)
+    }
 }
 
 @Composable
@@ -170,8 +237,30 @@ internal fun PeerChemistry(chemistry: Chemistry, mine: PublicProfile?, peer: Pub
 internal fun HistoryConfirm(state: HistoryUiState, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     val confirmation = state.confirmation ?: return
     if (state.driving.policy != DrivingPolicy.ALLOWED) return
-    ConfirmSheet(confirmation.title, confirmation.body + (state.command(confirmation.commandKey).error?.let { "\n" + it.copy() } ?: ""), "확인하고 진행", onConfirm, onDismiss,
-        busy = state.command(confirmation.commandKey).running)
+    val busy = state.command(confirmation.commandKey).running
+    val body = confirmation.body + (state.command(confirmation.commandKey).error?.let { "\n" + it.copy() } ?: "")
+    val secondaryAction = confirmation.kind in setOf(ConfirmationKind.DISCOVERY_OFF, ConfirmationKind.SIGN_OUT, ConfirmationKind.UNBLOCK)
+    if (!secondaryAction) {
+        ConfirmSheet(confirmation.title, body, confirmation.actionLabel, onConfirm, onDismiss, busy = busy)
+        return
+    }
+    Dialog(onDismissRequest = { if (!busy) onDismiss() }, properties = DialogProperties(
+        usePlatformDefaultWidth = false, dismissOnClickOutside = false, dismissOnBackPress = !busy,
+    )) {
+        Box(Modifier.widthIn(max = ChayeonDimensions.ConfirmWidth).padding(ChayeonSpacing.Large)
+            .semantics { paneTitle = confirmation.title }) {
+            HeroPanel {
+                val scroll = rememberScrollState()
+                Column(Modifier.scrollEdgeFade(scroll).verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
+                    IconOrb(ChayeonIcon.WARNING, variant = OrbVariant.WHITE)
+                    SectionTitle(confirmation.title, subtitle = body)
+                    JellyButton(if (busy) "처리하고 있어요" else confirmation.actionLabel, onConfirm,
+                        Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = !busy)
+                    JellyButton("돌아가기", onDismiss, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = !busy)
+                }
+            }
+        }
+    }
 }
 
 internal fun encounterTime(epoch: Long): String = DateTimeFormatter.ofPattern("M월 d일 a h:mm", Locale.KOREAN)

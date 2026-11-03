@@ -97,6 +97,13 @@ class ConsentViewModel(deps: HistoryDeps) : HistoryViewModel(deps) {
     fun setDiscovery(enabled: Boolean) {
         val request = SetDiscoveryRequest(newMeta(), if (enabled) DiscoveryMode.ON else DiscoveryMode.OFF)
         if (!busy("discovery") && commandState("discovery").error == null) resetCommand("discovery")
-        command("discovery", run = { deps.discoveryRepository.setDiscovery(request) })
+        command("discovery", run = {
+            val policy = (deps.sessionRepository.session.first() as? SessionState.Active)?.session?.policy
+            if (enabled && (policy == null || !deps.profileRepository.settings.first().hasRequiredConsents(policy.consentDocumentVersion))) {
+                AppResult.Failure(AppError.Restricted)
+            } else if (deps.drivingStateProvider.drivingState.first().policy != DrivingPolicy.ALLOWED) {
+                AppResult.Failure(AppError.Restricted)
+            } else deps.discoveryRepository.setDiscovery(request)
+        })
     }
 }

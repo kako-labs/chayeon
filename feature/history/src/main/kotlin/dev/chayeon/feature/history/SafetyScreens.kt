@@ -11,15 +11,18 @@ fun SafetyScreen(state: HistoryUiState, chrome: ScreenChrome, peerProfileId: Str
     onReason: (ReportReason) -> Unit, onReport: () -> Unit, onBlock: () -> Unit, onBlocks: () -> Unit,
     onRetry: (String) -> Unit, onConfirm: () -> Unit, onDismiss: () -> Unit, onBack: () -> Unit) {
     val blocked = state.blocks.valueOrNull()?.any { it.peer.id == peerProfileId } == true
-    HistoryFrame(state, chrome, "차단·신고", "내가 편안한 만남을 선택해요", onBack,
+    val peer = state.safetyPeer?.takeIf { it.id == peerProfileId }
+    val target = peer.safetyName
+    HistoryFrame(state, chrome, "차단·신고", "${target}에 대한 조치예요", onBack, headerPeer = peer,
         primary = {
             GlassCard { ContentColumn {
+                if (peer == null || target == "이 상대") ChayeonText("상대의 공개 프로필을 확인할 수 없어요. 이 화면을 연 상대에게 조치해요.", style = ChayeonType.Secondary)
                 GradientText("차단하면", style = ChayeonType.Title)
                 InfoRow(ChayeonIcon.CHECK, "서로의 카드와 요청이 사라져요")
                 InfoRow(ChayeonIcon.CHECK, "일시 연결과 이어진 대화도 닫혀요")
                 InfoRow(ChayeonIcon.CHECK, "상대에게 이유를 알리지 않아요")
                 InfoRow(ChayeonIcon.LOCK, "해제해도 이전 대화와 관계는 돌아오지 않아요")
-                JellyButton(if (blocked || state.command("block").completed) "차단했어요" else "이 사람 차단", onBlock,
+                JellyButton(if (blocked || state.command("block").completed) "차단했어요" else "$target 차단", onBlock,
                     Modifier.fillMaxWidth(), JellyVariant.WHITE, enabled = !blocked && !state.command("block").completed && !state.command("block").running)
                 CommandFeedback(state.command("block"), { onRetry("block") })
                 JellyButton("차단한 사람 보기", onBlocks, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
@@ -30,7 +33,7 @@ fun SafetyScreen(state: HistoryUiState, chrome: ScreenChrome, peerProfileId: Str
                 ReportReason.entries.forEach { reason ->
                     GelRadioRow(reason.label, reason == state.selectedReason, { onReason(reason) }, enabled = !state.command("report").running)
                 }
-                JellyButton("신고 보내기", onReport, Modifier.fillMaxWidth(), enabled = !state.command("report").running && !state.command("report").completed)
+                JellyButton("$target 신고 보내기", onReport, Modifier.fillMaxWidth(), enabled = !state.command("report").running && !state.command("report").completed)
                 CommandFeedback(state.command("report"), { onRetry("report") }, "신고를 접수했어요")
                 ChayeonText("시연에서는 접수 내용만 저장해요. 운영 검토와 조치는 아직 제공하지 않아요.", style = ChayeonType.Secondary)
                 state.policy?.reportRetentionDays?.let { ChayeonText("신고 기록은 ${it}일 동안 제한 보관해요.", style = ChayeonType.Secondary) }
@@ -73,11 +76,19 @@ fun CleanupScreen(state: HistoryUiState, chrome: ScreenChrome, onAsk: (Confirmat
         onLeave = if (connection != null) onLeave else null,
         primary = {
             ContentColumn {
+                BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = ChayeonSpacing.CardHorizontal)) {
+                    if (maxWidth >= ChayeonSpacing.NarrowBreakpoint) Row(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
+                        ChayeonText("동작", Modifier.weight(.8f), ChayeonType.Label, ChayeonColors.Secondary)
+                        ChayeonText("멈추거나 지워져요", Modifier.weight(1.3f), ChayeonType.Label, ChayeonColors.Secondary)
+                        ChayeonText("그대로 남아요", Modifier.weight(1.3f), ChayeonType.Label, ChayeonColors.Secondary)
+                        Spacer(Modifier.weight(.7f))
+                    }
+                }
                 CleanupRow(state, ConfirmationKind.DISCOVERY_OFF, "", state.discovery.mode == DiscoveryMode.ON, onAsk, onRetry)
                 CleanupRow(state, ConfirmationKind.LEAVE, connection?.id.orEmpty(), connection != null, onAsk, onRetry)
                 Loaded(state.relationships, "이어진 관계가 없어요") { relationships ->
                     relationships.filter { it.status == AfterConnectionStatus.CONNECTED }.forEach { relationship ->
-                        CleanupRow(state, ConfirmationKind.END_RELATIONSHIP, relationship.id, true, onAsk, onRetry, relationship.peer.nickname)
+                        CleanupRow(state, ConfirmationKind.END_RELATIONSHIP, relationship.id, true, onAsk, onRetry, relationship.peer)
                     }
                 }
                 CleanupRow(state, ConfirmationKind.DELETE_RECORDS, "", state.encounters.valueOrNull()?.isNotEmpty() == true, onAsk, onRetry)
@@ -90,22 +101,26 @@ fun CleanupScreen(state: HistoryUiState, chrome: ScreenChrome, onAsk: (Confirmat
 
 @Composable
 private fun CleanupRow(state: HistoryUiState, kind: ConfirmationKind, id: String, enabled: Boolean,
-    onAsk: (ConfirmationKind, String) -> Unit, onRetry: (String) -> Unit, peerName: String? = null) {
+    onAsk: (ConfirmationKind, String) -> Unit, onRetry: (String) -> Unit, peer: PublicProfile? = null) {
     val copy = cleanupCopy(kind, state.policy?.reportRetentionDays)
     val key = "cleanup:$kind:$id"
     GlassCard(Modifier.fillMaxWidth()) {
         BoxWithConstraints {
             val narrow = maxWidth < ChayeonSpacing.NarrowBreakpoint
             if (narrow) ContentColumn {
-                SectionTitle(if (peerName == null) copy.title else "$peerName 님 · ${copy.title}")
-                ChayeonText(copy.removes, style = ChayeonType.Secondary)
+                SectionTitle(if (peer == null) copy.title else "${peer.nickname} 님 · ${copy.title}")
+                if (peer != null) ChayeonText(peer.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+                ChayeonText("멈추거나 지워져요 · ${copy.removes}", style = ChayeonType.Secondary)
                 ChayeonText("남는 내용 · ${copy.keeps}", style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
-                CleanupButton(copy.title, state.command(key), enabled) { onAsk(kind, id) }
+                CleanupButton(copy.title, state.command(key), enabled, kind) { onAsk(kind, id) }
             } else Row(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
-                ChayeonText(if (peerName == null) copy.title else "$peerName 님\n${copy.title}", Modifier.weight(.8f), ChayeonType.Section)
+                Column(Modifier.weight(.8f), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
+                    ChayeonText(if (peer == null) copy.title else "${peer.nickname} 님\n${copy.title}", style = ChayeonType.Section)
+                    if (peer != null) ChayeonText(peer.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+                }
                 ChayeonText(copy.removes, Modifier.weight(1.3f), ChayeonType.Secondary)
                 ChayeonText(copy.keeps, Modifier.weight(1.3f), ChayeonType.Secondary, ChayeonColors.Secondary)
-                Box(Modifier.weight(.7f)) { CleanupButton(copy.title, state.command(key), enabled) { onAsk(kind, id) } }
+                Box(Modifier.weight(.7f)) { CleanupButton(copy.title, state.command(key), enabled, kind) { onAsk(kind, id) } }
             }
         }
         CommandFeedback(state.command(key), { onRetry(key) }, "정리했어요")
@@ -113,6 +128,7 @@ private fun CleanupRow(state: HistoryUiState, kind: ConfirmationKind, id: String
 }
 
 @Composable
-private fun CleanupButton(label: String, state: CommandState, enabled: Boolean, onClick: () -> Unit) {
-    JellyButton(if (state.running) "처리 중" else label, onClick, Modifier.fillMaxWidth(), JellyVariant.DANGER, enabled = enabled && !state.running)
+private fun CleanupButton(label: String, state: CommandState, enabled: Boolean, kind: ConfirmationKind, onClick: () -> Unit) {
+    val destructive = kind in setOf(ConfirmationKind.END_RELATIONSHIP, ConfirmationKind.DELETE_RECORDS, ConfirmationKind.DELETE_ACCOUNT)
+    JellyButton(if (state.running) "처리 중" else label, onClick, Modifier.fillMaxWidth(), if (destructive) JellyVariant.DANGER else JellyVariant.SECONDARY, enabled = enabled && !state.running)
 }

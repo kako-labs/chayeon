@@ -10,6 +10,13 @@ internal object HistoryFixtures {
     val mine = peer.copy(id = "mine", nickname = "새벽드라이브", avatar = AvatarId.DAWN, kind = ProfileKind.VIRTUAL_PROFILE)
     val profile = MyProfile("profile", 1, mine, RegistrationState.READY)
     val chemistry = Chemistry(listOf(ChemistryLine(ChemistryKind.SHARED, TraitId.EARLY_BRAKE, TraitId.EARLY_BRAKE, "둘 다 여유롭게 멈춰요")))
+    val detailedChemistry = Chemistry(chemistry.lines + listOf(
+        ChemistryLine(ChemistryKind.SHARED, TraitId.LONG_ROAD, TraitId.LONG_ROAD, "둘 다 긴 드라이브를 좋아해요"),
+        ChemistryLine(ChemistryKind.SHARED, TraitId.CABIN_CARE, TraitId.CABIN_CARE, "둘 다 함께 타는 공기까지 신경 써요"),
+    ))
+    val detailedSignature = signature.copy(traits = signature.traits + listOf(
+        PublicTrait(TraitId.LONG_ROAD, TraitLevel.VISIBLE), PublicTrait(TraitId.CABIN_CARE, TraitLevel.VISIBLE),
+    ))
     val encounter = Encounter("encounter", 1, "connection", peer, 1_799_999_000_000, 1_800_000_080_000, ConnectionEndReason.DISTANCE, chemistry, setOf(InterestId.JAZZ), AfterEligibility.AVAILABLE)
     val request = AfterRequest("request", 1, encounter.id, peer, RequestDirection.INCOMING, AfterRequestStatus.PENDING, 1_800_000_080_000, 1_800_086_480_000, chemistry)
     val relationship = AfterConnection("after", 1, request.id, encounter.id, peer, AfterConnectionStatus.CONNECTED, 1_800_000_080_000, chemistry, availablePresets = setOf(PresetCode.HELLO, PresetCode.NICE_TO_MEET_AGAIN, PresetCode.ADMIRE_EARLY_BRAKE))

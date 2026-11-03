@@ -146,6 +146,53 @@ class HistoryViewModelTest {
         assertEquals(HistoryFixtures.policy.consentDocumentVersion, request.documentVersion)
     }
 
+    @Test fun `discovery cannot start before all current consents are granted`() = modelTest {
+        val model = watch(ConsentViewModel(deps))
+        model.setDiscovery(true); runCurrent()
+        assertTrue(deps.calls.isEmpty())
+        assertEquals(AppError.Restricted, model.uiState.value.command("discovery").error)
+    }
+
+    @Test fun `block confirmation names peer found in encounter data`() = modelTest {
+        val model = watch(SafetyViewModel(deps, HistoryFixtures.peer.id))
+        model.askBlock(); runCurrent()
+        assertEquals("느린오후 님 차단", model.uiState.value.confirmation?.title)
+    }
+
+    @Test fun `granting consent never opts into discovery and current consent is rechecked`() = modelTest {
+        deps.discoveryState.value = DiscoveryState()
+        val model = watch(ConsentViewModel(deps))
+        val granted = HistoryFixtures.settings.copy(consents = ConsentScope.entries.map {
+            ConsentRecord(it.name, 2, it, ConsentStatus.GRANTED, HistoryFixtures.policy.consentDocumentVersion, 1)
+        })
+        deps.settingsState.value = LoadState.Ready(granted, 2)
+        runCurrent()
+        assertEquals(DiscoveryMode.OFF, model.uiState.value.discovery.mode)
+        assertTrue(deps.calls.isEmpty())
+        model.setDiscovery(true); runCurrent()
+        assertEquals(DiscoveryMode.ON, (deps.calls.single() as SetDiscoveryRequest).mode)
+        deps.calls.clear()
+        deps.settingsState.value = LoadState.Ready(granted.copy(consents = granted.consents.dropLast(1)), 3)
+        model.setDiscovery(true); runCurrent()
+        assertTrue(deps.calls.isEmpty())
+    }
+
+    @Test fun `safety follows newer anonymized peer and handles missing profile honestly`() = modelTest {
+        val model = watch(SafetyViewModel(deps, HistoryFixtures.peer.id))
+        assertEquals(HistoryFixtures.peer, model.uiState.value.safetyPeer)
+        val anonymous = HistoryFixtures.peer.copy(version = 9, nickname = "가상 프로필", signature = null, interests = emptySet(), kind = ProfileKind.VIRTUAL_PROFILE)
+        deps.encountersState.value = LoadState.Ready(listOf(HistoryFixtures.encounter.copy(peer = anonymous)), 9)
+        runCurrent()
+        model.askBlock(); runCurrent()
+        assertEquals("이 상대 차단", model.uiState.value.confirmation?.title)
+        val missing = watch(SafetyViewModel(deps, "unavailable-peer"))
+        assertNull(missing.uiState.value.safetyPeer)
+        missing.askBlock(); runCurrent()
+        assertEquals("이 상대 차단", missing.uiState.value.confirmation?.actionLabel)
+        missing.confirmAction(); runCurrent()
+        assertEquals("unavailable-peer", (deps.calls.single() as BlockPeerRequest).peerProfileId)
+    }
+
     @Test fun `consent revocation is a separate command after success`() = modelTest {
         val model = watch(ConsentViewModel(deps))
         model.record(ConsentScope.VEHICLE_DATA, true); runCurrent()

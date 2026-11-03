@@ -2,10 +2,26 @@ package dev.chayeon.feature.history
 
 import dev.chayeon.core.model.*
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 
 class SafetyViewModel(deps: HistoryDeps, val peerProfileId: String? = null) : HistoryViewModel(deps) {
     init {
         observeSession()
+        if (peerProfileId != null) observe(combine(listOf(
+            deps.safetyRepository.blocks.map { it.valueOrNull().orEmpty().map(Block::peer) },
+            deps.afterRepository.connections.map { it.valueOrNull().orEmpty().map(AfterConnection::peer) },
+            deps.afterRepository.requests.map { it.valueOrNull().orEmpty().map(AfterRequest::peer) },
+            deps.connectionRepository.connection.map { listOfNotNull(it.valueOrNull()?.peer) },
+            deps.connectionRepository.requests.map { it.valueOrNull().orEmpty().map(ConnectionRequest::peer) },
+            deps.encounterRepository.encounters.map { it.valueOrNull().orEmpty().map(Encounter::peer) },
+            deps.discoveryRepository.discovery.map { it.candidates.map(Candidate::profile) },
+        )) { sources -> sources.flatMap { it }.filter { it.id == peerProfileId }.maxByOrNull { it.version } }) { state, peer ->
+            val confirmation = state.confirmation?.let {
+                if (it.kind == ConfirmationKind.BLOCK) it.copy(title = "${peer.safetyName} 차단", actionLabel = "${peer.safetyName} 차단") else it
+            }
+            state.copy(safetyPeer = peer, confirmation = confirmation)
+        }
         observe(deps.safetyRepository.blocks) { state, blocks ->
             val wasBlocked = state.blocks.valueOrNull()?.any { it.peer.id == peerProfileId } == true
             val nowUnblocked = blocks.valueOrNull()?.none { it.peer.id == peerProfileId } == true
@@ -18,8 +34,9 @@ class SafetyViewModel(deps: HistoryDeps, val peerProfileId: String? = null) : Hi
     }
     fun askBlock() {
         val id = peerProfileId ?: return
-        confirm(HistoryConfirmation(ConfirmationKind.BLOCK, id, "이 사람을 차단할까요?",
-            "서로의 카드와 요청이 사라지고, 일시 연결과 이어진 대화가 닫혀요. 상대에게 이유를 알리지 않아요. 해제해도 이전 대화와 관계는 돌아오지 않아요.", "block"))
+        val action = "${content.value.safetyPeer.safetyName} 차단"
+        confirm(HistoryConfirmation(ConfirmationKind.BLOCK, id, action,
+            "서로의 카드와 요청이 사라지고, 일시 연결과 이어진 대화가 닫혀요. 상대에게 이유를 알리지 않아요. 해제해도 이전 대화와 관계는 돌아오지 않아요.", "block", action))
     }
     fun askUnblock(block: Block) = confirm(HistoryConfirmation(ConfirmationKind.UNBLOCK, block.id,
         "차단을 해제할까요?", "서로 다시 발견될 수 있어요. 이전 대화와 관계는 돌아오지 않아요.", "unblock:${block.id}"))

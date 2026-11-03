@@ -59,13 +59,21 @@ fun EncounterDetailScreen(state: HistoryUiState, chrome: ScreenChrome, onAfter: 
     onDelete: () -> Unit, onConfirm: () -> Unit, onDismiss: () -> Unit, onRetry: (String) -> Unit, onBack: () -> Unit) {
     val encounter = state.encounter.valueOrNull()
     HistoryFrame(state, chrome, encounter?.peer?.nickname ?: "기록 상세", "서로 이어졌던 순간이에요", onBack,
-        tab = NavigationItem.HISTORY, ratio = 1.45f,
+        tab = NavigationItem.HISTORY, ratio = 1.45f, secondaryFirstWhenNarrow = true,
+        bottom = {
+            if (encounter != null) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+                JellyButton("이 기록 삭제", onDelete, Modifier.weight(1f), JellyVariant.SECONDARY, enabled = !state.command("delete").running)
+                JellyButton("차단·신고", { onSafety(encounter.peer.id) }, Modifier.weight(1f), JellyVariant.DANGER)
+                JellyButton(if (encounter.afterEligibility == AfterEligibility.AVAILABLE) "애프터 신청" else "애프터 상태 보기", onAfter,
+                    Modifier.weight(2f), enabled = encounter.afterEligibility != AfterEligibility.UNAVAILABLE)
+            }
+        },
         primary = {
             Loaded(state.encounter, "이 기록은 더 이상 없어요") { value -> value?.let {
-                GlassCard { ContentColumn {
+                GlassCard { Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
                     PeerHeader(it.peer, size = PeerHeaderSize.SMALL)
                     it.peer.signature?.let { signature -> SignatureMini(signature) }
-                    ThreadView(ThreadStage.ENDED, Modifier.fillMaxWidth(), animateTransition = false)
+                    ThreadView(ThreadStage.ENDED, Modifier.fillMaxWidth().height(ChayeonDimensions.MiniKnot), animateTransition = false)
                     SectionTitle("함께했던 순간")
                     Row(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
                         Column(Modifier.weight(1f)) { SectionTitle("연결 시작"); ChayeonText(encounterTime(it.startedAtEpochMillis), style = ChayeonType.Secondary) }
@@ -75,32 +83,27 @@ fun EncounterDetailScreen(state: HistoryUiState, chrome: ScreenChrome, onAfter: 
                         Column(Modifier.weight(1f)) { SectionTitle("함께한 시간"); ChayeonText(encounterDuration(it)) }
                         Column(Modifier.weight(1f)) { SectionTitle("끝난 이유"); ChayeonText(it.endReason.presentation(it.peer.nickname).label) }
                     }
-                    SectionTitle("겹친 관심사")
-                    InterestRow(it.sharedInterests)
-                    ChayeonText("이 기록에는 만난 위치와 이동 경로가 없어요.", style = ChayeonType.Secondary)
+                    if (it.sharedInterests.isNotEmpty()) {
+                        SectionTitle("겹친 관심사")
+                        InterestRow(it.sharedInterests)
+                    }
+                    ChayeonText("이 기록에는 만난 위치와 이동 경로가 없어요.", style = ChayeonType.Minimum)
+                    ChayeonText("삭제해도 상대의 기록은 그대로예요. 삭제만으로 상대가 차단되지는 않아요.", style = ChayeonType.Minimum)
+                    CommandFeedback(state.command("delete"), { onRetry("delete") })
                 } }
             } }
         }, secondary = {
             if (encounter != null) ContentColumn {
-                HeroPanel { ContentColumn {
+                if (encounter.chemistry.lines.isEmpty()) HeroPanel(Modifier.fillMaxWidth()) { ContentColumn {
                     StatusChip(encounter.afterEligibility.label)
                     GradientText("다시 이어가고 싶다면", style = ChayeonType.Title)
                     ChayeonText("상대도 수락하면 새 대화가 열려요. 수락 전에는 대화도 연락처도 열리지 않아요.")
                     ThreadView(ThreadStage.AFTER_CONNECTED, Modifier.fillMaxWidth(), animateTransition = false)
-                    if (encounter.afterEligibility == AfterEligibility.COOLDOWN) {
-                        ChayeonText("신청 가능 시간을 확인해 주세요", style = ChayeonType.Secondary)
-                        ResponseCountdown(state.remainingMillis["retry:${encounter.id}"])
-                    }
-                    JellyButton(if (encounter.afterEligibility == AfterEligibility.AVAILABLE) "애프터 신청" else "애프터 상태 보기", onAfter,
-                        Modifier.fillMaxWidth(), enabled = encounter.afterEligibility != AfterEligibility.UNAVAILABLE)
-                } }
-                GlassCard { ContentColumn {
-                    JellyButton("이 기록 삭제", onDelete, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = !state.command("delete").running)
-                    JellyButton("차단·신고", { onSafety(encounter.peer.id) }, Modifier.fillMaxWidth(), JellyVariant.DANGER)
-                    ChayeonText("삭제해도 상대의 기록은 그대로예요. 삭제만으로 상대가 차단되지는 않아요.", style = ChayeonType.Secondary)
-                    CommandFeedback(state.command("delete"), { onRetry("delete") })
-                } }
-                PeerChemistry(encounter.chemistry, state.myProfile?.publicProfile, encounter.peer)
+                } } else PeerChemistry(encounter.chemistry, state.myProfile?.publicProfile, encounter.peer)
+                if (encounter.afterEligibility == AfterEligibility.COOLDOWN) {
+                    ChayeonText("신청 가능 시간을 확인해 주세요", style = ChayeonType.Secondary)
+                    ResponseCountdown(state.remainingMillis["retry:${encounter.id}"])
+                }
             }
         })
     HistoryConfirm(state, onConfirm, onDismiss)
@@ -114,7 +117,29 @@ fun AfterRequestScreen(state: HistoryUiState, chrome: ScreenChrome, onRequest: (
     val request = state.requests.valueOrNull()?.filter { it.encounterId == (encounter?.id ?: state.targetEncounterId) }?.maxByOrNull { it.version }
     val peer = request?.peer ?: encounter?.peer
     val incoming = request?.direction == RequestDirection.INCOMING
-    HistoryFrame(state, chrome, if (incoming) "받은 애프터 신청" else "애프터 신청", "서로 원할 때, 새로운 대화를 열어요", onBack,
+    val actions: @Composable () -> Unit = {
+        AdaptiveActions(
+            first = {
+                if (incoming && peer != null) JellyButton("차단·신고", { onSafety(peer.id) }, Modifier.fillMaxWidth(), JellyVariant.DANGER)
+                else JellyButton("기록으로 돌아가기", onBack, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
+            },
+            second = {
+                when (request?.status) {
+                    AfterRequestStatus.ACCEPTED -> JellyButton("이어진 인연 보기", onConnected, Modifier.fillMaxWidth())
+                    AfterRequestStatus.PENDING -> {
+                        if (incoming) Row(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+                            JellyButton("거절", { onRespond(request.id, RequestDecision.DECLINE) }, Modifier.weight(1f), JellyVariant.SECONDARY, enabled = !state.command("respond:${request.id}").running)
+                            JellyButton("수락하고 이어가기", { onRespond(request.id, RequestDecision.ACCEPT) }, Modifier.weight(2f), enabled = !state.command("respond:${request.id}").running)
+                        } else JellyButton("신청 철회", { onWithdraw(request.id) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = !state.command("withdraw:${request.id}").running)
+                    }
+                    else -> if (state.requests is LoadState.Ready && encounter?.afterEligibility == AfterEligibility.AVAILABLE) {
+                        JellyButton(if (request == null) "애프터 신청 보내기" else "새 애프터 신청 보내기", onRequest, Modifier.fillMaxWidth(), enabled = !state.command("request").running)
+                    }
+                }
+            },
+        )
+    }
+    HistoryFrame(state, chrome, if (incoming) "받은 애프터 신청" else "애프터 신청", "서로 원할 때, 새로운 대화를 열어요", onBack, bottom = actions,
         primary = {
             ContentColumn {
                 if (state.requests is LoadState.Failed) Loaded(state.requests) {}
@@ -128,7 +153,12 @@ fun AfterRequestScreen(state: HistoryUiState, chrome: ScreenChrome, onRequest: (
                         request != null -> "이번 신청을 마쳤어요"
                         else -> "${peer.nickname} 님과 다시 이어갈까요?"
                     }, style = ChayeonType.Hero)
-                    ChayeonText("상대도 수락하면 새로운 대화가 열려요. 거절해도 이유는 전달되지 않아요.", style = ChayeonType.Body)
+                    ChayeonText(when {
+                        request?.status == AfterRequestStatus.ACCEPTED -> "서로 수락해서 새 대화가 열렸어요."
+                        request != null && request.status != AfterRequestStatus.PENDING -> "이번 신청은 마쳤어요. 끝난 대화가 다시 열리지는 않아요."
+                        incoming -> "수락하면 새 대화가 열려요. 거절해도 이유는 전달되지 않아요."
+                        else -> "상대도 수락하면 새로운 대화가 열려요. 거절해도 이유는 전달되지 않아요."
+                    }, style = ChayeonType.Body)
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
                         state.myProfile?.publicProfile?.let { mine -> AfterAvatar(mine, Modifier.weight(.3f)) }
                         ThreadView(if (request?.status == AfterRequestStatus.ACCEPTED) ThreadStage.AFTER_CONNECTED else ThreadStage.AFTER_PENDING,
@@ -147,23 +177,6 @@ fun AfterRequestScreen(state: HistoryUiState, chrome: ScreenChrome, onRequest: (
                     AfterRequestStatus.UNAVAILABLE -> StateCard(ExperienceState.PEER_UNAVAILABLE)
                     else -> Unit
                 }
-                AdaptiveActions(
-                    first = { JellyButton("기록으로 돌아가기", onBack, Modifier.fillMaxWidth(), JellyVariant.SECONDARY) },
-                    second = {
-                        when (request?.status) {
-                            AfterRequestStatus.ACCEPTED -> JellyButton("이어진 인연 보기", onConnected, Modifier.fillMaxWidth())
-                            AfterRequestStatus.PENDING -> {
-                                if (incoming) Row(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
-                                    JellyButton("거절", { onRespond(request.id, RequestDecision.DECLINE) }, Modifier.weight(1f), JellyVariant.SECONDARY, enabled = !state.command("respond:${request.id}").running)
-                                    JellyButton("수락하고 이어가기", { onRespond(request.id, RequestDecision.ACCEPT) }, Modifier.weight(2f), enabled = !state.command("respond:${request.id}").running)
-                                } else JellyButton("신청 철회", { onWithdraw(request.id) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = !state.command("withdraw:${request.id}").running)
-                            }
-                            else -> if (state.requests is LoadState.Ready && encounter?.afterEligibility == AfterEligibility.AVAILABLE) {
-                                JellyButton(if (request == null) "애프터 신청 보내기" else "새 애프터 신청 보내기", onRequest, Modifier.fillMaxWidth(), enabled = !state.command("request").running)
-                            }
-                        }
-                    },
-                )
                 CommandFeedback(state.command("request"), { onRetry("request") })
                 request?.let {
                     CommandFeedback(state.command("respond:${it.id}"), { onRetry("respond:${it.id}") })
@@ -175,7 +188,7 @@ fun AfterRequestScreen(state: HistoryUiState, chrome: ScreenChrome, onRequest: (
                 }
                 if (peer != null) {
                     PeerChemistry(request?.chemistry ?: encounter?.chemistry ?: Chemistry(), state.myProfile?.publicProfile, peer)
-                    JellyButton("차단·신고", { onSafety(peer.id) }, Modifier.fillMaxWidth(), JellyVariant.DANGER)
+                    if (!incoming) JellyButton("차단·신고", { onSafety(peer.id) }, Modifier.fillMaxWidth(), JellyVariant.DANGER)
                 }
                 GlassCard { ContentColumn {
                     InfoRow(ChayeonIcon.LOCK, "수락 전에는 대화가 열리지 않아요")
@@ -198,11 +211,8 @@ private fun AfterAvatar(profile: PublicProfile, modifier: Modifier) {
 
 @Composable
 private fun AdaptiveActions(first: @Composable () -> Unit, second: @Composable () -> Unit) {
-    BoxWithConstraints {
-        if (maxWidth < ChayeonSpacing.NarrowBreakpoint) ContentColumn { second(); first() }
-        else Row(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
-            Box(Modifier.weight(1f)) { first() }
-            Box(Modifier.weight(2f)) { second() }
-        }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+        Box(Modifier.weight(1f)) { first() }
+        Box(Modifier.weight(3f)) { second() }
     }
 }

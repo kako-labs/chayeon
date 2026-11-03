@@ -17,6 +17,12 @@ fun AfterConnectionsScreen(state: HistoryUiState, chrome: ScreenChrome, onSelect
     onConfirm: () -> Unit, onDismiss: () -> Unit) {
     val relationship = state.selectedRelationship
     HistoryFrame(state, chrome, "이어진 인연", "서로 수락해서 이어진 사람들이에요", tab = NavigationItem.AFTER, ratio = .42f,
+        bottom = {
+            if (relationship != null) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+                if (relationship.status == AfterConnectionStatus.CONNECTED) JellyButton("관계 끝내기", onEnd, Modifier.weight(1f), JellyVariant.SECONDARY, enabled = !state.command("end:${relationship.id}").running)
+                JellyButton("차단·신고", { onSafety(relationship.peer.id) }, Modifier.weight(1f), JellyVariant.DANGER)
+            }
+        },
         primary = {
             ContentColumn {
                 Loaded(state.requests, "기다리는 신청이 없어요") { requests ->
@@ -29,8 +35,8 @@ fun AfterConnectionsScreen(state: HistoryUiState, chrome: ScreenChrome, onSelect
                         GlassCard { ContentColumn {
                             PeerHeader(connection.peer, size = PeerHeaderSize.SMALL)
                             ChayeonText(if (connection.status == AfterConnectionStatus.CONNECTED) "서로 이어졌어요" else "관계가 끝났어요", style = ChayeonType.Secondary)
-                            JellyButton(if (connection.id == state.selectedRelationshipId) "보고 있는 인연" else "대화 보기", { onSelect(connection.id) },
-                                Modifier.fillMaxWidth(), if (connection.id == state.selectedRelationshipId) JellyVariant.WHITE else JellyVariant.SECONDARY)
+                            if (connection.id == state.selectedRelationshipId) StatusChip(if (connection.status == AfterConnectionStatus.CONNECTED) "대화 중인 인연" else "선택한 인연")
+                            else JellyButton("대화 보기", { onSelect(connection.id) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
                         } }
                     }
                 }
@@ -47,7 +53,7 @@ fun AfterConnectionsScreen(state: HistoryUiState, chrome: ScreenChrome, onSelect
                             state.myProfile?.publicProfile?.let { AvatarDish(MochiAvatar.from(it.avatar), Modifier.size(ChayeonDimensions.PeerSmall)) }
                             key(relationship.id, relationship.status) {
                                 ThreadView(if (relationship.status == AfterConnectionStatus.CONNECTED) ThreadStage.AFTER_CONNECTED else ThreadStage.ENDED,
-                                    Modifier.weight(1f), animateTransition = relationship.status == AfterConnectionStatus.CONNECTED)
+                                    Modifier.weight(1f).height(ChayeonDimensions.MiniKnot), animateTransition = relationship.status == AfterConnectionStatus.CONNECTED)
                             }
                             AvatarDish(MochiAvatar.from(relationship.peer.avatar), Modifier.size(ChayeonDimensions.PeerSmall))
                         }
@@ -57,7 +63,8 @@ fun AfterConnectionsScreen(state: HistoryUiState, chrome: ScreenChrome, onSelect
                     val conversation: @Composable () -> Unit = {
                         GlassCard { Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
                         SectionTitle("이어진 대화")
-                        Column(Modifier.heightIn(max = ChayeonDimensions.PeerLarge).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
+                        val messageScroll = rememberScrollState()
+                        Column(Modifier.heightIn(max = ChayeonDimensions.Avatar).scrollEdgeFade(messageScroll).verticalScroll(messageScroll), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
                         Loaded(state.messages, "첫 인사를 건네보세요") { messages ->
                             messages.forEach { message ->
                                 if (state.outbox.none { it.request.clientMessageId == message.clientMessageId }) {
@@ -78,28 +85,31 @@ fun AfterConnectionsScreen(state: HistoryUiState, chrome: ScreenChrome, onSelect
                     } }
                     }
                     val presets: @Composable () -> Unit = {
-                        GlassCard { ContentColumn {
-                        SectionTitle("인사 보내기")
-                        relationship.availablePresets.sortedBy { it.ordinal }.forEach { code ->
-                            PresetButton(code.label, { onPreset(code) }, Modifier.fillMaxWidth(), enabled = !state.command("preset:${relationship.id}:$code").running)
-                            CommandFeedback(state.command("preset:${relationship.id}:$code"), { onRetry("preset:${relationship.id}:$code") })
-                        }
-                    } }
+                        GlassCard(contentPadding = PaddingValues(horizontal = ChayeonSpacing.CardHorizontal, vertical = ChayeonSpacing.Medium)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
+                            SectionTitle("인사 보내기")
+                            relationship.availablePresets.sortedBy { it.ordinal }.chunked(2).forEach { row ->
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+                                    row.forEach { code ->
+                                        Column(Modifier.weight(1f)) {
+                                            PresetButton(code.label, { onPreset(code) }, Modifier.fillMaxWidth(), enabled = !state.command("preset:${relationship.id}:$code").running)
+                                            CommandFeedback(state.command("preset:${relationship.id}:$code"), { onRetry("preset:${relationship.id}:$code") })
+                                        }
+                                    }
+                                }
+                            }
+                        } }
                     }
                     BoxWithConstraints {
                         if (maxWidth >= ChayeonSpacing.NarrowBreakpoint - ChayeonSpacing.Screen * 2) {
                             Row(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
                                 Box(Modifier.weight(1f)) { conversation() }
-                                Box(Modifier.weight(1f)) { presets() }
+                                Box(Modifier.weight(1.2f)) { presets() }
                             }
                         } else ContentColumn { conversation(); presets() }
                     }
                     CommandFeedback(state.command("end:${relationship.id}"), { onRetry("end:${relationship.id}") })
                 } else EmptyCard("이 대화는 닫혔어요", "끝난 관계는 다시 열리지 않아요. 처음 스친 기록은 남아요.")
-                Row(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
-                    if (relationship.status == AfterConnectionStatus.CONNECTED) JellyButton("관계 끝내기", onEnd, Modifier.weight(1f), JellyVariant.SECONDARY, enabled = !state.command("end:${relationship.id}").running)
-                    JellyButton("차단·신고", { onSafety(relationship.peer.id) }, Modifier.weight(1f), JellyVariant.DANGER)
-                }
             }
         })
     HistoryConfirm(state, onConfirm, onDismiss)
