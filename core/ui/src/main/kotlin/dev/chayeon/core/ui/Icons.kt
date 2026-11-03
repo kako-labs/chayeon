@@ -13,6 +13,19 @@ import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.dp
 
 enum class ChayeonIcon(private val svg: String) {
+    GENTLE("M3 13c3-8 5 8 9 0s6 0 9-2M3 19h18"),
+    BRAKE("M5 6v12M19 6v12M8 12h8M12 8l-4 4 4 4"),
+    SIGNAL("M10 5l-7 7 7 7M3 12h18M17 8l4 4-4 4"),
+    PACE("M3 8h18M3 16h18M8 5v6M16 13v6"),
+    BELT("M6 3l12 18M18 3L6 21M9 10h6v5H9z"),
+    ROAD("M7 3L3 21M17 3l4 18M12 3v4M12 10v4M12 17v4"),
+    MOON("M19 16A9 9 0 0 1 8 4a9 9 0 1 0 11 12z"),
+    TIRE("M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 3v5M12 16v5M3 12h5M16 12h5"),
+    ENERGY("M13 2L5 13h6l-1 9 9-13h-6z"),
+    BATTERY("M3 6h16v12H3zM22 10v4M7 12h8M11 9v6"),
+    DROP("M12 3s-7 8-7 12a7 7 0 0 0 14 0c0-4-7-12-7-12zM8 15a4 4 0 0 0 4 4"),
+    AIR("M3 8h12a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 17h6a2 2 0 1 1-2 2"),
+    FORWARD("M9 5l7 7-7 7"),
     THREAD("M6.5 17C6.5 9 17.5 15 17.5 7M6.5 19.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8zM17.5 9.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8z"),
     HISTORY("M12 21a9 9 0 1 0-8.2-5.3M3 21v-5h5M12 7v5l3.5 2"),
     KNOT("M8 8a4 4 0 1 0 0 8c2.5 0 5.5-8 8-8a4 4 0 1 1 0 8c-2.5 0-5.5-8-8-8z"),

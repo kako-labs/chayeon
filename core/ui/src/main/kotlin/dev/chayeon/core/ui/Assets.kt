@@ -29,15 +29,22 @@ import androidx.compose.ui.unit.dp
 import dev.chayeon.core.model.AvatarId
 
 enum class MochiAvatar(val id: AvatarId, @DrawableRes val drawable: Int, val description: String) {
-    DAWN(AvatarId.DAWN, R.drawable.av_dawn, "초승달 찹쌀떡"),
-    SLOW(AvatarId.SLOW, R.drawable.av_slow, "햇님 찹쌀떡"),
-    JAZZ(AvatarId.JAZZ, R.drawable.av_jazz, "음표 찹쌀떡"),
-    SEA(AvatarId.SEA, R.drawable.av_sea, "물결 찹쌀떡"),
-    FOREST(AvatarId.FOREST, R.drawable.av_forest, "새싹 찹쌀떡"),
-    STAR(AvatarId.STAR, R.drawable.av_star, "별 찹쌀떡");
+    DAWN(AvatarId.DAWN, R.drawable.av_dawn, AvatarId.DAWN.label),
+    SLOW(AvatarId.SLOW, R.drawable.av_slow, AvatarId.SLOW.label),
+    JAZZ(AvatarId.JAZZ, R.drawable.av_jazz, AvatarId.JAZZ.label),
+    SEA(AvatarId.SEA, R.drawable.av_sea, AvatarId.SEA.label),
+    FOREST(AvatarId.FOREST, R.drawable.av_forest, AvatarId.FOREST.label),
+    STAR(AvatarId.STAR, R.drawable.av_star, AvatarId.STAR.label);
 
     companion object {
-        fun from(id: AvatarId): MochiAvatar = entries.first { it.id == id }
+        fun from(id: AvatarId): MochiAvatar = when (id) {
+            AvatarId.DAWN -> DAWN
+            AvatarId.SLOW -> SLOW
+            AvatarId.JAZZ -> JAZZ
+            AvatarId.SEA -> SEA
+            AvatarId.FOREST -> FOREST
+            AvatarId.STAR -> STAR
+        }
     }
 }
 
@@ -71,7 +78,10 @@ fun AvatarDish(avatar: MochiAvatar, modifier: Modifier = Modifier, decorative: B
     Box(modifier.size(ChayeonDimensions.Avatar).drawBehind {
         drawCircle(Brush.radialGradient(listOf(ChayeonColors.Glow.copy(alpha = .25f), ChayeonColors.Transparent), radius = size.width * .68f), radius = size.width * .68f)
     }.shadow(ChayeonElevation.Avatar, CircleShape, clip = false)
-        .background(Brush.radialGradient(listOf(ChayeonColors.DishTop, ChayeonColors.DishMiddle, ChayeonColors.DishBottom), center = Offset(84f, 64f), radius = 150f), CircleShape)
+        .drawBehind {
+            drawCircle(Brush.radialGradient(listOf(ChayeonColors.DishTop, ChayeonColors.DishMiddle, ChayeonColors.DishBottom),
+                center = Offset(size.width * .5f, size.height * .38f), radius = size.width * .7f))
+        }
         .border(ChayeonElevation.StrongBorder, ChayeonColors.ButtonBorder.copy(alpha = .55f), CircleShape)) {
         MochiAvatar(avatar, Modifier.matchParentSize(), floating = false, decorative = decorative)
     }

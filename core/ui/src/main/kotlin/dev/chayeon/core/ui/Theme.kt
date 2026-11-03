@@ -121,6 +121,17 @@ object ChayeonElevation {
 }
 
 object ChayeonDimensions {
+    val Logo = 88.dp
+    val ProfileAvatar = 60.dp
+    val PeerSmall = 104.dp
+    val PeerLarge = 240.dp
+    val MiniKnot = 96.dp
+    val HeroKnot = 300.dp
+    val PickerAvatar = 100.dp
+    val ConfirmWidth = 720.dp
+    val CountdownTrack = 6.dp
+    val ProgressDot = 12.dp
+    val ProgressActive = 36.dp
     val SmallIcon = 24.dp
     val BackIcon = 30.dp
     val UtilityIcon = 32.dp
@@ -163,6 +174,7 @@ object ChayeonType {
         Font(R.font.asta_sans, FontWeight.Bold, variationSettings = FontVariation.Settings(FontVariation.weight(700))),
         Font(R.font.asta_sans, FontWeight.ExtraBold, variationSettings = FontVariation.Settings(FontVariation.weight(800))),
     )
+    val Brand = TextStyle(fontFamily = Font, fontSize = 50.sp, lineHeight = 55.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp)
     val Hero = TextStyle(fontFamily = Font, fontSize = 66.sp, lineHeight = 76.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1.65).sp)
     val Title = TextStyle(fontFamily = Font, fontSize = 46.sp, lineHeight = 55.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-.92).sp)
     val Section = TextStyle(fontFamily = Font, fontSize = 32.sp, lineHeight = 40.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-.64).sp)

@@ -51,7 +51,7 @@ class DesignGalleryTest {
             GearStrip(Gear.PARK, DrivingPolicy.ALLOWED, true)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    ChayeonText("차연의 감각", style = ChayeonType.Hero)
+                    GradientText("차연의 감각", style = ChayeonType.Hero)
                     ChayeonText("붉은 실로 이어지는, 나만의 인연", style = ChayeonType.Body, color = ChayeonColors.Secondary)
                 }
                 StatusChip("가상 프로필", variant = StatusVariant.SYNTHETIC)
@@ -59,7 +59,7 @@ class DesignGalleryTest {
             Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 HeroPanel(Modifier.weight(1f).fillMaxSize()) {
                     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                        ChayeonText("말보다 오래 남는\n나의 드라이브 시그니처", style = ChayeonType.Title)
+                        GradientText("말보다 오래 남는\n나의 드라이브 시그니처", style = ChayeonType.Title)
                         SignatureKnot(KnotSeed(2357933L), Modifier.weight(1f).fillMaxWidth(), reveal = false)
                         ChayeonText("여유롭게 멈추는 드라이버", style = ChayeonType.Section)
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

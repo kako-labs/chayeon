@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -100,12 +101,16 @@ fun BottomNav(selected: NavigationItem, discoveryOn: Boolean, onSelect: (Navigat
                 Box(Modifier.width(ChayeonDimensions.Avatar), contentAlignment = Alignment.Center) {
                     Column(Modifier.size(ChayeonDimensions.CenterOrb).drawBehind {
                         drawCircle(Brush.radialGradient(listOf(ChayeonColors.Glow.copy(alpha = .48f), ChayeonColors.Transparent), radius = size.width * .78f), radius = size.width * .78f)
-                    }.clip(CircleShape).background(Brush.radialGradient(
-                        if (discoveryOn) listOf(ChayeonColors.OrbTop, ChayeonColors.OrbMiddle, ChayeonColors.OrbBottom)
-                        else listOf(ChayeonColors.DishTop, ChayeonColors.DishMiddle, ChayeonColors.DishBottom),
-                        center = Offset(42f, 29f), radius = 124f,
-                    )).border(ChayeonElevation.StrongBorder, ChayeonColors.ButtonBorder.copy(alpha = .8f), CircleShape)
-                        .clickable(enabled = interactive, role = Role.Switch, onClick = onDiscoveryToggle)
+                    }.clip(CircleShape).drawBehind {
+                        drawCircle(Brush.radialGradient(
+                            if (discoveryOn) listOf(ChayeonColors.OrbTop, ChayeonColors.OrbMiddle, ChayeonColors.OrbBottom)
+                            else listOf(ChayeonColors.DishTop, ChayeonColors.DishMiddle, ChayeonColors.DishBottom),
+                            center = Offset(size.width * .34f, size.height * .24f), radius = size.width,
+                        ))
+                        drawOval(Brush.verticalGradient(listOf(ChayeonColors.White.copy(alpha = .5f), ChayeonColors.Transparent), endY = size.height * .45f),
+                            topLeft = Offset(size.width * .19f, size.height * .08f), size = androidx.compose.ui.geometry.Size(size.width * .62f, size.height * .38f))
+                    }.border(ChayeonElevation.StrongBorder, ChayeonColors.ButtonBorder.copy(alpha = .8f), CircleShape)
+                        .toggleable(discoveryOn, enabled = interactive, role = Role.Switch, onValueChange = { onDiscoveryToggle() })
                         .semantics { contentDescription = if (discoveryOn) "발견 끄기" else "발견 켜기" }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Tiny, Alignment.CenterVertically)) {
                         ChayeonIcon(ChayeonIcon.THREAD, Modifier.size(ChayeonDimensions.NavigationIcon))
                         ChayeonText(if (discoveryOn) "발견 중" else "꺼짐", style = ChayeonType.Label)
