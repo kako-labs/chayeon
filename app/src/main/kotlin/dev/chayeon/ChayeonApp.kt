@@ -1,7 +1,8 @@
 package dev.chayeon
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -55,23 +56,36 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
     fun open(destination: String) { guarded { navController.navigate(destination) { launchSingleTop = true } } }
     val chrome = ScreenChrome(topBar = {
         Column {
-            GearStrip(driving.gear, driving.policy, discovery.locationSource == LocationSource.SYNTHETIC)
-            if (driving.policy == DrivingPolicy.ALLOWED) {
-                event?.let { notice ->
-                    TopBanner(notice.text, Modifier.clickable {
-                        guarded {
-                            navController.navigate(notice.route) { launchSingleTop = true }
-                            notice.requestId?.let { navController.currentBackStackEntry?.savedStateHandle?.set("meet.requestId", it) }
-                            events?.acknowledge(notice.id)
-                        }
-                    })
+            BoxWithConstraints(Modifier.fillMaxWidth().height(ChayeonDimensions.Banner), contentAlignment = Alignment.Center) {
+                GearStrip(driving.gear, driving.policy, discovery.locationSource == LocationSource.SYNTHETIC)
+                if (driving.policy == DrivingPolicy.ALLOWED) {
+                    val notice = event
+                    val text = notice?.text ?: when {
+                        publicationFailed -> "공개 내용을 반영하지 못했어요. 연결되면 다시 시도해요"
+                        recordingFailed -> "주행 기록을 시작하지 못했어요. 앱을 다시 열어 주세요"
+                        discoveryError -> "발견 상태를 바꾸지 못했어요. 다시 눌러 주세요"
+                        else -> null
+                    }
+                    val narrow = maxWidth < ChayeonSpacing.NarrowBreakpoint
+                    val label = if (!narrow) text else when {
+                        notice != null -> "새 소식 확인하기"
+                        publicationFailed -> "공개 내용을 다시 반영해요"
+                        recordingFailed -> "앱을 다시 열어 주세요"
+                        discoveryError -> "발견을 다시 눌러 주세요"
+                        else -> null
+                    }
+                    if (label != null) TopBanner(label, Modifier.padding(horizontal = if (narrow) ChayeonDimensions.Avatar else ChayeonDimensions.PeerLarge)
+                        .then(if (notice != null) Modifier.clickable {
+                            guarded {
+                                navController.navigate(notice.route) { launchSingleTop = true }
+                                notice.requestId?.let { navController.currentBackStackEntry?.savedStateHandle?.set("meet.requestId", it) }
+                                events?.acknowledge(notice.id)
+                            }
+                        } else Modifier))
                 }
-                if (publicationFailed) TopBanner("공개 내용을 반영하지 못했어요. 연결되면 다시 시도해요")
-                if (recordingFailed) TopBanner("주행 기록을 시작하지 못했어요. 앱을 다시 열어 주세요")
-                if (discoveryError) TopBanner("발견 상태를 바꾸지 못했어요. 다시 눌러 주세요")
-                if (route in setOf(SignatureDestination.MY_PROFILE, MeetDestination.CONNECTED) && graph.demoEnabled) {
-                    JellyButton("시연 제어", { open(DEMO_ROUTE) }, variant = JellyVariant.SECONDARY)
-                }
+            }
+            if (driving.policy == DrivingPolicy.ALLOWED && route == MeetDestination.CONNECTED && graph.demoEnabled) {
+                JellyButton("시연 제어", { open(DEMO_ROUTE) }, variant = JellyVariant.SECONDARY)
             }
         }
     }, bottomBar = { selected ->
@@ -122,6 +136,14 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
             composable(DEMO_ROUTE) {
                 val model: DemoConsoleViewModel = viewModel { DemoConsoleViewModel(graph) }
                 val state by model.uiState.collectAsStateWithLifecycle()
+                LaunchedEffect(state.completedRecapId, state.busy, state.driving.policy) {
+                    val recapId = state.completedRecapId
+                    if (recapId != null && !state.busy && graph.currentPolicy() == DrivingPolicy.ALLOWED) {
+                        shownRecap = recapId
+                        navController.navigate(SignatureDestination.recap(recapId)) { launchSingleTop = true }
+                        model.consumeRecap()
+                    }
+                }
                 DemoConsoleScreen(state, chrome, graph.isRealVehicle, graph.demoEnabled, model::gear,
                     model::replay, model::fill, model::presence, {
                         guarded {

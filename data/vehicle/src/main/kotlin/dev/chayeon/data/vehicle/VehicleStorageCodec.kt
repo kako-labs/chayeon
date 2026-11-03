@@ -50,9 +50,10 @@ private data class StoredChange(val trait: TraitId, val previous: TraitLevel, va
 private data class StoredRecap(
     val id: String, val version: Long, val trip: String, val end: Long, val source: DataSource,
     val previous: KnotSeed, val current: KnotSeed, val changes: List<StoredChange>, val included: Boolean, val seen: Boolean,
+    val firstSignature: Boolean = false,
 ) {
-    fun domain() = TripRecap(id, version, trip, end, source, previous, current, changes.map { it.domain() }, included, seen)
-    companion object { fun from(v: TripRecap) = StoredRecap(v.id, v.version, v.tripId, v.completedAtEpochMillis, v.source, v.previousKnot, v.currentKnot, v.changes.map(StoredChange::from), v.included, v.seen) }
+    fun domain() = TripRecap(id, version, trip, end, source, previous, current, changes.map { it.domain() }, included, seen, firstSignature)
+    companion object { fun from(v: TripRecap) = StoredRecap(v.id, v.version, v.tripId, v.completedAtEpochMillis, v.source, v.previousKnot, v.currentKnot, v.changes.map(StoredChange::from), v.included, v.seen, v.firstSignature) }
 }
 
 @Serializable

@@ -4,6 +4,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.*
+import com.github.takahirom.roborazzi.captureRoboImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.lifecycle.ViewModelStore
 import dev.chayeon.core.model.*
@@ -159,19 +160,31 @@ class SignatureInteractionTest {
         assertEquals(f.recap.id, deps.signatureRepository.seenCalls.single().recapId)
     }
 
-    @Test fun signatureControlsMeetVehicleTouchSizeAndBothGroupsAreVisible() {
+    @Test fun signaturePrioritizesEarnedTraitsAndKeepsVehicleTouchSize() {
         compose.setContent {
             ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
                 MySignatureScreen(SignatureUiState(f.driving, f.ready(f.signature)), previewChrome(), {}, {}, {}, {}, {})
             }
         }
-        compose.onNodeWithText("주행 스타일").assertIsDisplayed()
-        compose.onNodeWithText("차량 관리").assertIsDisplayed()
+        compose.onNodeWithText("함께 타면 알게 되는 나").assertIsDisplayed()
+        compose.onNodeWithText("아직 모으는 이야기").assertIsDisplayed()
         compose.onNodeWithText("공개 범위").assertIsDisplayed()
         compose.onAllNodes(hasClickAction()).fetchSemanticsNodes().forEach { node ->
             assertTrue("Touch width is below 76dp", node.size.width >= 76)
             assertTrue("Touch height is below 76dp", node.size.height >= 76)
         }
+    }
+
+    @Test fun recordingAndUnsupportedTraitsExpandWithoutTakingOverEarnedCards() {
+        compose.setContent {
+            ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+                MySignatureScreen(SignatureUiState(f.driving, f.ready(f.signature)), previewChrome(), {}, {}, {}, {}, {})
+            }
+        }
+        compose.onNodeWithText("배터리 아끼기").assertDoesNotExist()
+        compose.onNodeWithText("아직 모으는 이야기").performClick()
+        compose.onNodeWithText("배터리 아끼기").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("signature-screen").captureRoboImage("src/test/screenshots/signature_recording_expanded.png")
     }
 
     @Test fun profileMainActionAndFailureRecoveryAreReachable() {

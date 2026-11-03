@@ -64,6 +64,53 @@ class AppGraphTest {
         assertNull(events.banner.value)
     }
 
+    @Test fun signalBaselineWaitsForTheFirstReadySnapshotIncludingAnEmptyHistory() = runTest {
+        for (history in listOf(emptyList(), (1..30).map { "history-$it" })) {
+            val fixture = TestGraph().apply { ready(); driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED) }
+            val signals = MutableStateFlow<List<String>>(emptyList())
+            val ready = MutableStateFlow(false)
+            val notifications = mutableListOf<String>()
+            val events = AppEvents(fixture.graph, object : MessageNotifier {
+                override fun notifyMessage(id: String) { notifications += id }
+            }, backgroundScope, signals, ready)
+            events.start()
+            runCurrent()
+            signals.value = history
+            ready.value = true
+            runCurrent()
+            assertTrue(notifications.isEmpty())
+            signals.value = history + "new-arrival"
+            runCurrent()
+            assertEquals(listOf("new-arrival"), notifications)
+        }
+    }
+
+    @Test fun nonEmptyInitialSignalsAreHistoryAndNeverNotifyAcrossSessions() = runTest {
+        val fixture = TestGraph().apply { ready(); driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED) }
+        val signals = MutableStateFlow((1..30).map { "old-$it" })
+        val notifications = mutableListOf<String>()
+        val events = AppEvents(fixture.graph, object : MessageNotifier {
+            override fun notifyMessage(id: String) { notifications += id }
+        }, backgroundScope, signals)
+        events.start()
+        runCurrent()
+        assertTrue(notifications.isEmpty())
+        signals.value += "new"
+        runCurrent()
+        assertEquals(listOf("new"), notifications)
+        signals.value = signals.value.toList()
+        runCurrent()
+        assertEquals(1, notifications.size)
+        fixture.sessions.value = SessionState.SignedOut()
+        runCurrent()
+        fixture.sessions.value = SessionState.Active(fixture.active.copy(id = "next-session"))
+        runCurrent()
+        assertEquals(1, notifications.size)
+        signals.value += "next-new"
+        runCurrent()
+        assertEquals(listOf("new", "next-new"), notifications)
+    }
+
     @Test fun publisherWaitsForLocalAccountBindingBeforeRetracting() = runTest {
         val fixture = TestGraph().apply { ready() }
         val remote = PublicSignature("published", 1, "시그니처를 만드는 중이에요", emptyList(), KnotSeed(0), DataSource.SYNTHETIC, EvidenceBucket.RECORDING)

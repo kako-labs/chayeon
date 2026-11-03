@@ -52,5 +52,6 @@ data class TripRecapUiState(
     val markingSeen: Boolean = false,
     val error: AppError? = null,
     val openSignature: Boolean = false,
+    val openVisibility: Boolean = false,
     val pendingChanges: Boolean = false,
 )

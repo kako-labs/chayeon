@@ -308,6 +308,26 @@ class SignatureViewModelTest {
     }
 
     @Test
+    fun `first signature visibility action preserves its destination through a failed receipt retry`() = scenario {
+        val deps = SignatureTestDeps()
+        deps.signatureRepository.seenError = AppError.Network
+        val model = keep(TripRecapViewModel(deps, "recap"))
+        observe(model.uiState)
+        runCurrent()
+        model.markSeen(openVisibility = true)
+        runCurrent()
+        assertFalse(model.uiState.value.openVisibility)
+        deps.signatureRepository.seenError = null
+        model.retry()
+        runCurrent()
+        assertTrue(model.uiState.value.openVisibility)
+        assertFalse(model.uiState.value.openSignature)
+        model.consumeNavigation()
+        runCurrent()
+        assertFalse(model.uiState.value.openVisibility)
+    }
+
+    @Test
     fun `failed observations never keep earlier evidence`() = scenario {
         val deps = SignatureTestDeps()
         val model = keep(TraitDetailViewModel(deps, TraitId.GENTLE_RIDE))

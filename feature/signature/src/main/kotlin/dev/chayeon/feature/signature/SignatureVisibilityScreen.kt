@@ -70,9 +70,9 @@ fun SignatureVisibilityScreen(
         },
         secondary = {
             SignatureColumn {
-                HeroPanel(Modifier.fillMaxWidth().testTag("public-preview")) {
+                HeroPanel(Modifier.fillMaxWidth().testTag("public-preview"), contentPadding = PaddingValues(ChayeonSpacing.Screen)) {
                     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
+                        verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
                         SectionTitle("상대에게 이렇게 보여요", subtitle = "내가 고른 공개 내용의 미리보기예요")
                         val preview = state.preview
                         if (state.signature !is LoadState.Ready) {
@@ -84,15 +84,18 @@ fun SignatureVisibilityScreen(
                             GradientText("나만 간직해요", style = ChayeonType.Title)
                             ChayeonText("상대에게는 시그니처가 보이지 않아요.", color = ChayeonColors.Secondary)
                         } else {
-                            SignatureKnot(preview.knotSeed, Modifier.size(ChayeonDimensions.Knot), reveal = false)
-                            GradientText(preview.title, style = ChayeonType.Title)
+                            SignatureKnot(preview.knotSeed, Modifier.size(ChayeonDimensions.Avatar), reveal = false)
+                            GradientText(preview.title, style = ChayeonType.Section)
                             SignatureSource(preview.source)
                             if (preview.traits.isEmpty()) ChayeonText("공개할 특성을 모으고 있어요.", color = ChayeonColors.Secondary)
                             preview.traits.forEach { trait ->
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-                                    TraitBadge(trait.trait, trait.level)
-                                    ChayeonText(trait.trait.presentation.publicPhrase, Modifier.weight(1f), ChayeonType.Secondary)
+                                    ChayeonIcon(trait.trait.presentation.icon, Modifier.size(ChayeonDimensions.UtilityIcon), ChayeonColors.Pink)
+                                    Column(Modifier.weight(1f)) {
+                                        ChayeonText(trait.trait.presentation.name, style = ChayeonType.Label, color = ChayeonColors.Pink)
+                                        ChayeonText(trait.trait.presentation.publicPhrase, style = ChayeonType.Secondary)
+                                    }
                                 }
                             }
                         }

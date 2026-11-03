@@ -2,6 +2,8 @@ package dev.chayeon.feature.signature
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -93,7 +95,8 @@ fun NavGraphBuilder.signatureGraph(
         BackHandler(onBack = back)
         SignatureVisibilityScreen(state, chrome, back, model::setTraitVisible, model::setPublished, model::retry)
     }
-    composable(SignatureDestination.RECAP, arguments = listOf(navArgument("recapId") { type = NavType.StringType })) { entry ->
+    composable(SignatureDestination.RECAP, arguments = listOf(navArgument("recapId") { type = NavType.StringType }),
+        enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None }) { entry ->
         val recapId = entry.arguments?.getString("recapId").orEmpty()
         val model: TripRecapViewModel = viewModel { TripRecapViewModel(deps, recapId) }
         val state by model.uiState.collectAsStateWithLifecycle()
@@ -104,19 +107,20 @@ fun NavGraphBuilder.signatureGraph(
                 onExit(SignatureExit.OpenMeet)
         } }
         BackHandler(onBack = back)
-        LaunchedEffect(state.openSignature) {
-            if (state.openSignature) {
-                model.consumeNavigation()
-                if (deps.allowedNow()) navController.navigate(SignatureDestination.MY_SIGNATURE) {
+        LaunchedEffect(state.openSignature, state.openVisibility) {
+            if (state.openSignature || state.openVisibility) {
+                val destination = if (state.openVisibility) SignatureDestination.VISIBILITY else SignatureDestination.MY_SIGNATURE
+                if (deps.allowedNow()) navController.navigate(destination) {
                     popUpTo(entry.destination.id) { inclusive = true }
                     launchSingleTop = true
                 }
+                model.consumeNavigation()
             }
         }
         TripRecapScreen(state, chrome, back, model::excludeTrip, onSignature = {
             if (state.recap.readyValue() == null) allowed { navController.navigate(SignatureDestination.MY_SIGNATURE) { launchSingleTop = true } }
             else model.markSeen()
-        }, onRetry = model::retry)
+        }, onRetry = model::retry, onVisibility = { model.markSeen(openVisibility = true) })
     }
 }
 

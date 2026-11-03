@@ -64,7 +64,8 @@ class ChayeonApplication : Application(), VehicleGraphOwner {
     }
     val publisher by lazy { SignaturePublisher(graph, sessionEnding, publicationLock, scope,
         vehicleGraph.gateInput.permission.map { it.accountId }.distinctUntilChanged()) }
-    val events by lazy { AppEvents(graph, AppNotifications(this), scope, socialGraph.messageSignals) }
+    val events by lazy { AppEvents(graph, AppNotifications(this), scope, socialGraph.messageSignals,
+        socialGraph.recordingSettings.map { it is LoadState.Ready }) }
 
     override fun onCreate() {
         super.onCreate()
