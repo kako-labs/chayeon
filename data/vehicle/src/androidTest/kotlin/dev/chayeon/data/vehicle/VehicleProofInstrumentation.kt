@@ -11,7 +11,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import java.util.concurrent.ConcurrentHashMap
 
-/** Shell identity is test-only; production must remain UNKNOWN without the platform permission. */
+/** Uses the same permission-free UX restrictions adapter as the installed application. */
 @TargetApi(29)
 class VehicleProofInstrumentation : Instrumentation() {
     private var duration = 235_000L
@@ -22,7 +22,6 @@ class VehicleProofInstrumentation : Instrumentation() {
     }
 
     override fun onStart() {
-        uiAutomation.adoptShellPermissionIdentity("android.car.permission.CAR_DRIVING_STATE")
         fun rowCount(name: String): Int = VehicleDatabase(targetContext, name).use { helper ->
             helper.readableDatabase.rawQuery("SELECT COUNT(*) FROM trips", null).use { it.moveToFirst(); it.getInt(0) }
         }
@@ -89,7 +88,6 @@ class VehicleProofInstrumentation : Instrumentation() {
             repository.close()
             scope.cancel()
         }
-        uiAutomation.dropShellPermissionIdentity()
         val passed = report.getString("eligibility") == "ELIGIBLE" && report.getInt("recaps") > 0 &&
             DrivingPolicy.ALLOWED in policies && DrivingPolicy.RESTRICTED in policies && DrivingPolicy.UNKNOWN in policies &&
             report.getString("foregroundEligibility") == "ELIGIBLE" && report.getInt("newRows") == 1 && report.getInt("foregroundNewRows") == 1

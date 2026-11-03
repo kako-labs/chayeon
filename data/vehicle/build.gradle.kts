@@ -14,6 +14,7 @@ android {
     compileSdk = androidConfig.getProperty("compileSdk").toInt()
     buildToolsVersion = androidConfig.getProperty("buildTools")
     useLibrary("android.car", false)
+    sourceSets["main"].assets.srcDir(rootProject.file("fixtures"))
     defaultConfig {
         minSdk = androidConfig.getProperty("minSdk").toInt()
     }

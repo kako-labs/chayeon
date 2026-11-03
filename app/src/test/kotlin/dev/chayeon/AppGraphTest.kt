@@ -1,40 +1,97 @@
 package dev.chayeon
 
-import dev.chayeon.core.model.AppError
-import dev.chayeon.core.model.AppResult
-import dev.chayeon.core.model.CommandMeta
-import dev.chayeon.core.model.DrivingPolicy
-import dev.chayeon.core.model.SessionMode
-import dev.chayeon.core.model.SetDiscoveryRequest
-import dev.chayeon.core.model.DiscoveryMode
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
+import dev.chayeon.core.model.*
+import dev.chayeon.feature.history.HistoryDestination
+import dev.chayeon.feature.meet.MeetDestination
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.test.*
+import org.junit.Assert.*
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class AppGraphTest {
-    @Test
-    fun blankServerConfigurationOnlyExposesSoloMode() = runTest {
-        val graph = AppGraph.foundation()
-        assertFalse(graph.serverModeAvailable)
-        assertEquals(setOf(SessionMode.SOLO), graph.sessionRepository.availableModes.first())
-        assertEquals(DrivingPolicy.UNKNOWN, graph.drivingStateProvider.drivingState.first().policy)
-        assertNull(graph.serverTimeProvider.serverTime.first())
-        assertFalse(graph.vehicleConsole.consoleState.first().available)
+    @Test fun routingFollowsRestoredRegistration() {
+        val fixture = TestGraph()
+        assertEquals(HistoryDestination.FIRST_RUN, rootRoute(SessionState.SignedOut(), fixture.profiles.value))
+        assertNull(rootRoute(SessionState.Entering(), fixture.profiles.value))
+        assertNull(rootRoute(SessionState.Active(fixture.active), LoadState.Loading()))
+        val routes = mapOf(RegistrationState.PROFILE_REQUIRED to HistoryDestination.PROFILE_SETUP,
+            RegistrationState.CONSENT_REQUIRED to HistoryDestination.CONSENT, RegistrationState.READY to MeetDestination.HOME)
+        routes.forEach { (registration, route) ->
+            assertEquals(route, rootRoute(SessionState.Active(fixture.active), LoadState.Ready(MyProfile("profile", 1, fixture.publicProfile, registration), 1)))
+        }
     }
 
-    @Test
-    fun configuredServerModeDoesNotFabricateAuthorization() = runTest {
-        val graph = AppGraph.foundation(serverUrl = "https://example.invalid")
-        assertEquals(
-            setOf(SessionMode.SOLO, SessionMode.SERVER_DEMO),
-            graph.historyDeps.sessionRepository.availableModes.first(),
-        )
-        assertEquals(
-            AppResult.Failure(AppError.NotAuthorized),
-            graph.discoveryRepository.setDiscovery(SetDiscoveryRequest(CommandMeta("test-command"), DiscoveryMode.ON)),
-        )
+    @Test fun publisherRetriesOneCommandAndStopsBeforeSignOut() = runTest {
+        val fixture = TestGraph().apply { ready() }
+        val remote = PublicSignature("published", 7, "시그니처를 만드는 중이에요", emptyList(), KnotSeed(0), DataSource.SYNTHETIC, EvidenceBucket.RECORDING)
+        fixture.profiles.value = LoadState.Ready(MyProfile("profile", 7, fixture.publicProfile.copy(signature = remote), RegistrationState.READY), 7)
+        val ending = MutableStateFlow(false)
+        SignaturePublisher(fixture.graph, ending, Mutex(), backgroundScope).start()
+        runCurrent()
+        assertEquals(1, fixture.publications.size)
+        assertNull(fixture.publications[0].signature)
+        advanceTimeBy(2_001)
+        runCurrent()
+        assertEquals(2, fixture.publications.size)
+        assertEquals(fixture.publications[0], fixture.publications[1])
+        ending.value = true
+        advanceTimeBy(5_000)
+        runCurrent()
+        assertEquals(2, fixture.publications.size)
+    }
+
+    @Test fun incomingRequestIsQueuedWhileLockedAndNotifiedWithoutPayload() = runTest {
+        val fixture = TestGraph().apply { ready(); driving.value = DrivingState() }
+        val notifications = mutableListOf<String>()
+        val events = AppEvents(fixture.graph, object : MessageNotifier { override fun notifyMessage(id: String) { notifications += id } }, backgroundScope)
+        events.start()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { events.banner.collect {} }
+        runCurrent()
+        fixture.requests.value = LoadState.Ready(listOf(ConnectionRequest("request", 2, fixture.publicProfile,
+            RequestDirection.INCOMING, ConnectionRequestStatus.PENDING, 0, 100_000, Chemistry())), 2)
+        runCurrent()
+        assertEquals(listOf("request"), notifications)
+        assertEquals(MeetDestination.REQUESTS, events.banner.value?.route)
+        fixture.driving.value = DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK)
+        runCurrent()
+        assertEquals(1, notifications.size)
+        events.acknowledge("request")
+        runCurrent()
+        assertNull(events.banner.value)
+    }
+
+    @Test fun publisherWaitsForLocalAccountBindingBeforeRetracting() = runTest {
+        val fixture = TestGraph().apply { ready() }
+        val remote = PublicSignature("published", 1, "시그니처를 만드는 중이에요", emptyList(), KnotSeed(0), DataSource.SYNTHETIC, EvidenceBucket.RECORDING)
+        fixture.profiles.value = LoadState.Ready(MyProfile("profile", 1, fixture.publicProfile.copy(signature = remote), RegistrationState.READY), 1)
+        val localAccount = MutableStateFlow<String?>(null)
+        SignaturePublisher(fixture.graph, MutableStateFlow(false), Mutex(), backgroundScope, localAccount).start()
+        runCurrent()
+        assertTrue(fixture.publications.isEmpty())
+        localAccount.value = fixture.active.accountId
+        runCurrent()
+        assertEquals(1, fixture.publications.size)
+    }
+
+    @Test fun endedRelationshipRemovesItsGreetingBanner() = runTest {
+        val fixture = TestGraph().apply { ready() }
+        val events = AppEvents(fixture.graph, object : MessageNotifier { override fun notifyMessage(id: String) = Unit }, backgroundScope)
+        events.start()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { events.banner.collect {} }
+        val connection = Connection("connection", 1, "request", fixture.publicProfile, ConnectionStatus.CONNECTED, 0, Chemistry())
+        fixture.connection.value = LoadState.Ready(connection, 1)
+        fixture.greetings.value = LoadState.Ready(listOf(ConnectionGreeting("greeting", 1, connection.id, "client-message", MessageAuthor.PEER, PresetCode.HELLO, 1, DeliveryState.SENT)), 1)
+        runCurrent()
+        assertEquals("greeting", events.banner.value?.id)
+        fixture.connection.value = LoadState.Loading()
+        runCurrent()
+        assertEquals("greeting", events.banner.value?.id)
+        fixture.connection.value = LoadState.Ready(connection.copy(status = ConnectionStatus.ENDED), 2)
+        runCurrent()
+        assertNull(events.banner.value)
     }
 }

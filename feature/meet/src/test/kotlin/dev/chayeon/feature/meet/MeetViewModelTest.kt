@@ -179,6 +179,15 @@ class MeetViewModelTest {
         assertEquals(EndedUiState(), states[4].value); assertEquals(MeetUiState(), states[5].value)
     }
 
+    @Test fun `restored ended connection does not hijack the ready home`() = scenario { deps, store ->
+        deps.connection.value = LoadState.Ready(MeetFixtures.ended, 5)
+        val model = store.keep(MeetViewModel(deps))
+        val events = mutableListOf<MeetNavigationEffect>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { model.effectsFor(MeetDestination.HOME).collect { events += it } }
+        runCurrent()
+        assertTrue(events.isEmpty())
+    }
+
     @Test fun `navigation is authoritative one-shot and preserves home on driving transition`() = scenario { deps, store ->
         val model = store.keep(MeetViewModel(deps))
         val events = mutableListOf<MeetNavigationEffect>()

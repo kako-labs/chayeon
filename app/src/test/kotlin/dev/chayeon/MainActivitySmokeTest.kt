@@ -22,7 +22,7 @@ class MainActivitySmokeTest {
     @Test
     fun applicationStartsWithUnknownDrivingPolicyAndNoSession() {
         compose.onNodeWithText("주행 상태 확인 중").assertIsDisplayed()
-        assertFalse(AppGraph.foundation().serverModeAvailable)
-        compose.onRoot().captureRoboImage("src/test/screenshots/application-launch.png")
+        assertFalse((compose.activity.application as ChayeonApplication).graph.serverModeAvailable)
+        compose.onRoot().captureRoboImage("src/test/screenshots/application-unknown.png")
     }
 }

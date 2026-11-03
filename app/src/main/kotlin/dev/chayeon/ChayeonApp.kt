@@ -1,60 +1,102 @@
 package dev.chayeon
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.rememberNavController
-import dev.chayeon.core.model.DiscoveryMode
-import dev.chayeon.core.model.DiscoveryState
-import dev.chayeon.core.model.DrivingState
-import dev.chayeon.core.model.LocationSource
-import dev.chayeon.core.ui.BottomNav
-import dev.chayeon.core.ui.ChayeonTheme
-import dev.chayeon.core.ui.GearStrip
-import dev.chayeon.core.ui.NavigationItem
-import dev.chayeon.core.ui.ScreenChrome
-import dev.chayeon.feature.history.HistoryDestination
-import dev.chayeon.feature.history.HistoryExit
-import dev.chayeon.feature.history.historyGraph
-import dev.chayeon.feature.meet.MeetDestination
-import dev.chayeon.feature.meet.MeetExit
-import dev.chayeon.feature.meet.meetGraph
-import dev.chayeon.feature.signature.SignatureDestination
-import dev.chayeon.feature.signature.SignatureExit
-import dev.chayeon.feature.signature.signatureGraph
+import androidx.navigation.compose.*
+import dev.chayeon.core.model.*
+import dev.chayeon.core.ui.*
+import dev.chayeon.feature.history.*
+import dev.chayeon.feature.meet.*
+import dev.chayeon.feature.signature.*
+import java.util.UUID
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+
+fun rootRoute(session: SessionState, profile: LoadState<MyProfile?>): String? = when (session) {
+    is SessionState.SignedOut, is SessionState.Failed -> HistoryDestination.FIRST_RUN
+    is SessionState.Entering -> null
+    is SessionState.Active -> when (profile) {
+        is LoadState.Ready -> when (profile.value?.registration) {
+            RegistrationState.READY -> MeetDestination.HOME
+            RegistrationState.CONSENT_REQUIRED -> HistoryDestination.CONSENT
+            else -> HistoryDestination.PROFILE_SETUP
+        }
+        else -> null
+    }
+}
 
 @Composable
-fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavController()) {
-    val driving by graph.drivingStateProvider.drivingState.collectAsState(DrivingState())
-    val discovery by graph.discoveryRepository.discovery.collectAsState(DiscoveryState())
-    val chrome = remember(navController) {
-        ScreenChrome(
-            topBar = {
-                GearStrip(
-                    gear = driving.gear,
-                    policy = driving.policy,
-                    syntheticLocation = discovery.locationSource == LocationSource.SYNTHETIC,
-                )
-            },
-            bottomBar = { selected ->
-                BottomNav(
-                    selected = selected,
-                    discoveryOn = discovery.mode == DiscoveryMode.ON,
-                    onSelect = { navController.openTab(it) },
-                    onDiscoveryToggle = {},
-                )
-            },
-        )
-    }
+fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavController(), events: AppEvents? = null,
+    publisherFailure: StateFlow<Boolean> = remember { MutableStateFlow(false) },
+    recordingFailure: StateFlow<Boolean> = remember { MutableStateFlow(false) }) {
+    val driving by graph.drivingStateProvider.drivingState.collectAsStateWithLifecycle(DrivingState())
+    val discovery by graph.discoveryRepository.discovery.collectAsStateWithLifecycle(DiscoveryState())
+    val session by graph.sessionRepository.session.collectAsStateWithLifecycle(SessionState.Entering())
+    val profile by graph.profileRepository.profile.collectAsStateWithLifecycle(LoadState.Loading())
+    val recaps by graph.signatureRepository.recaps.collectAsStateWithLifecycle(LoadState.Loading())
+    val publicationFailed by publisherFailure.collectAsStateWithLifecycle()
+    val recordingFailed by recordingFailure.collectAsStateWithLifecycle()
+    val event by (events?.banner ?: remember { MutableStateFlow(null) }).collectAsStateWithLifecycle()
+    val entry by navController.currentBackStackEntryAsState()
+    val route = entry?.destination?.route
+    val scope = rememberCoroutineScope()
+    var discoveryError by remember { mutableStateOf(false) }
+    var discoveryBusy by remember { mutableStateOf(false) }
+    var routedSession by remember { mutableStateOf<String?>(null) }
+    var shownRecap by remember { mutableStateOf<String?>(null) }
+
+    fun guarded(action: () -> Unit) { if (graph.currentPolicy() == DrivingPolicy.ALLOWED) action() }
+    fun open(destination: String) { guarded { navController.navigate(destination) { launchSingleTop = true } } }
+    val chrome = ScreenChrome(topBar = {
+        Column {
+            GearStrip(driving.gear, driving.policy, discovery.locationSource == LocationSource.SYNTHETIC)
+            if (driving.policy == DrivingPolicy.ALLOWED) {
+                event?.let { notice ->
+                    TopBanner(notice.text, Modifier.clickable {
+                        guarded {
+                            navController.navigate(notice.route) { launchSingleTop = true }
+                            notice.requestId?.let { navController.currentBackStackEntry?.savedStateHandle?.set("meet.requestId", it) }
+                            events?.acknowledge(notice.id)
+                        }
+                    })
+                }
+                if (publicationFailed) TopBanner("공개 내용을 반영하지 못했어요. 연결되면 다시 시도해요")
+                if (recordingFailed) TopBanner("주행 기록을 시작하지 못했어요. 앱을 다시 열어 주세요")
+                if (discoveryError) TopBanner("발견 상태를 바꾸지 못했어요. 다시 눌러 주세요")
+                if (route in setOf(SignatureDestination.MY_PROFILE, MeetDestination.CONNECTED) && graph.demoEnabled) {
+                    JellyButton("시연 제어", { open(DEMO_ROUTE) }, variant = JellyVariant.SECONDARY)
+                }
+            }
+        }
+    }, bottomBar = { selected ->
+        BottomNav(selected, discovery.mode == DiscoveryMode.ON,
+            onSelect = { guarded { navController.openTab(it) } },
+            onDiscoveryToggle = {
+                if (!discoveryBusy && graph.currentPolicy() == DrivingPolicy.ALLOWED) {
+                    discoveryBusy = true
+                    val request = SetDiscoveryRequest(CommandMeta(UUID.randomUUID().toString()),
+                        if (discovery.mode == DiscoveryMode.ON) DiscoveryMode.OFF else DiscoveryMode.ON)
+                    scope.launch {
+                        try {
+                            if (graph.currentPolicy() == DrivingPolicy.ALLOWED)
+                                discoveryError = graph.discoveryRepository.setDiscovery(request) is AppResult.Failure
+                        } finally { discoveryBusy = false }
+                    }
+                }
+            })
+    })
     ChayeonTheme(policy = driving.policy) {
         NavHost(navController, startDestination = HistoryDestination.FIRST_RUN) {
             historyGraph(graph.historyDeps, chrome, navController) { exit ->
                 when (exit) {
-                    HistoryExit.OpenMeet -> navController.navigate(MeetDestination.HOME)
-                    HistoryExit.OpenSignatureVisibility -> navController.navigate(SignatureDestination.VISIBILITY)
+                    HistoryExit.OpenMeet -> open(MeetDestination.HOME)
+                    HistoryExit.OpenSignatureVisibility -> open(SignatureDestination.VISIBILITY)
                     HistoryExit.SignedOut -> navController.navigate(HistoryDestination.FIRST_RUN) {
                         popUpTo(0) { inclusive = true }
                     }
@@ -62,21 +104,57 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
             }
             meetGraph(graph.meetDeps, chrome, navController) { exit ->
                 when (exit) {
-                    is MeetExit.OpenEncounter -> navController.navigate(HistoryDestination.encounter(exit.encounterId))
-                    is MeetExit.OpenSafety -> navController.navigate(HistoryDestination.safety(exit.peerProfileId))
-                    MeetExit.OpenMySignature -> navController.navigate(SignatureDestination.MY_SIGNATURE)
+                    is MeetExit.OpenEncounter -> open(HistoryDestination.encounter(exit.encounterId))
+                    is MeetExit.OpenSafety -> open(HistoryDestination.safety(exit.peerProfileId))
+                    MeetExit.OpenMySignature -> open(SignatureDestination.MY_SIGNATURE)
                 }
             }
             signatureGraph(graph.signatureDeps, chrome, navController) { exit ->
                 when (exit) {
-                    SignatureExit.OpenMeet -> navController.navigate(MeetDestination.HOME)
-                    SignatureExit.OpenProfileEdit -> navController.navigate(HistoryDestination.PROFILE_EDIT)
-                    SignatureExit.OpenConsent -> navController.navigate(HistoryDestination.CONSENT)
-                    SignatureExit.OpenBlocks -> navController.navigate(HistoryDestination.BLOCKS)
-                    SignatureExit.OpenCleanup -> navController.navigate(HistoryDestination.CLEANUP)
-                    SignatureExit.OpenDemoConsole -> Unit
+                    SignatureExit.OpenMeet -> open(MeetDestination.HOME)
+                    SignatureExit.OpenProfileEdit -> open(HistoryDestination.PROFILE_EDIT)
+                    SignatureExit.OpenConsent -> open(HistoryDestination.CONSENT)
+                    SignatureExit.OpenBlocks -> open(HistoryDestination.BLOCKS)
+                    SignatureExit.OpenCleanup -> open(HistoryDestination.CLEANUP)
+                    SignatureExit.OpenDemoConsole -> if (graph.demoEnabled) open(DEMO_ROUTE)
                 }
             }
+            composable(DEMO_ROUTE) {
+                val model: DemoConsoleViewModel = viewModel { DemoConsoleViewModel(graph) }
+                val state by model.uiState.collectAsStateWithLifecycle()
+                DemoConsoleScreen(state, chrome, graph.isRealVehicle, graph.demoEnabled, model::gear,
+                    model::replay, model::fill, model::presence, {
+                        guarded {
+                            if (navController.previousBackStackEntry?.destination?.route == MeetDestination.CONNECTED) navController.popBackStack()
+                            else open(SignatureDestination.MY_PROFILE)
+                        }
+                    }, returnToConnection = navController.previousBackStackEntry?.destination?.route == MeetDestination.CONNECTED)
+            }
+        }
+    }
+    LaunchedEffect(session, profile, driving.policy) {
+        val target = rootRoute(session, profile) ?: return@LaunchedEffect
+        if (target == HistoryDestination.FIRST_RUN) {
+            routedSession = null
+            shownRecap = null
+            if (route != HistoryDestination.FIRST_RUN) navController.navigate(target) { popUpTo(0) { inclusive = true } }
+        } else if (graph.currentPolicy() == DrivingPolicy.ALLOWED) {
+            val id = (session as? SessionState.Active)?.session?.id
+            val current = navController.currentDestination?.route
+            val onboarding = target == HistoryDestination.PROFILE_SETUP || target == HistoryDestination.CONSENT
+            if (routedSession != id || (current == HistoryDestination.FIRST_RUN) ||
+                (onboarding && current != target)) {
+                routedSession = id
+                navController.navigate(target) { popUpTo(0) { inclusive = true }; launchSingleTop = true }
+            }
+        }
+    }
+    LaunchedEffect(recaps, driving.policy, route) {
+        val next = (recaps as? LoadState.Ready)?.value?.firstOrNull { !it.seen && it.id != shownRecap }
+        val ready = (profile as? LoadState.Ready)?.value?.registration == RegistrationState.READY
+        if (ready && next != null && graph.currentPolicy() == DrivingPolicy.ALLOWED && route != DEMO_ROUTE && route != SignatureDestination.RECAP) {
+            shownRecap = next.id
+            open(SignatureDestination.recap(next.id))
         }
     }
 }
@@ -90,7 +168,6 @@ private fun NavHostController.openTab(item: NavigationItem) {
     }
     navigate(route) {
         launchSingleTop = true
-        restoreState = true
-        popUpTo(MeetDestination.HOME) { saveState = true }
+        popUpTo(MeetDestination.HOME)
     }
 }

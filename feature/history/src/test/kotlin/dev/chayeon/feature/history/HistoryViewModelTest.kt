@@ -107,6 +107,25 @@ class HistoryViewModelTest {
         assertEquals(AppError.PeerUnavailable, model.uiState.value.command("enter").error)
     }
 
+    @Test fun `room codes reject invalid characters and short input before calling server`() = modelTest {
+        val model = watch(FirstRunViewModel(deps))
+        model.selectMode(SessionMode.SERVER_DEMO)
+        runCurrent()
+        for (code in listOf("", "abc", "한글방코드", "room code", "room!")) {
+            model.setRoomCode(code)
+            runCurrent()
+            model.enter()
+            runCurrent()
+            assertTrue(deps.calls.isEmpty())
+            assertEquals("방 코드는 영문, 숫자, 밑줄, 하이픈으로 4~32자 입력해 주세요", model.uiState.value.draftError)
+        }
+        model.setRoomCode("Room_123-demo")
+        runCurrent()
+        model.enter()
+        runCurrent()
+        assertEquals("Room_123-demo", (deps.calls.single() as EnterSessionRequest).roomCode)
+    }
+
     @Test fun `restart observes registration instead of resetting profile`() = modelTest {
         deps.profileState.value = LoadState.Ready(HistoryFixtures.profile.copy(registration = RegistrationState.CONSENT_REQUIRED), 2)
         val model = watch(FirstRunViewModel(deps))

@@ -1,7 +1,6 @@
 package dev.chayeon.data.vehicle
 
 import android.content.Context
-import android.content.pm.ApplicationInfo
 import dev.chayeon.core.model.*
 import dev.chayeon.core.signature.TripAccumulator
 import dev.chayeon.core.signature.VehicleSample
@@ -23,7 +22,7 @@ class DefaultVehicleConsole(
     private val repository: LocalSignatureRepository,
     private val gate: RecordingGate,
     private val scope: CoroutineScope,
-    private val enabled: Boolean = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0,
+    private val enabled: Boolean = false,
     private val epochMillis: () -> Long = System::currentTimeMillis,
 ) : VehicleConsole, AutoCloseable {
     private val mutableState = MutableStateFlow(ConsoleState(available = enabled))
