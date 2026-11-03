@@ -7,7 +7,7 @@ import dev.chayeon.data.vehicle.EmptyVehicleConsole
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 
-internal class TestGraph {
+internal class TestGraph(vehicleConsole: VehicleConsole = EmptyVehicleConsole()) {
     val driving = MutableStateFlow(DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK))
     val sessions = MutableStateFlow<SessionState>(SessionState.SignedOut())
     val policy = ParticipationPolicy("policy", 1, 5, 2, 12, null, "2026-11-03")
@@ -20,6 +20,8 @@ internal class TestGraph {
     val discovery = MutableStateFlow(DiscoveryState())
     val signatures = MutableStateFlow<LoadState<MySignature>>(LoadState.Ready(MySignature(), 0))
     val recaps = MutableStateFlow<LoadState<List<TripRecap>>>(LoadState.Ready(emptyList(), 0))
+    val seenCalls = mutableListOf<MarkRecapSeenRequest>()
+    val excludedTrips = mutableListOf<String>()
     val publications = mutableListOf<PublishSignatureRequest>()
     var publicationResult: AppResult<MyProfile> = AppResult.Failure(AppError.Network)
     var discoveryCalls = 0
@@ -50,9 +52,22 @@ internal class TestGraph {
         object : SignatureRepository by EmptySignatureRepository() {
             override val signature = signatures
             override val recaps = this@TestGraph.recaps
+            override suspend fun markRecapSeen(request: MarkRecapSeenRequest): AppResult<TripRecap> {
+                seenCalls += request
+                val values = (recaps.value as LoadState.Ready).value
+                val seen = values.single { it.id == request.recapId }.copy(seen = true)
+                recaps.value = LoadState.Ready(values.map { if (it.id == seen.id) seen else it }, recaps.value.version + 1)
+                return AppResult.Success(seen)
+            }
+            override suspend fun excludeTrip(request: ExcludeTripRequest): AppResult<MySignature> {
+                excludedTrips += request.tripId
+                val values = (recaps.value as LoadState.Ready).value
+                recaps.value = LoadState.Ready(values.map { if (it.tripId == request.tripId) it.copy(included = false, firstSignature = false) else it }, recaps.value.version + 1)
+                return AppResult.Success((signatures.value as LoadState.Ready).value)
+            }
             override fun observeRecap(recapId: String) = recaps.map { state -> LoadState.Ready((state as? LoadState.Ready)?.value?.find { it.id == recapId }, state.version) }
         },
-        EmptyVehicleConsole(), EmptyServerTimeProvider(), "",
+        vehicleConsole, EmptyServerTimeProvider(), "",
     ).apply { currentPolicy = { driving.value.policy }; demoEnabled = true }
     fun ready() {
         sessions.value = SessionState.Active(active)

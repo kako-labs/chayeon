@@ -10,6 +10,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import dev.chayeon.core.model.*
+import dev.chayeon.core.signature.DefaultSignatureEngine
 import dev.chayeon.core.ui.*
 
 internal fun <T> LoadState<T>.readyValue(): T? = (this as? LoadState.Ready)?.value
@@ -50,9 +51,10 @@ internal fun SignatureFrame(
 }
 
 @Composable
-internal fun SignatureColumn(content: @Composable ColumnScope.() -> Unit) {
+internal fun SignatureColumn(enabled: Boolean = true, content: @Composable ColumnScope.() -> Unit) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val scrolling = if (constraints.hasBoundedHeight) Modifier.verticalScroll(rememberScrollState()) else Modifier
+        val scroll = rememberScrollState()
+        val scrolling = if (constraints.hasBoundedHeight) Modifier.scrollEdgeFade(scroll).verticalScroll(scroll, enabled = enabled) else Modifier
         Column(Modifier.fillMaxWidth().then(scrolling),
             verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap), content = content)
     }
@@ -100,8 +102,8 @@ internal fun SignatureFailure(error: AppError, action: String, onRetry: () -> Un
 internal fun SignatureRecording(consoleAvailable: Boolean, onDemo: () -> Unit) {
     SignatureMessage(
         "시그니처를 만드는 중이에요",
-        "최근 30일 동안 유효한 주행이 3회 모이면 특성이 보여요. 평소처럼 지내는 동안 천천히 알아갈게요.",
-        action = if (consoleAvailable) "시연 제어" else null,
+        "주행 3번이 모이면 주차 후 나에게 먼저 보여 드려요. 공개는 내가 골라요.",
+        action = if (consoleAvailable) "합성 주행으로 먼저 만나보기" else null,
         onAction = onDemo,
     )
     if (consoleAvailable) ChayeonText("시연 제어에서 합성 주행을 채워 볼 수 있어요.",
@@ -113,9 +115,9 @@ internal val MySignature.displaySource: DataSource?
     else publicSignature?.source ?: evidence.firstOrNull()?.source
 
 internal val MySignature.displayTitle: String
-    get() = publicSignature?.title ?: evidence
+    get() = publicSignature?.title ?: DefaultSignatureEngine().title(evidence
         .filter { it.availability == TraitAvailability.AVAILABLE && it.level != TraitLevel.RECORDING }
-        .maxByOrNull { it.level.ordinal }?.trait?.presentation?.publicPhrase ?: "시그니처를 만드는 중이에요"
+        .map { PublicTrait(it.trait, it.level) })
 
 internal val MySignature.isRecording: Boolean
     get() = evidence.none { it.availability == TraitAvailability.AVAILABLE && it.level != TraitLevel.RECORDING }

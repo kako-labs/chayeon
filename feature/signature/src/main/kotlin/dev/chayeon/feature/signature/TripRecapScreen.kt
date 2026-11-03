@@ -1,8 +1,7 @@
 package dev.chayeon.feature.signature
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.key
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -17,7 +16,18 @@ fun TripRecapScreen(
     onExclude: () -> Unit,
     onSignature: () -> Unit,
     onRetry: () -> Unit,
+    onVisibility: () -> Unit = onSignature,
 ) {
+    val allowed = state.driving.policy == DrivingPolicy.ALLOWED && LocalDrivingPolicy.current == DrivingPolicy.ALLOWED
+    val current = state.recap.readyValue()?.takeIf { it.firstSignature && it.included }
+    var presentedMoment by remember { mutableStateOf<TripRecap?>(null) }
+    SideEffect { if (allowed) presentedMoment = current }
+    // Keep the already presented milestone still when policy redacts the repository observation.
+    val first = current ?: presentedMoment.takeIf { !allowed }
+    if (first != null) {
+        FirstSignatureMoment(state, first, chrome, onExclude, onSignature, onVisibility, onRetry)
+        return
+    }
     SignatureFrame("주행 후 요약", state.driving.policy, chrome, onBack, recap = true,
         backEnabled = !state.excluding && !state.markingSeen && !state.pendingChanges,
         primary = {
@@ -41,7 +51,7 @@ fun TripRecapScreen(
                                             contentDescription = if (recap.included) "이번 주행을 담은 나의 붉은 매듭" else "주행을 제외한 나의 붉은 매듭")
                                     }
                                     GradientText(if (!recap.included) "이 주행은 빼 두었어요"
-                                        else if (recap.changes.isEmpty()) "오늘의 나도 담아 두었어요" else "나의 매듭에\n이야기가 더해졌어요", style = ChayeonType.Hero)
+                                        else if (recap.changes.isEmpty()) "이번 주행도 매듭에 더했어요" else "나의 매듭에\n이야기가 더해졌어요", style = ChayeonType.Hero)
                                     ChayeonText(if (!recap.included) "나머지 주행으로 시그니처를 다시 살펴봐요."
                                         else "주차한 지금, 오늘의 주행을 돌아봐요.", color = ChayeonColors.Secondary)
                                 }
@@ -62,7 +72,7 @@ fun TripRecapScreen(
                                 !recap.included -> InfoRow(ChayeonIcon.CHECK, "내가 운전한 주행만 남겨요",
                                     body = "이 주행은 시그니처를 계산할 때 사용하지 않아요.")
                                 recap.changes.isEmpty() -> InfoRow(ChayeonIcon.KNOT, "특성의 단계는 그대로예요",
-                                    body = "새로운 변화가 없어도 괜찮아요. 내 시그니처는 평소의 나를 담아요.")
+                                    body = "새로운 변화가 없어도 괜찮아요. 이번 주행도 매듭에 더했어요.")
                                 else -> recap.changes.forEach { change ->
                                     Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
                                         TraitBadge(change.trait, change.currentLevel, size = TraitBadgeSize.DETAIL)

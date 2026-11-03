@@ -89,7 +89,13 @@ class LocalSignatureRepository(
         if (trips(db, account).any { it.id == metrics.id }) return@mutate AppResult.Failure(AppError.AlreadyClosed)
         insert(db, "trips", account, metrics.id, metrics.endedAtEpochMillis, "derived_metrics", VehicleStorageCodec.trip(metrics))
         val current = calculate(previous, trips(db, account), revision)
-        val recap = engine.recap(previous, current, metrics)
+        // The private milestone precedes the person's choice to publish their signature.
+        fun MySignature.hasEarnedTraits() = evidence.any {
+            it.availability == TraitAvailability.AVAILABLE && it.level != TraitLevel.RECORDING
+        }
+        val recap = engine.recap(previous, current, metrics).let {
+            it.copy(firstSignature = it.included && !previous.hasEarnedTraits() && current.hasEarnedTraits())
+        }
         insert(db, "recaps", account, recap.id, recap.completedAtEpochMillis, "recap", VehicleStorageCodec.recap(recap))
         saveSignature(db, account, current)
         AppResult.Success(current)
@@ -113,7 +119,7 @@ class LocalSignatureRepository(
         db.update("trips", values("derived_metrics" to VehicleStorageCodec.trip(excluded)), "account_key=? AND id=?", arrayOf(account, trip.id))
         val current = calculate(previous, trips(db, account), revision)
         recaps(db, account).filter { it.tripId == trip.id }.forEach {
-            val recap = it.copy(version = revision, included = false, currentKnot = current.knotSeed, changes = emptyList())
+            val recap = it.copy(version = revision, included = false, currentKnot = current.knotSeed, changes = emptyList(), firstSignature = false)
             db.update("recaps", values("recap" to VehicleStorageCodec.recap(recap)), "account_key=? AND id=?", arrayOf(account, recap.id))
         }
         saveSignature(db, account, current)

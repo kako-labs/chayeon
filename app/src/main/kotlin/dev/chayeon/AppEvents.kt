@@ -35,7 +35,8 @@ class AppNotifications(private val context: Context) : MessageNotifier {
 data class AppEvent(val id: String, val text: String, val route: String, val requestId: String? = null, val greeting: Boolean = false, val relationshipId: String? = null)
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class AppEvents(private val graph: AppGraph, private val notifier: MessageNotifier, private val scope: CoroutineScope, private val signals: Flow<List<String>> = flowOf(emptyList())) {
+class AppEvents(private val graph: AppGraph, private val notifier: MessageNotifier, private val scope: CoroutineScope, private val signals: Flow<List<String>> = flowOf(emptyList()),
+    private val signalReadiness: Flow<Boolean> = flowOf(true)) {
     private val pending = MutableStateFlow<List<AppEvent>>(emptyList())
     val banner = pending.map { it.firstOrNull() }.stateIn(scope, SharingStarted.WhileSubscribed(5_000, 0), null)
     private val observed = mutableSetOf<String>()
@@ -64,10 +65,18 @@ class AppEvents(private val graph: AppGraph, private val notifier: MessageNotifi
                 if (id == null) return@collectLatest
                 kotlinx.coroutines.coroutineScope {
                     launch {
-                        signals.collect { ids ->
-                            if (graph.currentPolicy() != DrivingPolicy.ALLOWED) ids.forEach {
+                        var baseline = true
+                        val signalIds = mutableSetOf<String>()
+                        signalReadiness.distinctUntilChanged().flatMapLatest { ready ->
+                            if (ready) signals else emptyFlow()
+                        }.collect { ids ->
+                            val arrivals = ids.filter { signalIds.add(it) }
+                            if (!baseline && graph.currentPolicy() != DrivingPolicy.ALLOWED) arrivals.forEach {
                                 if (it !in observed && notified.add(it)) notifier.notifyMessage(it)
                             }
+                            // The first session snapshot is history, including when it is non-empty.
+                            if (baseline) observed.addAll(ids)
+                            baseline = false
                         }
                     }
                     launch {

@@ -25,6 +25,7 @@ private data class RecapCommandState(
     val error: AppError? = null,
     val excluded: TripRecap? = null,
     val openSignature: Boolean = false,
+    val openVisibility: Boolean = false,
     val pendingExclusion: Boolean = false,
 )
 
@@ -42,6 +43,7 @@ class TripRecapViewModel(private val deps: SignatureDeps, private val recapId: S
     private var seenRequest: MarkRecapSeenRequest? = null
     private var excluding = false
     private var markingSeen = false
+    private var visibilityDestination = false
 
     val uiState: StateFlow<TripRecapUiState> = combine(
         deps.drivingStateProvider.drivingState.catch { emit(DrivingState()) },
@@ -59,12 +61,13 @@ class TripRecapViewModel(private val deps: SignatureDeps, private val recapId: S
             markingSeen = action.markingSeen,
             error = action.error,
             openSignature = action.openSignature && driving.policy == DrivingPolicy.ALLOWED,
+            openVisibility = action.openVisibility && driving.policy == DrivingPolicy.ALLOWED,
             pendingChanges = action.pendingExclusion,
         )
     }.stateIn(viewModelScope, signatureSharing, TripRecapUiState())
 
     fun excludeTrip() {
-        if (excluding || markingSeen || command.value.openSignature) return
+        if (excluding || markingSeen || (command.value.openSignature || command.value.openVisibility)) return
         excluding = true
         viewModelScope.launch {
             try {
@@ -91,7 +94,7 @@ class TripRecapViewModel(private val deps: SignatureDeps, private val recapId: S
                 is AppResult.Success -> {
                     active.signature = result.value
                     command.value = command.value.copy(excluded = active.recap.copy(
-                        included = false, changes = emptyList(), currentKnot = result.value.knotSeed,
+                        included = false, changes = emptyList(), currentKnot = result.value.knotSeed, firstSignature = false,
                     ))
                 }
             }
@@ -125,16 +128,17 @@ class TripRecapViewModel(private val deps: SignatureDeps, private val recapId: S
         }
     }
 
-    fun markSeen() {
-        if (excluding || markingSeen || exclusion != null || command.value.openSignature) return
+    fun markSeen(openVisibility: Boolean = false) {
+        if (excluding || markingSeen || exclusion != null || (command.value.openSignature || command.value.openVisibility)) return
         markingSeen = true
+        visibilityDestination = openVisibility
         viewModelScope.launch {
             try {
                 if (!deps.allowedNow()) { fail(AppError.Restricted); return@launch }
                 val recap = currentRecap() ?: return@launch
                 if (recap.seen) {
                     val allowed = deps.allowedNow()
-                    command.value = command.value.copy(openSignature = allowed,
+                    command.value = command.value.copy(openSignature = allowed && !visibilityDestination, openVisibility = allowed && visibilityDestination,
                         error = if (allowed) null else AppError.Restricted)
                     return@launch
                 }
@@ -147,7 +151,7 @@ class TripRecapViewModel(private val deps: SignatureDeps, private val recapId: S
                         val allowed = deps.allowedNow()
                         if (allowed) seenRequest = null
                         command.value = command.value.copy(markingSeen = false,
-                            error = if (allowed) null else AppError.Restricted, openSignature = allowed)
+                            error = if (allowed) null else AppError.Restricted, openSignature = allowed && !visibilityDestination, openVisibility = allowed && visibilityDestination)
                     }
                 }
             } finally {
@@ -159,13 +163,13 @@ class TripRecapViewModel(private val deps: SignatureDeps, private val recapId: S
     fun retry() {
         when {
             exclusion != null -> excludeTrip()
-            seenRequest != null -> markSeen()
+            seenRequest != null -> markSeen(visibilityDestination)
             else -> viewModelScope.launch { if (deps.allowedNow()) refresh.value += 1 }
         }
     }
 
     fun consumeNavigation() {
-        command.value = command.value.copy(openSignature = false)
+        command.value = command.value.copy(openSignature = false, openVisibility = false)
     }
 
     private suspend fun currentRecap(): TripRecap? = when (val state = deps.signatureRepository.observeRecap(recapId).currentObservation()) {

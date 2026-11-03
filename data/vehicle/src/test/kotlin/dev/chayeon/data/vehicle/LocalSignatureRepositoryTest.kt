@@ -73,6 +73,38 @@ class LocalSignatureRepositoryTest {
         reopened.close()
     }
 
+    @Test fun `first private signature survives storage reopen and exclusion clears the milestone`() = runTest {
+        val name = "milestone-${UUID.randomUUID()}.db"
+        val gate = MutableRecordingGate().apply { update("a", true) }
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        fun open() = LocalSignatureRepository(context, gate, { DrivingPolicy.ALLOWED }, backgroundScope,
+            epochMillis = { now }, dispatcher = dispatcher, databaseName = name)
+        val repository = open()
+        runCurrent()
+        repeat(4) { repository.recordTrip(RecordTripRequest(CommandMeta("record-$it"), trip("trip-$it", now - 4 + it))) }
+        val before = (repository.recaps.first() as LoadState.Ready).value
+        assertEquals("trip-2", before.single { it.firstSignature }.tripId)
+        assertNull((repository.signature.first() as LoadState.Ready).value.publicSignature)
+        repository.close()
+        val reopened = open()
+        runCurrent()
+        assertEquals(before, (reopened.recaps.first() as LoadState.Ready).value)
+        val milestone = before.single { it.firstSignature }
+        assertTrue((reopened.markRecapSeen(MarkRecapSeenRequest(CommandMeta("seen"), milestone.id)) as AppResult.Success).value.firstSignature)
+        assertTrue(reopened.excludeTrip(ExcludeTripRequest(CommandMeta("exclude"), milestone.tripId)) is AppResult.Success)
+        val excluded = (reopened.observeRecap(milestone.id).first() as LoadState.Ready).value!!
+        assertFalse(excluded.firstSignature)
+        assertFalse(excluded.included)
+        reopened.close()
+    }
+
+    @Test fun `old recap payload defaults first signature to false`() {
+        val recap = TripRecap("recap", 1, "trip", now, DataSource.SYNTHETIC, KnotSeed(1), KnotSeed(2), emptyList(), firstSignature = true)
+        assertEquals(recap, VehicleStorageCodec.recap(VehicleStorageCodec.recap(recap)))
+        val old = VehicleStorageCodec.recap(recap).replace(",\"firstSignature\":true", "")
+        assertFalse(VehicleStorageCodec.recap(old).firstSignature)
+    }
+
     @Test fun `account switches isolation consent restriction exclusions visibility and clear are atomic`() = runTest {
         val gate = MutableRecordingGate().apply { update("a", true) }
         var policy = DrivingPolicy.ALLOWED
