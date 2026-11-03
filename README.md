@@ -105,7 +105,7 @@ python3 scripts/dev.py drive care --duration-seconds 210
 
 | 항목 | 명령 | 결과 |
 |---|---|---|
-| 구조, 테스트, 스크린샷, lint, 빌드 | `python3 scripts/dev.py verify` | 깨끗한 상태에서 통과. 테스트 704개, 스크린샷 기준 이미지 371장 |
+| 구조, 테스트, 스크린샷, lint, 빌드 | `python3 scripts/dev.py verify` | 깨끗한 상태에서 통과. 테스트 714개, 스크린샷 기준 이미지 371장 |
 | 에뮬레이터 종단 (release APK) | `python3 scripts/dev.py e2e --with-real-drive --skip-build --apk apk/chayeon-release.apk` | 통과. 첫 실행부터 시그니처, 연결, 주행 잠금, 이탈, 애프터, 차단, 210초 실제 신호 주행, 재시작, 로그아웃까지 |
 | 실제 서버 연결 | `python3 scripts/dev.py e2e --server` | 통과. 앱과 스크립트 계정이 실제 HTTP로 요청, 수락, 인사, 종료, 기록까지 |
 | APK 감사 | `python3 scripts/audit_apk.py` | 통과. 서명 확인, 테스트 코드 없음, 비디버그, 평문 통신 차단 |
