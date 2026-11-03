@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import dev.chayeon.core.ui.ChayeonText
@@ -37,12 +38,14 @@ object SignatureDestination {
 fun NavGraphBuilder.signatureGraph(
     deps: SignatureDeps,
     chrome: ScreenChrome,
+    navController: NavController,
     onExit: (SignatureExit) -> Unit,
 ) {
     listOf(SignatureDestination.MY_PROFILE, SignatureDestination.MY_SIGNATURE, SignatureDestination.TRAIT, SignatureDestination.VISIBILITY, SignatureDestination.RECAP).forEach { route ->
         composable(route) {
             val model: SignatureViewModel = viewModel { SignatureViewModel(deps) }
             val state by model.uiState.collectAsStateWithLifecycle()
+            navController.hashCode()
             ScaffoldPlaceholder(state, chrome, onExit)
         }
     }

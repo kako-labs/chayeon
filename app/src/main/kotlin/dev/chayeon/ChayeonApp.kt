@@ -51,7 +51,7 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
     }
     ChayeonTheme(policy = driving.policy) {
         NavHost(navController, startDestination = HistoryDestination.FIRST_RUN) {
-            historyGraph(graph.historyDeps, chrome) { exit ->
+            historyGraph(graph.historyDeps, chrome, navController) { exit ->
                 when (exit) {
                     HistoryExit.OpenMeet -> navController.navigate(MeetDestination.HOME)
                     HistoryExit.OpenSignatureVisibility -> navController.navigate(SignatureDestination.VISIBILITY)
@@ -60,14 +60,14 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
                     }
                 }
             }
-            meetGraph(graph.meetDeps, chrome) { exit ->
+            meetGraph(graph.meetDeps, chrome, navController) { exit ->
                 when (exit) {
                     is MeetExit.OpenEncounter -> navController.navigate(HistoryDestination.encounter(exit.encounterId))
                     is MeetExit.OpenSafety -> navController.navigate(HistoryDestination.safety(exit.peerProfileId))
                     MeetExit.OpenMySignature -> navController.navigate(SignatureDestination.MY_SIGNATURE)
                 }
             }
-            signatureGraph(graph.signatureDeps, chrome) { exit ->
+            signatureGraph(graph.signatureDeps, chrome, navController) { exit ->
                 when (exit) {
                     SignatureExit.OpenMeet -> navController.navigate(MeetDestination.HOME)
                     SignatureExit.OpenProfileEdit -> navController.navigate(HistoryDestination.PROFILE_EDIT)

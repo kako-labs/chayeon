@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import dev.chayeon.core.ui.ChayeonText
@@ -41,12 +42,14 @@ object HistoryDestination {
 fun NavGraphBuilder.historyGraph(
     deps: HistoryDeps,
     chrome: ScreenChrome,
+    navController: NavController,
     onExit: (HistoryExit) -> Unit,
 ) {
     listOf(HistoryDestination.FIRST_RUN, HistoryDestination.PROFILE_SETUP, HistoryDestination.PROFILE_EDIT, HistoryDestination.CONSENT, HistoryDestination.ENCOUNTERS, HistoryDestination.ENCOUNTER, HistoryDestination.AFTER_REQUEST, HistoryDestination.AFTER_CONNECTIONS, HistoryDestination.SAFETY, HistoryDestination.BLOCKS, HistoryDestination.CLEANUP).forEach { route ->
         composable(route) {
             val model: HistoryViewModel = viewModel { HistoryViewModel(deps) }
             val state by model.uiState.collectAsStateWithLifecycle()
+            navController.hashCode()
             ScaffoldPlaceholder(state, chrome, onExit)
         }
     }

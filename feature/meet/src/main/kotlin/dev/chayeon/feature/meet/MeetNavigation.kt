@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import dev.chayeon.core.ui.ChayeonText
@@ -35,12 +36,14 @@ object MeetDestination {
 fun NavGraphBuilder.meetGraph(
     deps: MeetDeps,
     chrome: ScreenChrome,
+    navController: NavController,
     onExit: (MeetExit) -> Unit,
 ) {
     listOf(MeetDestination.HOME, MeetDestination.CANDIDATE, MeetDestination.REQUESTS, MeetDestination.CONNECTED, MeetDestination.ENDED, MeetDestination.DRIVING).forEach { route ->
         composable(route) {
             val model: MeetViewModel = viewModel { MeetViewModel(deps) }
             val state by model.uiState.collectAsStateWithLifecycle()
+            navController.hashCode()
             ScaffoldPlaceholder(state, chrome, onExit)
         }
     }
