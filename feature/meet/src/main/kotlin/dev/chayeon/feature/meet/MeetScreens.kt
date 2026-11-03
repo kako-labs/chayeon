@@ -56,6 +56,7 @@ fun HomeScreen(
                         onRequests, Modifier.fillMaxWidth(), JellyVariant.WHITE)
                 }
                 MeetError(state.refresh.error)
+                if (state.profileLoaded && state.profile?.signature == null) MeetSignatureInvitation(onMySignature)
                 val experience = state.discovery.status.experienceState
                 when {
                     state.discovery.mode == DiscoveryMode.OFF -> MeetDiscoveryFacts()
@@ -75,9 +76,6 @@ fun HomeScreen(
                         else MeetCandidateList(state.discovery.candidates, onCandidate)
                     }
                 }
-                if (state.profileLoaded && state.profile?.signature == null) {
-                    JellyButton("내 주행으로 시그니처 만들기", onMySignature, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
-                }
             }
         },
     )
@@ -95,47 +93,7 @@ fun CandidateScreen(
         DrivingScreen(state.driving, chrome)
         return
     }
-    val candidate = state.candidate
-    ScreenScaffold(
-        modifier = Modifier.testTag("meet-screen"),
-        topBar = { MeetHeader(chrome, "오늘의 인연", "요청하기 전에 서로의 주행 습관을 알아봐요", onBack) },
-        bottomBar = {
-            Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
-                MeetError(state.request.error)
-                if (candidate != null) {
-                    JellyButton(if (state.request.inProgress) "연결을 요청하고 있어요" else if (!state.canRequest) "지금은 요청할 수 없어요" else "연결 요청 보내기",
-                        onRequest, Modifier.fillMaxWidth(), enabled = state.canRequest && !state.request.inProgress)
-                    MeetTwoColumns(
-                        first = { JellyButton("목록으로", onBack, Modifier.fillMaxWidth(), JellyVariant.SECONDARY) },
-                        second = { JellyButton("차단·신고", onSafety, Modifier.fillMaxWidth(), JellyVariant.DANGER) },
-                    )
-                }
-            }
-        },
-        primary = {
-            MeetPane {
-                if (candidate != null) {
-                    MeetPeerSignature(candidate.profile)
-                    MeetTraits(candidate.profile.signature)
-                    MeetPrivacy()
-                } else StateCard(state.unavailableState ?: ExperienceState.PEER_UNAVAILABLE, Modifier.fillMaxWidth())
-            }
-        },
-        secondary = if (candidate == null) null else ({
-            MeetPane {
-                MeetChemistry(candidate.chemistry, state.ownProfile?.signature, candidate.profile.signature)
-                MeetInterests(candidate.profile, candidate.sharedInterests)
-                GlassCard(Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
-                        SectionTitle("연결을 요청하면")
-                        InfoRow(ChayeonIcon.LOCK, "상대가 수락해야 연결돼요", body = "수락 전에는 대화가 열리지 않아요")
-                        InfoRow(ChayeonIcon.CHAT, "준비된 문장으로 짧게 인사해요", body = "주차 중에만 보낼 수 있어요")
-                        InfoRow(ChayeonIcon.CUT, "멀어지면 연결이 끝나요", body = "기록에는 시각과 기간만 남아요")
-                    }
-                }
-            }
-        }),
-    )
+    MeetCandidateContent(state, chrome, onRequest, onBack, onSafety)
 }
 
 @Composable
@@ -155,9 +113,8 @@ fun RequestScreen(
     val request = state.request
     val incoming = request?.direction == RequestDirection.INCOMING
     val pending = request?.status == ConnectionRequestStatus.PENDING
-    val busy = state.accept.inProgress || state.decline.inProgress || state.cancel.inProgress
-    if (request != null && pending && !incoming && state.observationError == null) {
-        MeetOutgoingRequest(state, request, chrome, onCancel, onBack)
+    if (request != null && pending && state.observationError == null) {
+        MeetPendingRequest(state, request, chrome, onAccept, onDecline, onCancel, onBack, onSafety)
         return
     }
     ScreenScaffold(
@@ -168,18 +125,7 @@ fun RequestScreen(
                 MeetError(state.accept.error)
                 MeetError(state.decline.error)
                 MeetError(state.cancel.error)
-                if (pending && incoming) {
-                    JellyButton(if (state.accept.inProgress) "연결을 확인하고 있어요" else "수락하고 연결", onAccept, Modifier.fillMaxWidth(), enabled = !busy)
-                    MeetTwoColumns(
-                        first = { JellyButton(if (state.decline.inProgress) "거절하고 있어요" else "거절", onDecline, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = !busy) },
-                        second = { JellyButton("차단·신고", onSafety, Modifier.fillMaxWidth(), JellyVariant.DANGER, enabled = !busy) },
-                    )
-                } else if (pending) {
-                    MeetTwoColumns(
-                        first = { JellyButton(if (state.cancel.inProgress) "취소하고 있어요" else "요청 취소", onCancel, Modifier.fillMaxWidth(), JellyVariant.DANGER, enabled = !busy) },
-                        second = { JellyButton("기다리는 동안 목록 보기", onBack, Modifier.fillMaxWidth(), JellyVariant.SECONDARY) },
-                    )
-                } else JellyButton("목록으로", onBack, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
+                JellyButton("목록으로", onBack, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
             }
         },
         primary = {
@@ -190,20 +136,6 @@ fun RequestScreen(
                         MeetError(state.observationError)
                     }
                     request == null -> StateCard(if (state.loading) ExperienceState.DISCOVERY_LOADING else ExperienceState.PEER_UNAVAILABLE, Modifier.fillMaxWidth())
-                    pending -> {
-                        HeroPanel(Modifier.fillMaxWidth()) {
-                            Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
-                                ResponseCountdown(state.remainingMillis, totalMillis = request.expiresAtEpochMillis - request.createdAtEpochMillis)
-                                GradientText(if (incoming) "${request.peer.nickname} 님이\n연결을 요청했어요" else "${request.peer.nickname} 님의\n수락을 기다려요", style = ChayeonType.Title)
-                                ChayeonText(if (incoming) "수락하면 근처에 있는 동안 짧은 인사를 나눌 수 있어요" else "수락 전에는 연결도 대화도 열리지 않아요",
-                                    style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
-                                ThreadView(ThreadStage.REACH, Modifier.fillMaxWidth(), animateTransition = false)
-                                PeerHeader(request.peer, size = PeerHeaderSize.SMALL)
-                            }
-                        }
-                        request.peer.signature?.let { SignatureHero(it, Modifier.fillMaxWidth()) }
-                        MeetPrivacy()
-                    }
                     request.status == ConnectionRequestStatus.ACCEPTED -> GlassCard(Modifier.fillMaxWidth()) {
                         SectionTitle("요청이 수락됐어요", subtitle = "이어진 연결을 확인하고 있어요")
                     }
@@ -217,13 +149,6 @@ fun RequestScreen(
                 }
             }
         },
-        secondary = if (request == null || !pending || state.observationError != null) null else ({
-            MeetPane {
-                MeetChemistry(request.chemistry, state.ownProfile?.signature, request.peer.signature)
-                MeetTraits(request.peer.signature)
-                MeetInterests(request.peer, state.ownProfile?.interests.orEmpty().intersect(request.peer.interests))
-            }
-        }),
     )
 }
 
@@ -314,10 +239,14 @@ fun EndedScreen(
         bottomBar = {
             val encounterId = connection?.encounterId?.takeIf { ended }
             if (encounterId == null) JellyButton("오늘의 인연으로", onHome, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
-            else MeetTwoColumns(
-                first = { JellyButton("오늘의 인연으로", onHome, Modifier.fillMaxWidth(), JellyVariant.SECONDARY) },
-                second = { JellyButton("기록 보기", { onEncounter(encounterId) }, Modifier.fillMaxWidth()) },
-            )
+            else Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
+                ChayeonText("이 인연의 기록을 이어서 확인해요", style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
+                MeetTwoColumns(
+                    first = { JellyButton("오늘의 인연으로", onHome, Modifier.fillMaxWidth().heightIn(min = ChayeonDimensions.ToggleWidth), JellyVariant.SECONDARY) },
+                    second = { JellyButton("기록 보기", { onEncounter(encounterId) }, Modifier.fillMaxWidth().heightIn(min = ChayeonDimensions.ToggleWidth)) },
+                    secondWeight = 2f,
+                )
+            }
         },
         primary = {
             MeetPane {
@@ -349,17 +278,28 @@ fun EndedScreen(
 }
 
 @Composable
-fun DrivingScreen(driving: DrivingState, chrome: ScreenChrome) {
+fun DrivingScreen(
+    driving: DrivingState,
+    chrome: ScreenChrome,
+    hasConnection: Boolean = false,
+    leave: MeetCommandState = MeetCommandState(),
+    onLeave: () -> Unit = {},
+) {
     CompositionLocalProvider(LocalDecorativeMotion provides false) {
         Column(Modifier.fillMaxSize().background(ChayeonColors.Background).testTag("meet-screen")
             .padding(ChayeonSpacing.Screen), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
             chrome.topBar()
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
-                    ChayeonText(if (driving.policy == DrivingPolicy.UNKNOWN) "주행 상태를 확인하고 있어요" else "주행 중이에요", style = ChayeonType.Hero)
-                    ChayeonText(if (driving.policy == DrivingPolicy.UNKNOWN) "주차 상태가 확인되면 다시 볼 수 있어요" else "주차하면 다시 볼 수 있어요",
+                    ChayeonText(if (hasConnection) "새 연결이 있어요" else if (driving.policy == DrivingPolicy.UNKNOWN) "주행 상태를 확인하고 있어요" else "주행 중이에요", style = ChayeonType.Hero)
+                    ChayeonText(if (hasConnection) "주차하면 볼 수 있어요" else if (driving.policy == DrivingPolicy.UNKNOWN) "주차 상태가 확인되면 다시 볼 수 있어요" else "주차하면 다시 볼 수 있어요",
                         style = ChayeonType.Body, color = ChayeonColors.Secondary)
                 }
+            }
+            if (hasConnection) {
+                MeetError(leave.error)
+                JellyButton(if (leave.inProgress) "연결을 마치고 있어요" else "나가기", onLeave,
+                    Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = !leave.inProgress, allowWhenRestricted = true)
             }
         }
     }
@@ -416,6 +356,10 @@ private fun MeetPresets(presets: Set<PresetCode>, sending: Set<PresetCode>, enab
 
 @Composable
 private fun MeetConnectedDriving(state: ConnectedUiState, chrome: ScreenChrome, onLeave: () -> Unit) {
+    if (state.awaitingPark) {
+        DrivingScreen(state.driving, chrome, state.canLeave, state.leave, onLeave)
+        return
+    }
     val connection = state.connection
     CompositionLocalProvider(LocalDecorativeMotion provides false) {
         ScreenScaffold(
@@ -429,12 +373,19 @@ private fun MeetConnectedDriving(state: ConnectedUiState, chrome: ScreenChrome, 
                 }
             },
             primary = {
-                MeetPane {
+                MeetPane(centered = true) {
                     TopBanner(if (state.driving.policy == DrivingPolicy.UNKNOWN) "주행 상태를 확인하고 있어요" else "주차하면 인사를 볼 수 있어요", icon = ChayeonIcon.LOCK)
                     if (connection != null) MeetRelationStage(state.ownProfile, connection.peer,
                         if (connection.status == ConnectionStatus.ENDED) ThreadStage.ENDED else ThreadStage.CONNECTED,
                         if (connection.status == ConnectionStatus.ENDED) "연결을 마쳤어요" else if (connection.status == ConnectionStatus.CHECKING) "연결 상태를 확인하고 있어요" else "${connection.peer.nickname} 님과 이어져 있어요",
-                        "주차하면 이어서 볼 수 있어요", animate = false)
+                        "주차하면 이어서 볼 수 있어요", animate = false,
+                        modifier = Modifier.heightIn(min = ChayeonDimensions.ChemistryKnot), largeAvatars = true)
+                    GlassCard(Modifier.fillMaxWidth()) {
+                        InfoRow(ChayeonIcon.LOCK, "주행 중에는 인사를 주고받을 수 없어요", body =
+                            if (connection?.status == ConnectionStatus.ENDED) "연결을 마쳤어요. 주차하면 기록을 볼 수 있어요"
+                            else if (connection == null || connection.status == ConnectionStatus.CHECKING) "연결 상태를 확인하고 있어요. 주차하면 이어서 볼 수 있어요"
+                            else "연결은 그대로 유지돼요. 주차하면 이어서 볼 수 있어요")
+                    }
                 }
             },
         )
@@ -450,20 +401,35 @@ private fun MeetEndFact(label: String, value: String, modifier: Modifier = Modif
 }
 
 @Composable
-private fun MeetOutgoingRequest(
+private fun MeetPendingRequest(
     state: RequestUiState,
     request: ConnectionRequest,
     chrome: ScreenChrome,
+    onAccept: () -> Unit,
+    onDecline: () -> Unit,
     onCancel: () -> Unit,
     onBack: () -> Unit,
+    onSafety: () -> Unit,
 ) {
+    val incoming = request.direction == RequestDirection.INCOMING
+    val busy = state.accept.inProgress || state.decline.inProgress || state.cancel.inProgress
     ScreenScaffold(
         modifier = Modifier.testTag("meet-screen"),
-        topBar = { MeetHeader(chrome, "보낸 연결 요청", "상대의 수락을 기다리고 있어요", onBack) },
+        topBar = { MeetHeader(chrome, if (incoming) "받은 연결 요청" else "보낸 연결 요청", "서로 수락해야 연결돼요", onBack) },
         bottomBar = {
             Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
+                MeetError(state.accept.error)
+                MeetError(state.decline.error)
                 MeetError(state.cancel.error)
-                MeetTwoColumns(
+                if (incoming) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+                        JellyButton("차단·신고", onSafety, Modifier.weight(1f).heightIn(min = ChayeonDimensions.ToggleWidth), JellyVariant.DANGER, enabled = !busy)
+                        JellyButton(if (state.decline.inProgress) "거절하고 있어요" else "거절", onDecline,
+                            Modifier.weight(1f).heightIn(min = ChayeonDimensions.ToggleWidth), JellyVariant.SECONDARY, enabled = !busy)
+                        JellyButton(if (state.accept.inProgress) "연결을 확인하고 있어요" else "수락하고 연결", onAccept,
+                            Modifier.weight(2f).heightIn(min = ChayeonDimensions.ToggleWidth), enabled = !busy)
+                    }
+                } else MeetTwoColumns(
                     first = { JellyButton(if (state.cancel.inProgress) "취소하고 있어요" else "요청 취소", onCancel, Modifier.fillMaxWidth(), JellyVariant.DANGER, enabled = !state.cancel.inProgress) },
                     second = { JellyButton("기다리는 동안 목록 보기", onBack, Modifier.fillMaxWidth(), JellyVariant.SECONDARY) },
                 )
@@ -473,10 +439,16 @@ private fun MeetOutgoingRequest(
             MeetPane {
                 ResponseCountdown(state.remainingMillis, totalMillis = request.expiresAtEpochMillis - request.createdAtEpochMillis)
                 MeetRelationStage(state.ownProfile, request.peer, ThreadStage.REACH,
-                    "${request.peer.nickname} 님의 수락을 기다려요", "수락 전에는 연결도 대화도 열리지 않아요", animate = false,
+                    if (incoming) "${request.peer.nickname} 님이 연결을 요청했어요" else "${request.peer.nickname} 님의 수락을 기다려요",
+                    if (incoming) "수락하면 근처에 있는 동안 짧은 인사를 나눌 수 있어요" else "수락 전에는 연결도 대화도 열리지 않아요", animate = false,
                     modifier = Modifier.heightIn(min = ChayeonDimensions.ChemistryKnot + ChayeonDimensions.PeerSmall), centered = true)
                 request.peer.signature?.let {
-                    GlassCard(Modifier.fillMaxWidth()) { SignatureMini(it) }
+                    GlassCard(Modifier.fillMaxWidth()) {
+                        SignatureMini(it)
+                        if (incoming) request.chemistry.lines.forEach { line ->
+                            ChayeonText(line.text, style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
+                        }
+                    }
                 }
                 MeetPrivacy()
             }

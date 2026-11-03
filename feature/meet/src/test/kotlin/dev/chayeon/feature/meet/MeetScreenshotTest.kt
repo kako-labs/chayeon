@@ -74,7 +74,11 @@ class MeetScreenshotTest {
     @Test fun homeLocationPermissionOff() = discovery("location_permission_off", DiscoveryStatus.LOCATION_PERMISSION_OFF)
     @Test fun homeLocationStale() = discovery("location_stale", DiscoveryStatus.LOCATION_STALE)
     @Test fun homeAlreadyConnected() = discovery("already_connected", DiscoveryStatus.ALREADY_CONNECTED)
-    @Test fun homeUnpublished() = home("unpublished", home.copy(profile = MeetFixtures.own.copy(signature = null)))
+    @Test fun homeUnpublished() = home("unpublished", home.copy(profile = MeetFixtures.own.copy(signature = null),
+        discovery = MeetFixtures.discovery.copy(candidates = AvatarId.entries.drop(1).mapIndexed { index, avatar ->
+            MeetFixtures.candidate.copy(id = "candidate-$index", profile = MeetFixtures.peer.copy(id = "peer-$index", avatar = avatar,
+                nickname = listOf("느린오후", "재즈한잔", "바다보러가요", "숲길산책", "별보는밤")[index]))
+        })))
     @Test fun homePendingIncoming() = home("pending_incoming", home.copy(pendingRequest = MeetFixtures.request))
     @Test fun homePendingOutgoing() = home("pending_outgoing", home.copy(pendingRequest = sent.request))
     @Test fun homeToggleFailure() = home("toggle_failure", home.copy(toggle = MeetCommandState(error = AppError.Network)))
@@ -89,6 +93,7 @@ class MeetScreenshotTest {
     @Test fun candidateNoSignature() = candidate("no_signature", candidate.copy(candidate = MeetFixtures.candidate.copy(profile = MeetFixtures.peer.copy(signature = null))))
     @Test fun candidateNoOwnSignature() = candidate("no_own_signature", candidate.copy(ownProfile = MeetFixtures.own.copy(signature = null)))
     @Test fun candidateAllTraits() = candidate("all_traits", candidate.copy(candidate = allTraitsCandidate))
+    @Test fun candidateCompleteProfile() = candidate("complete_profile", candidate.copy(candidate = MeetFixtures.completeCandidate))
     @Test fun candidateAllTraitsScrolled() = candidate("all_traits_scrolled", candidate.copy(candidate = allTraitsCandidate), TraitId.CABIN_CARE.presentation.publicPhrase)
     @Test fun candidateLoading() = candidate("loading", candidate.copy(candidate = null, unavailableState = ExperienceState.DISCOVERY_LOADING, canRequest = false))
     @Test fun candidateEmpty() = candidate("empty", candidate.copy(candidate = null, unavailableState = ExperienceState.PEER_UNAVAILABLE, canRequest = false))
@@ -143,6 +148,8 @@ class MeetScreenshotTest {
     @Test fun connectedLeaving() = connected("leaving", connected.copy(leave = MeetCommandState(inProgress = true)))
     @Test fun connectedRestricted() = connected("restricted", connected.copy(driving = driving(DrivingPolicy.RESTRICTED)))
     @Test fun connectedUnknown() = connected("unknown", connected.copy(driving = driving(DrivingPolicy.UNKNOWN)))
+    @Test fun connectedEndedWhileDriving() = connected("ended_while_driving", connected.copy(
+        driving = driving(DrivingPolicy.RESTRICTED), connection = MeetFixtures.ended))
     @Test @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
     fun connectedNarrow() = connected("narrow")
     @Test @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
@@ -165,6 +172,18 @@ class MeetScreenshotTest {
 
     @Test fun drivingRestricted() = capture("driving_restricted", DrivingPolicy.RESTRICTED) { DrivingScreen(driving(DrivingPolicy.RESTRICTED), it) }
     @Test fun drivingUnknown() = capture("driving_unknown", DrivingPolicy.UNKNOWN) { DrivingScreen(driving(DrivingPolicy.UNKNOWN), it) }
+    @Test fun drivingNewConnection() = capture("driving_new_connection", DrivingPolicy.RESTRICTED) {
+        DrivingScreen(driving(DrivingPolicy.RESTRICTED), it, hasConnection = true)
+    }
+    @Test fun unknownNewConnection() = capture("unknown_new_connection", DrivingPolicy.UNKNOWN) {
+        DrivingScreen(driving(DrivingPolicy.UNKNOWN), it, hasConnection = true)
+    }
+    @Test fun drivingNewConnectionLeaving() = capture("driving_new_connection_leaving", DrivingPolicy.RESTRICTED) {
+        DrivingScreen(driving(DrivingPolicy.RESTRICTED), it, hasConnection = true, leave = MeetCommandState(inProgress = true))
+    }
+    @Test fun drivingNewConnectionLeaveFailed() = capture("driving_new_connection_leave_failed", DrivingPolicy.RESTRICTED) {
+        DrivingScreen(driving(DrivingPolicy.RESTRICTED), it, hasConnection = true, leave = MeetCommandState(error = AppError.Network))
+    }
     @Test @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
     fun drivingNarrow() = capture("driving_narrow", DrivingPolicy.RESTRICTED) { DrivingScreen(driving(DrivingPolicy.RESTRICTED), it) }
 }
