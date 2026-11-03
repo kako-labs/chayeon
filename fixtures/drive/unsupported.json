@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "label": "합성 주행 · 신호 미지원",
+  "source": "SYNTHETIC",
+  "durationMillis": 1200000,
+  "replayWallMillis": 10000,
+  "signals": [
+    "clock"
+  ],
+  "frames": [
+    {
+      "atMillis": 0
+    },
+    {
+      "atMillis": 1200000
+    }
+  ]
+}

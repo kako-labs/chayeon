@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <instrumentation android:name="dev.chayeon.data.vehicle.VehicleProofInstrumentation"
+        android:targetPackage="dev.chayeon.data.vehicle.test" android:functionalTest="true" />
+</manifest>
