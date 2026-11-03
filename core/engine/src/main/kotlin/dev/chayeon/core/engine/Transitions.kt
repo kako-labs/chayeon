@@ -71,24 +71,24 @@ internal fun Room.evaluateConnections() {
 
 internal fun Room.seedDemo() {
     if (!demoEnabled) return
-    DemoCast.peers.forEachIndexed { index, demo ->
+    DemoCast.peers.forEach { demo ->
         val existing = state.accounts[demo.id]
         if (existing != null) {
             val profile = existing.profile.publicProfile
             val signature = profile.signature
             if (profile.kind == ProfileKind.DEMO_PEER && !existing.deleted && signature != null &&
-                (signature.traits != demo.traits || signature.title != rules.title(demo.traits))) {
+                (signature.traits != demo.traits || signature.title != rules.title(demo.traits) || signature.knotSeed != demo.knotSeed)) {
                 stamp()
                 put(existing.copy(profile = existing.profile.copy(version = v, publicProfile = profile.copy(
-                    version = v, signature = signature.copy(version = v, traits = demo.traits, title = rules.title(demo.traits)),
+                    version = v, signature = signature.copy(version = v, traits = demo.traits, title = rules.title(demo.traits), knotSeed = demo.knotSeed),
                 ))))
             }
-            return@forEachIndexed
+            return@forEach
         }
         stamp()
         val profileId = "profile-${demo.id}"
         val signature = PublicSignature("signature-${demo.id}", v, rules.title(demo.traits), demo.traits,
-            KnotSeed((index + 1L) * 171), DataSource.SYNTHETIC, EvidenceBucket.ESTABLISHED)
+            demo.knotSeed, DataSource.SYNTHETIC, EvidenceBucket.ESTABLISHED)
         val profile = MyProfile(profileId, v, PublicProfile(profileId, v, demo.nickname, demo.avatar, demo.interests,
             ProfileKind.DEMO_PEER, signature), RegistrationState.READY)
         val settings = ParticipationSettings("settings-${demo.id}", v, ConsentScope.entries.map {

@@ -13,9 +13,9 @@ fun SafetyScreen(state: HistoryUiState, chrome: ScreenChrome, peerProfileId: Str
     val blocked = state.blocks.valueOrNull()?.any { it.peer.id == peerProfileId } == true
     val peer = state.safetyPeer?.takeIf { it.id == peerProfileId }
     val target = peer.safetyName
-    HistoryFrame(state, chrome, "차단·신고", "${target}에 대한 조치예요", onBack, headerPeer = peer,
+    HistoryFrame(state, chrome, "차단·신고", "${target}에 대한 조치예요", onBack, headerPeer = peer, equalPanelHeights = true,
         primary = {
-            GlassCard(Modifier.fillMaxWidth().heightIn(min = LocalHistoryPaneHeight.current)) { ContentColumn {
+            GlassCard(Modifier.fillMaxWidth().fillMaxHeight()) { ContentColumn {
                 if (peer == null || target == "이 상대") ChayeonText("상대의 공개 프로필을 확인할 수 없어요. 이 화면을 연 상대에게 조치해요.", style = ChayeonType.Secondary)
                 GradientText("차단하면", style = ChayeonType.Title)
                 InfoRow(ChayeonIcon.CHECK, "서로의 카드와 요청이 사라져요")
@@ -28,7 +28,7 @@ fun SafetyScreen(state: HistoryUiState, chrome: ScreenChrome, peerProfileId: Str
                 JellyButton("차단한 사람 보기", onBlocks, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
             } }
         }, secondary = {
-            GlassCard(Modifier.fillMaxWidth().heightIn(min = LocalHistoryPaneHeight.current)) { ContentColumn {
+            GlassCard(Modifier.fillMaxWidth().fillMaxHeight()) { ContentColumn {
                 GradientText("신고 이유", style = ChayeonType.Title)
                 ReportReason.entries.forEach { reason ->
                     GelRadioRow(reason.label, reason == state.selectedReason, { onReason(reason) }, enabled = !state.command("report").running)

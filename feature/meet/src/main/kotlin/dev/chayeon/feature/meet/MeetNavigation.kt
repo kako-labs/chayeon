@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 sealed interface MeetExit {
     data class OpenEncounter(val encounterId: String) : MeetExit
     data class OpenSafety(val peerProfileId: String) : MeetExit
+    data object CreateSignature : MeetExit
     data object OpenMySignature : MeetExit
 }
 
@@ -104,6 +105,7 @@ private fun MeetRoute(
                 onCandidate = { id -> guarded { navController.navigate(MeetDestination.candidate(id)) } },
                 onRequests = { guarded { navController.openMeetRequest(state.pendingRequest?.id) } },
                 onConnected = { guarded { navController.replaceMeet(MeetDestination.CONNECTED) } },
+                onCreateSignature = { guarded { currentExit(MeetExit.CreateSignature) } },
                 onMySignature = { guarded { currentExit(MeetExit.OpenMySignature) } },
                 onLocationSettings = {
                     guarded {

@@ -28,20 +28,32 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.roundToInt
 
-internal data class KnotPoint(val x: Float, val y: Float, val depth: Float, val progress: Float)
+data class KnotPoint(val x: Float, val y: Float, val depth: Float, val progress: Float)
 
-internal fun knotGeometry(seed: KnotSeed, samples: Int = 480): List<KnotPoint> {
+fun knotGeometry(seed: KnotSeed, samples: Int = 480): List<KnotPoint> {
     val mixedA = (seed.value xor (seed.value ushr 30)) * -4658895280553007687L
     val mixedB = (mixedA xor (mixedA ushr 27)) * -7723592293110705685L
     val hash = mixedB xor (mixedB ushr 31)
-    val rotation = ((hash and 255) / 255.0 * .8 - .4)
-    val tilt = .38 + ((hash ushr 8) and 255) / 255.0 * .55
-    val width = .88 + ((hash ushr 16) and 255) / 255.0 * .24
-    val lobe = .70 + ((hash ushr 24) and 255) / 255.0 * .20
-    val phase = (hash and 63) / 63.0 * PI * 2
+    require(samples >= 24)
+    val levels = DoubleArray(12) { ((seed.value ushr (it * 2)) and 3).toDouble() }
+    fun weighted(vararg weights: Double) = levels.indices.sumOf { levels[it] * weights[it] }
+    val expressive = seed.algorithmVersion == 2
+    // Continuous contributions preserve the silhouette as individual levels grow. No hash
+    // avalanche or title-dependent branch can abruptly replace a person's knot.
+    val rotation = if (expressive) weighted(.10, -.07, .28, -.16, .06, -.18, .38, .22, -.20, .12, .06, -.25)
+        else ((hash and 255) / 255.0 * .8 - .4)
+    val tilt = if (expressive) .65 + .24 * sin(weighted(.13, .30, -.18, .18, .08, -.20, .14, -.16, .25, -.08, .12, -.26))
+        else .38 + ((hash ushr 8) and 255) / 255.0 * .55
+    val width = if (expressive) 1.0 + .25 * sin(weighted(-.20, .10, -.16, .22, -.06, .30, .12, -.24, .16, .08, -.14, .24))
+        else .88 + ((hash ushr 16) and 255) / 255.0 * .24
+    val lobe = if (expressive) .80 + .15 * sin(weighted(.20, -.14, .24, -.10, .06, .18, -.22, .14, -.12, .26, .10, -.18))
+        else .70 + ((hash ushr 24) and 255) / 255.0 * .20
+    val phase = if (expressive) weighted(.24, .10, -.30, .25, -.06, .16, -.20, .18, .12, -.14, .24, -.16)
+        else (hash and 63) / 63.0 * PI * 2
+    val asymmetry = if (expressive) .22 * sin(weighted(.12, -.22, .16, .08, -.10, .20, -.14, .26, -.18, .10, .14, -.24)) else 0.0
     val points = (0..samples).map { index ->
         val t = index.toDouble() / samples * PI * 2
-        val radius = 1.65 + lobe * cos(3 * t + phase)
+        val radius = 1.65 + lobe * cos(3 * t + phase) + asymmetry * cos(t + phase)
         val x = radius * cos(2 * t)
         val y = radius * sin(2 * t)
         val z = .85 * sin(3 * t + phase)

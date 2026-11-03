@@ -41,6 +41,7 @@ internal fun HistoryFrame(
     headerPeer: PublicProfile? = null,
     bottom: (@Composable () -> Unit)? = null,
     secondaryFirstWhenNarrow: Boolean = false,
+    equalPanelHeights: Boolean = false,
     primary: @Composable () -> Unit,
     secondary: (@Composable () -> Unit)? = null,
 ) {
@@ -86,7 +87,14 @@ internal fun HistoryFrame(
                             else { primary(); secondary?.invoke() }
                         }
                     } else {
-                        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+                        if (equalPanelHeights && secondary != null) {
+                            val scroll = rememberScrollState()
+                            Row(Modifier.fillMaxSize().scrollEdgeFade(scroll).verticalScroll(scroll).height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+                                Box(Modifier.weight(ratio).fillMaxHeight()) { primary() }
+                                Box(Modifier.weight(1f).fillMaxHeight()) { secondary() }
+                            }
+                        } else Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
                             ScrollPane(Modifier.weight(ratio)) { primary() }
                             if (secondary != null) ScrollPane(Modifier.weight(1f)) { secondary() }
                         }

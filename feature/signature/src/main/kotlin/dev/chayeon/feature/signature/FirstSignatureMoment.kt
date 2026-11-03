@@ -33,11 +33,16 @@ internal fun FirstSignatureMoment(
     onVisibility: () -> Unit,
     onRetry: () -> Unit,
 ) {
-    val traits = remember(recap.id, recap.changes) {
+    val earned = remember(recap.id, recap.changes) {
         recap.changes.filter { it.currentLevel != TraitLevel.RECORDING }
             .sortedByDescending { it.currentLevel.ordinal }
     }
-    val title = remember(traits) { DefaultSignatureEngine().title(traits.map { PublicTrait(it.trait, it.currentLevel) }) }
+    val traits = remember(earned) {
+        val care = earned.firstOrNull { it.trait.presentation.category == TraitCategory.CARE }
+        val first = earned.take(3)
+        if (care != null && first.none { it.trait.presentation.category == TraitCategory.CARE }) first.take(2) + care else first
+    }
+    val title = remember(earned) { DefaultSignatureEngine().title(earned.map { PublicTrait(it.trait, it.currentLevel) }) }
     val allowed = state.driving.policy == DrivingPolicy.ALLOWED && LocalDrivingPolicy.current == DrivingPolicy.ALLOWED
     val motion = LocalDecorativeMotion.current && allowed
     val timeline = remember(recap.id) { Animatable(0f) }
@@ -73,13 +78,13 @@ internal fun FirstSignatureMoment(
                     Box(Modifier.fillMaxWidth().background(Brush.radialGradient(
                         listOf(ChayeonColors.Wine.copy(alpha = .65f), ChayeonColors.Transparent))), contentAlignment = Alignment.Center) {
                         SignatureKnot(recap.currentKnot, Modifier.size(ChayeonDimensions.ChemistryKnot).testTag("recap-knot"),
-                            reveal = allowed, contentDescription = "내 주행으로 만든 첫 붉은 시그니처 매듭")
+                            reveal = allowed, contentDescription = if (recap.source == DataSource.SYNTHETIC) "합성 주행으로 만든 첫 붉은 시그니처 매듭" else "내 주행으로 만든 첫 붉은 시그니처 매듭")
                     }
                 }
                 val story: @Composable () -> Unit = {
                     SignatureColumn(enabled = allowed) {
                         MomentPart(fraction(0)) {
-                            ChayeonText("내 주행이 매듭이 됐어요", style = ChayeonType.Section, color = ChayeonColors.Pink)
+                            ChayeonText(if (recap.source == DataSource.SYNTHETIC) "이 주행이 매듭이 됐어요" else "내 주행이 매듭이 됐어요", style = ChayeonType.Section, color = ChayeonColors.Pink)
                             Spacer(Modifier.height(ChayeonSpacing.Medium))
                             GradientText(title, Modifier.testTag("first-signature-title"), ChayeonType.Hero)
                         }
@@ -125,7 +130,7 @@ internal fun FirstSignatureMoment(
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
                     ChayeonText("공개는 내가 골라요. 내 주행 수치는 나에게만 보여요.", Modifier.weight(1f), ChayeonType.Minimum, ChayeonColors.Secondary)
-                    JellyButton(if (state.excluding) "주행을 빼고 있어요" else "내가 운전하지 않았어요", onExclude,
+                    if (recap.source == DataSource.VEHICLE) JellyButton(if (state.excluding) "주행을 빼고 있어요" else "내가 운전하지 않았어요", onExclude,
                         Modifier.testTag("exclude-trip"), JellyVariant.SECONDARY, enabled = allowed && !state.excluding && !state.markingSeen)
                 }
             }

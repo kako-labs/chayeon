@@ -29,7 +29,7 @@ fun TraitDetailScreen(
                         if (evidence != null) {
                             SignatureSource(evidence.source)
                             if (evidence.availability == TraitAvailability.UNSUPPORTED) {
-                                ChayeonText("이 차량에서 제공되지 않아요", color = ChayeonColors.Secondary)
+                                ChayeonText(evidence.unsupportedLabel, color = ChayeonColors.Secondary)
                             } else TraitBadge(state.trait, evidence.level, size = TraitBadgeSize.DETAIL)
                             ChayeonText(evidence.levelExplanation(), color = ChayeonColors.Secondary)
                         }
@@ -49,7 +49,7 @@ fun TraitDetailScreen(
                         if (evidence == null) {
                             SignatureMessage("아직 기록이 없어요", "기록할 수 있는 신호가 모이면 여기에서 확인할 수 있어요.")
                         } else if (evidence.availability == TraitAvailability.UNSUPPORTED) {
-                            SignatureMessage("이 차량에서 제공되지 않아요", "이 특성에 필요한 신호를 읽을 수 없어요. 다른 특성의 기록은 계속 볼 수 있어요.", state.trait.presentation.icon)
+                            SignatureMessage(evidence.unsupportedLabel, "이 특성에 필요한 신호를 읽을 수 없어요. 다른 특성의 기록은 계속 볼 수 있어요.", state.trait.presentation.icon)
                         } else {
                             GlassCard(Modifier.fillMaxWidth()) {
                                 SectionTitle("기록한 기간", subtitle = evidencePeriod(evidence.window))

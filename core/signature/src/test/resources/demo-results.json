@@ -1,0 +1,104 @@
+[
+  {
+    "id": "gentle",
+    "title": "함께 타면 편안한 드라이버",
+    "traits": [
+      {
+        "trait": "GENTLE_RIDE",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "EARLY_BRAKE",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "STEADY_PACE",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "BELT_FIRST",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "TIRE_CARE",
+        "level": "STEADY"
+      }
+    ]
+  },
+  {
+    "id": "signal-manners",
+    "title": "깜빡이를 잊지 않는 드라이버",
+    "traits": [
+      {
+        "trait": "GENTLE_RIDE",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "EARLY_BRAKE",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "SIGNAL_MANNERS",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "BELT_FIRST",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "ENERGY_PLANNER",
+        "level": "STEADY"
+      },
+      {
+        "trait": "CABIN_CARE",
+        "level": "STEADY"
+      }
+    ]
+  },
+  {
+    "id": "care",
+    "title": "떠나기 전에 살피는 드라이버",
+    "traits": [
+      {
+        "trait": "GENTLE_RIDE",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "EARLY_BRAKE",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "SIGNAL_MANNERS",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "STEADY_PACE",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "BELT_FIRST",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "TIRE_CARE",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "ENERGY_PLANNER",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "BATTERY_KIND",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "FLUID_READY",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "CABIN_CARE",
+        "level": "SIGNATURE"
+      }
+    ]
+  }
+]

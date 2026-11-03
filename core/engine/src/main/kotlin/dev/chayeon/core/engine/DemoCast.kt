@@ -13,7 +13,12 @@ data class DemoPeer(
     val greetingReplies: List<PresetCode> = listOf(PresetCode.NICE_TO_MEET_YOU, PresetCode.SHARED_INTERESTS, PresetCode.TALK_LATER),
     val afterReplies: List<String> = listOf("다시 이야기하게 되어 반가워요", "천천히 서로 알아가면 좋겠어요", "함께 나누고 싶은 이야기가 많아요"),
     val presenceScript: List<DemoPresenceStep> = emptyList(),
-)
+) {
+    // Only already public categorical levels contribute; private metrics cannot enter the seed.
+    val knotSeed: KnotSeed get() = KnotSeed(traits.fold(0L) { value, trait ->
+        value or (trait.level.ordinal.toLong() shl (trait.trait.ordinal * 2))
+    }, algorithmVersion = 2)
+}
 data class DemoPresenceStep(val afterConnectionMillis: Long, val presence: SyntheticPresence)
 
 /** Timing and behavior are data, shared unchanged by both hosts. */
@@ -31,10 +36,10 @@ object DemoCast {
             listOf(PublicTrait(TraitId.LONG_ROAD, TraitLevel.SIGNATURE), PublicTrait(TraitId.ENERGY_PLANNER, TraitLevel.STEADY)),
             DemoResponse.DECLINE),
         DemoPeer("demo-forest", "숲길산책", AvatarId.FOREST, setOf(InterestId.HIKING, InterestId.CAMPING),
-            listOf(PublicTrait(TraitId.BELT_FIRST, TraitLevel.SIGNATURE)),
+            listOf(PublicTrait(TraitId.ENERGY_PLANNER, TraitLevel.SIGNATURE)),
             DemoResponse.IGNORE),
         DemoPeer("demo-jazz", "재즈한잔", AvatarId.JAZZ, setOf(InterestId.JAZZ, InterestId.DRIVE_MUSIC),
-            listOf(PublicTrait(TraitId.SIGNAL_MANNERS, TraitLevel.STEADY), PublicTrait(TraitId.STEADY_PACE, TraitLevel.SIGNATURE), PublicTrait(TraitId.GENTLE_RIDE, TraitLevel.VISIBLE)),
+            listOf(PublicTrait(TraitId.CABIN_CARE, TraitLevel.SIGNATURE), PublicTrait(TraitId.SIGNAL_MANNERS, TraitLevel.STEADY), PublicTrait(TraitId.STEADY_PACE, TraitLevel.STEADY), PublicTrait(TraitId.GENTLE_RIDE, TraitLevel.VISIBLE)),
             DemoResponse.ACCEPT, incomingDelayMillis = 7_000),
         DemoPeer("demo-star", "별보는밤", AvatarId.STAR, setOf(InterestId.NIGHT_VIEW, InterestId.FILM_PHOTOGRAPHY),
             listOf(PublicTrait(TraitId.NIGHT_DRIVE, TraitLevel.SIGNATURE), PublicTrait(TraitId.CABIN_CARE, TraitLevel.STEADY)),

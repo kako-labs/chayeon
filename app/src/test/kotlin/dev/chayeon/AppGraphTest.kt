@@ -13,6 +13,59 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AppGraphTest {
+    @Test fun openingTheRelevantContentClearsOnlyItsBannerAndSuppressesNewArrivals() = runTest {
+        val fixture = TestGraph().apply { ready() }
+        val events = AppEvents(fixture.graph, object : MessageNotifier { override fun notifyMessage(id: String) = Unit }, backgroundScope)
+        events.start()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { events.banner.collect {} }
+        runCurrent()
+        fixture.requests.value = LoadState.Ready(listOf(ConnectionRequest("request", 2, fixture.publicProfile,
+            RequestDirection.INCOMING, ConnectionRequestStatus.PENDING, 0, 100_000, Chemistry())), 2)
+        runCurrent()
+        val unrelated = events.viewing("other-request", null)
+        assertEquals("request", events.banner.value?.id)
+        val requestView = events.viewing("request", null)
+        runCurrent()
+        assertNull(events.banner.value)
+        requestView(); unrelated()
+        fixture.connection.value = LoadState.Ready(Connection("connection", 3, "request", fixture.publicProfile,
+            ConnectionStatus.CONNECTED, 0, Chemistry()), 3)
+        runCurrent()
+        fixture.greetings.value = LoadState.Ready(listOf(ConnectionGreeting("greeting", 4, "connection", "message",
+            MessageAuthor.PEER, PresetCode.HELLO, 0, DeliveryState.SENT)), 4)
+        runCurrent()
+        assertEquals("greeting", events.banner.value?.id)
+        val conversation = events.viewing(null, "connection")
+        runCurrent()
+        assertNull(events.banner.value)
+        fixture.greetings.value = LoadState.Ready((fixture.greetings.value as LoadState.Ready).value +
+            ConnectionGreeting("reply", 5, "connection", "reply-message", MessageAuthor.PEER, PresetCode.NICE_TO_MEET_YOU, 0, DeliveryState.SENT), 5)
+        runCurrent()
+        assertNull(events.banner.value)
+        conversation()
+        runCurrent()
+        assertNull(events.banner.value)
+    }
+
+    @Test fun bannerDismissesAfterFiveVisibleSecondsAndDoesNotReappear() = runTest {
+        val fixture = TestGraph().apply { ready() }
+        val events = AppEvents(fixture.graph, object : MessageNotifier { override fun notifyMessage(id: String) = Unit }, backgroundScope)
+        events.start()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { events.banner.collect {} }
+        runCurrent()
+        val request = ConnectionRequest("arrival", 2, fixture.publicProfile,
+            RequestDirection.INCOMING, ConnectionRequestStatus.PENDING, 0, 100_000, Chemistry())
+        fixture.requests.value = LoadState.Ready(listOf(request), 2)
+        runCurrent()
+        advanceTimeBy(4_999); runCurrent()
+        assertEquals("arrival", events.banner.value?.id)
+        advanceTimeBy(1); runCurrent()
+        assertNull(events.banner.value)
+        fixture.requests.value = LoadState.Ready(listOf(request.copy(version = 3)), 3)
+        runCurrent()
+        assertNull(events.banner.value)
+    }
+
     @Test fun routingFollowsRestoredRegistration() {
         val fixture = TestGraph()
         assertEquals(HistoryDestination.FIRST_RUN, rootRoute(SessionState.SignedOut(), fixture.profiles.value))

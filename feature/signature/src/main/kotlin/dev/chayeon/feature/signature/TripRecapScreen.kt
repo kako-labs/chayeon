@@ -51,7 +51,7 @@ fun TripRecapScreen(
                                             contentDescription = if (recap.included) "이번 주행을 담은 나의 붉은 매듭" else "주행을 제외한 나의 붉은 매듭")
                                     }
                                     GradientText(if (!recap.included) "이 주행은 빼 두었어요"
-                                        else if (recap.changes.isEmpty()) "이번 주행도 매듭에 더했어요" else "나의 매듭에\n이야기가 더해졌어요", style = ChayeonType.Hero)
+                                        else if (recap.source == DataSource.SYNTHETIC) "이 주행이 매듭이 됐어요" else "내 주행이 매듭이 됐어요", style = ChayeonType.Hero)
                                     ChayeonText(if (!recap.included) "나머지 주행으로 시그니처를 다시 살펴봐요."
                                         else "주차한 지금, 오늘의 주행을 돌아봐요.", color = ChayeonColors.Secondary)
                                 }
@@ -90,7 +90,7 @@ fun TripRecapScreen(
                     }
                     JellyButton(if (state.markingSeen) "확인하고 있어요" else "내 시그니처 보기", onSignature,
                         Modifier.fillMaxWidth().testTag("recap-open-signature"), enabled = !state.markingSeen && !state.excluding && !state.pendingChanges)
-                    if (recap.included) {
+                    if (recap.included && recap.source == DataSource.VEHICLE) {
                         JellyButton(if (state.excluding) "주행을 빼고 있어요" else "내가 운전하지 않았어요", onExclude,
                             Modifier.fillMaxWidth().testTag("exclude-trip"), JellyVariant.SECONDARY,
                             enabled = !state.excluding && !state.markingSeen)

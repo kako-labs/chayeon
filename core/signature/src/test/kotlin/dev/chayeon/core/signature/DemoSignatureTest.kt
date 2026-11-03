@@ -12,11 +12,40 @@ class DemoSignatureTest {
         .first { File(it, "fixtures/drive").isDirectory }
     private val visibility = VisibilitySettings(publishSignature = true)
 
+    @Test fun `only unsupported fixture omits signals and every supported drive earns care`() {
+        val fullSignals = Json.parseToJsonElement(File(root, "fixtures/drive/care.json").readText())
+            .jsonObject.getValue("signals").jsonArray.toSet()
+        listOf("gentle", "signal-manners", "care", "early-brake").forEach { name ->
+            val signals = Json.parseToJsonElement(File(root, "fixtures/drive/$name.json").readText())
+                .jsonObject.getValue("signals").jsonArray.toSet()
+            assertEquals(fullSignals, signals, name)
+            val trips = (1..3).map { replay(name, it) }
+            val signature = engine.calculate(MySignature(), trips, visibility, trips.last().endedAtEpochMillis)
+            assertTrue(signature.evidence.none { it.availability == TraitAvailability.UNSUPPORTED }, name)
+            assertTrue(signature.publicSignature!!.traits.any { it.trait.ordinal >= TraitId.TIRE_CARE.ordinal }, name)
+        }
+        val unsupported = (1..3).map { replay("unsupported", it) }
+        assertTrue(engine.calculate(MySignature(), unsupported, visibility, unsupported.last().endedAtEpochMillis)
+            .evidence.any { it.availability == TraitAvailability.UNSUPPORTED })
+    }
+
     @Test fun `three scenario trips earn distinct titles outside the cast and varied chemistry`() {
         val scenarios = listOf("gentle", "signal-manners", "care").associateWith { scenario ->
             val trips = (1..3).map { replay(scenario, it) }
             assertTrue(trips.all { it.eligibility == TripEligibility.ELIGIBLE })
-            engine.calculate(MySignature(), trips, visibility, trips.last().endedAtEpochMillis).publicSignature!!
+            val calculated = engine.calculate(MySignature(), trips, visibility, trips.last().endedAtEpochMillis)
+            assertTrue(calculated.evidence.none { it.availability == TraitAvailability.UNSUPPORTED }, scenario)
+            val signature = calculated.publicSignature!!
+            assertTrue(signature.traits.any { it.trait.ordinal >= TraitId.TIRE_CARE.ordinal }, scenario)
+            println("DEMO_TRAITS $scenario: ${signature.traits}")
+            signature
+        }
+        val expected = Json.parseToJsonElement(File(root, "core/signature/src/test/resources/demo-results.json").readText()).jsonArray
+        expected.forEach { entry ->
+            val obj = entry.jsonObject
+            val actual = scenarios.getValue(obj.getValue("id").jsonPrimitive.content)
+            assertEquals(obj.getValue("title").jsonPrimitive.content, actual.title)
+            assertEquals(Json.decodeFromJsonElement<List<PublicTrait>>(obj.getValue("traits")), actual.traits)
         }
         assertEquals(3, scenarios.values.map { it.title }.toSet().size)
         val cast = Json.parseToJsonElement(File(root, "core/signature/src/test/resources/demo-cast.json").readText()).jsonArray

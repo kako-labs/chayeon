@@ -160,8 +160,15 @@ internal fun MeetDiscoveryHero(state: HomeUiState, onToggle: (Boolean) -> Unit) 
                         .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
                         .drawWithContent {
                             drawContent()
-                            drawRect(Brush.horizontalGradient(0f to ChayeonColors.Transparent, .38f to ChayeonColors.White), blendMode = BlendMode.DstIn)
-                        }, contentScale = ContentScale.Crop, alignment = Alignment.TopCenter)
+                            // A fitted image leaves its dark rectangle on the tinted panel, so fade every edge.
+                            val mask = if (compact) {
+                                Brush.radialGradient(.58f to ChayeonColors.White, 1f to ChayeonColors.Transparent, center = center, radius = size.height / 2f)
+                            } else {
+                                Brush.horizontalGradient(0f to ChayeonColors.Transparent, .38f to ChayeonColors.White)
+                            }
+                            drawRect(mask, blendMode = BlendMode.DstIn)
+                        }, contentScale = if (compact) ContentScale.Fit else ContentScale.Crop,
+                    alignment = if (compact) Alignment.Center else Alignment.TopCenter)
             }
             Column(Modifier.padding(ChayeonSpacing.Large).fillMaxWidth(if (wide) .66f else 1f), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
                 StatusChip(if (enabled) "오늘의 인연" else "발견 꺼짐", variant = if (enabled) StatusVariant.ACTIVE else StatusVariant.PLAIN)
@@ -169,20 +176,16 @@ internal fun MeetDiscoveryHero(state: HomeUiState, onToggle: (Boolean) -> Unit) 
                     DiscoveryStatus.AVAILABLE -> "근처에서 ${state.discovery.candidates.size}명이 발견을 켰어요"
                     DiscoveryStatus.ALREADY_CONNECTED -> "지금 이어진 인연이 있어요"
                     else -> "새로운 인연을 천천히 만나봐요"
-                }, style = ChayeonType.Title)
+                }, style = if (compact) ChayeonType.Section else ChayeonType.Title)
                 ChayeonText(if (enabled) "서로 수락하면 대화가 시작돼요" else "켜면 닉네임과 공개한 시그니처, 관심사가 보여요",
                     style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
-                if (!compact || !wide) GlassCard(Modifier.width(ChayeonDimensions.Knot), contentPadding = PaddingValues(horizontal = ChayeonSpacing.Compact, vertical = ChayeonSpacing.Tiny)) {
+                GlassCard(Modifier.width(ChayeonDimensions.Knot), contentPadding = PaddingValues(horizontal = ChayeonSpacing.Compact, vertical = ChayeonSpacing.Tiny)) {
                     GelToggle(enabled, onToggle, if (state.toggle.inProgress) "바꾸고 있어요" else if (enabled) "발견 켜짐" else "발견 꺼짐",
                         Modifier.fillMaxWidth(), enabled = !state.toggle.inProgress)
                 }
                 MeetError(state.toggle.error)
             }
-            if (compact && wide) GlassCard(Modifier.align(Alignment.CenterEnd).padding(ChayeonSpacing.Large).width(ChayeonDimensions.Knot),
-                contentPadding = PaddingValues(horizontal = ChayeonSpacing.Compact, vertical = ChayeonSpacing.Tiny)) {
-                GelToggle(enabled, onToggle, if (state.toggle.inProgress) "바꾸고 있어요" else if (enabled) "발견 켜짐" else "발견 꺼짐",
-                    Modifier.fillMaxWidth(), enabled = !state.toggle.inProgress)
-            }
+
         }
     }
 }

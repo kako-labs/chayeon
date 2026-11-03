@@ -57,7 +57,8 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
     val chrome = ScreenChrome(topBar = {
         Column {
             BoxWithConstraints(Modifier.fillMaxWidth().height(ChayeonDimensions.Banner), contentAlignment = Alignment.Center) {
-                GearStrip(driving.gear, driving.policy, discovery.locationSource == LocationSource.SYNTHETIC)
+                GearStrip(driving.gear, driving.policy, discovery.locationSource == LocationSource.SYNTHETIC,
+                    onDemo = if (graph.demoEnabled && route != DEMO_ROUTE) ({ open(DEMO_ROUTE) }) else null)
                 if (driving.policy == DrivingPolicy.ALLOWED) {
                     val notice = event
                     val text = notice?.text ?: when {
@@ -74,7 +75,7 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
                         discoveryError -> "발견을 다시 눌러 주세요"
                         else -> null
                     }
-                    if (label != null) TopBanner(label, Modifier.padding(horizontal = if (narrow) ChayeonDimensions.Avatar else ChayeonDimensions.PeerLarge)
+                    if (label != null) TopBanner(label, Modifier.padding(start = if (narrow) ChayeonDimensions.Avatar else ChayeonDimensions.PeerLarge, end = ChayeonDimensions.Knot)
                         .then(if (notice != null) Modifier.clickable {
                             guarded {
                                 navController.navigate(notice.route) { launchSingleTop = true }
@@ -83,9 +84,6 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
                             }
                         } else Modifier))
                 }
-            }
-            if (driving.policy == DrivingPolicy.ALLOWED && route == MeetDestination.CONNECTED && graph.demoEnabled) {
-                JellyButton("시연 제어", { open(DEMO_ROUTE) }, variant = JellyVariant.SECONDARY)
             }
         }
     }, bottomBar = { selected ->
@@ -104,7 +102,7 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
                     }
                 }
             })
-    })
+    }, onViewing = { request, relationship -> events?.viewing(request, relationship) ?: {} })
     ChayeonTheme(policy = driving.policy) {
         NavHost(navController, startDestination = HistoryDestination.FIRST_RUN) {
             historyGraph(graph.historyDeps, chrome, navController) { exit ->
@@ -120,6 +118,7 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
                 when (exit) {
                     is MeetExit.OpenEncounter -> open(HistoryDestination.encounter(exit.encounterId))
                     is MeetExit.OpenSafety -> open(HistoryDestination.safety(exit.peerProfileId))
+                    MeetExit.CreateSignature -> open(if (graph.demoEnabled) CREATE_SIGNATURE_ROUTE else SignatureDestination.MY_SIGNATURE)
                     MeetExit.OpenMySignature -> open(SignatureDestination.MY_SIGNATURE)
                 }
             }
@@ -130,10 +129,10 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
                     SignatureExit.OpenConsent -> open(HistoryDestination.CONSENT)
                     SignatureExit.OpenBlocks -> open(HistoryDestination.BLOCKS)
                     SignatureExit.OpenCleanup -> open(HistoryDestination.CLEANUP)
-                    SignatureExit.OpenDemoConsole -> if (graph.demoEnabled) open(DEMO_ROUTE)
+                    SignatureExit.CreateSignature -> if (graph.demoEnabled) open(CREATE_SIGNATURE_ROUTE)
                 }
             }
-            composable(DEMO_ROUTE) {
+            listOf(DEMO_ROUTE, CREATE_SIGNATURE_ROUTE).forEach { destination -> composable(destination) {
                 val model: DemoConsoleViewModel = viewModel { DemoConsoleViewModel(graph) }
                 val state by model.uiState.collectAsStateWithLifecycle()
                 LaunchedEffect(state.completedRecapId, state.busy, state.driving.policy) {
@@ -144,14 +143,17 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
                         model.consumeRecap()
                     }
                 }
-                DemoConsoleScreen(state, chrome, graph.isRealVehicle, graph.demoEnabled, model::gear,
+                if (destination == CREATE_SIGNATURE_ROUTE) SignatureCreationScreen(state, model::fill, {
+                    guarded { if (!navController.popBackStack()) open(MeetDestination.HOME) }
+                }) else DemoConsoleScreen(state, chrome, graph.isRealVehicle, graph.demoEnabled, model::gear,
                     model::replay, model::fill, model::presence, {
                         guarded {
                             if (navController.previousBackStackEntry?.destination?.route == MeetDestination.CONNECTED) navController.popBackStack()
                             else open(SignatureDestination.MY_PROFILE)
                         }
-                    }, returnToConnection = navController.previousBackStackEntry?.destination?.route == MeetDestination.CONNECTED)
-            }
+                    }, returnToConnection = navController.previousBackStackEntry?.destination?.route == MeetDestination.CONNECTED,
+                    onCreate = { open(CREATE_SIGNATURE_ROUTE) })
+            } }
         }
     }
     LaunchedEffect(session, profile, driving.policy) {
@@ -174,7 +176,7 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
     LaunchedEffect(recaps, driving.policy, route) {
         val next = (recaps as? LoadState.Ready)?.value?.firstOrNull { !it.seen && it.id != shownRecap }
         val ready = (profile as? LoadState.Ready)?.value?.registration == RegistrationState.READY
-        if (ready && next != null && graph.currentPolicy() == DrivingPolicy.ALLOWED && route != DEMO_ROUTE && route != SignatureDestination.RECAP) {
+        if (ready && next != null && graph.currentPolicy() == DrivingPolicy.ALLOWED && route != DEMO_ROUTE && route != CREATE_SIGNATURE_ROUTE && route != SignatureDestination.RECAP) {
             shownRecap = next.id
             open(SignatureDestination.recap(next.id))
         }

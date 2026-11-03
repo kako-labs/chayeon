@@ -1,7 +1,80 @@
 [
-  {"id":"demo-slow","title":"여유롭게 멈추는 드라이버","traits":[{"trait":"GENTLE_RIDE","level":"STEADY"},{"trait":"EARLY_BRAKE","level":"SIGNATURE"},{"trait":"BELT_FIRST","level":"VISIBLE"}]},
-  {"id":"demo-sea","title":"먼 길을 즐기는 드라이버","traits":[{"trait":"LONG_ROAD","level":"SIGNATURE"},{"trait":"ENERGY_PLANNER","level":"STEADY"}]},
-  {"id":"demo-forest","title":"안전부터 챙기는 드라이버","traits":[{"trait":"BELT_FIRST","level":"SIGNATURE"}]},
-  {"id":"demo-jazz","title":"흐름을 지키는 드라이버","traits":[{"trait":"SIGNAL_MANNERS","level":"STEADY"},{"trait":"STEADY_PACE","level":"SIGNATURE"},{"trait":"GENTLE_RIDE","level":"VISIBLE"}]},
-  {"id":"demo-star","title":"밤길을 좋아하는 드라이버","traits":[{"trait":"NIGHT_DRIVE","level":"SIGNATURE"},{"trait":"CABIN_CARE","level":"STEADY"}]}
+  {
+    "id": "demo-slow",
+    "title": "여유롭게 멈추는 드라이버",
+    "traits": [
+      {
+        "trait": "GENTLE_RIDE",
+        "level": "STEADY"
+      },
+      {
+        "trait": "EARLY_BRAKE",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "BELT_FIRST",
+        "level": "VISIBLE"
+      }
+    ]
+  },
+  {
+    "id": "demo-sea",
+    "title": "먼 길을 즐기는 드라이버",
+    "traits": [
+      {
+        "trait": "LONG_ROAD",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "ENERGY_PLANNER",
+        "level": "STEADY"
+      }
+    ]
+  },
+  {
+    "id": "demo-forest",
+    "title": "미리 채워 두는 드라이버",
+    "traits": [
+      {
+        "trait": "ENERGY_PLANNER",
+        "level": "SIGNATURE"
+      }
+    ]
+  },
+  {
+    "id": "demo-jazz",
+    "title": "공기까지 신경 쓰는 드라이버",
+    "traits": [
+      {
+        "trait": "CABIN_CARE",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "SIGNAL_MANNERS",
+        "level": "STEADY"
+      },
+      {
+        "trait": "STEADY_PACE",
+        "level": "STEADY"
+      },
+      {
+        "trait": "GENTLE_RIDE",
+        "level": "VISIBLE"
+      }
+    ]
+  },
+  {
+    "id": "demo-star",
+    "title": "밤길을 좋아하는 드라이버",
+    "traits": [
+      {
+        "trait": "NIGHT_DRIVE",
+        "level": "SIGNATURE"
+      },
+      {
+        "trait": "CABIN_CARE",
+        "level": "STEADY"
+      }
+    ]
+  }
 ]

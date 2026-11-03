@@ -220,6 +220,8 @@ def assert_locked(device, hidden_peers=()):
         raise AssertionError("주행 제한 화면에 숫자가 있어요")
     app_labels = [value for node in tree.iter("node") if node.get("package") == "dev.chayeon"
                   for value in (node.get("text", ""), node.get("content-desc", ""))]
+    if "시연 제어" in app_labels:
+        raise AssertionError("주행 제한 화면에 시연 제어가 보여요")
     if any(peer in value for peer in hidden_peers for value in app_labels):
         raise AssertionError("주행 중 성립한 연결의 상대 신원이 보이고 있어요")
     actions = [node for node in tree.iter("node") if node.get("package") == "dev.chayeon" and node.get("clickable") == "true" and node.get("enabled") == "true"]
@@ -248,6 +250,30 @@ def enter_solo(device, prefix=""):
     device.wait("내 시그니처 만들기")
 
 
+def assert_demo_chip(device, tree=None):
+    tree = tree if tree is not None else device.tree()
+    chips = [node for node in tree.iter("node") if node.get("text") == "시연 제어"]
+    if len(chips) != 1:
+        raise AssertionError("상단 시연 제어 칩은 하나여야 해요")
+    parents = {child: parent for parent in tree.iter() for child in parent}
+    chip = chips[0]
+    while chip is not None and chip.get("clickable") != "true":
+        chip = parents.get(chip)
+    location = device.find("합성 위치", tree)
+    if chip is None or location is None:
+        raise AssertionError("합성 위치 옆의 시연 제어 칩을 찾지 못했어요")
+    x1, y1, x2, y2 = map(int, re.findall(r"\d+", chip.get("bounds")))
+    lx1, ly1, lx2, ly2 = map(int, re.findall(r"\d+", location.get("bounds")))
+    if not (x1 >= lx2 and y1 <= (ly1 + ly2) // 2 <= y2 and y2 - y1 >= 76 and x2 - x1 < 220):
+        raise AssertionError("시연 제어가 상단의 76dp 칩이 아니거나 별도 버튼으로 남아 있어요")
+
+
+def assert_no_arrival_banner(device):
+    labels = device.labels(device.tree())
+    if any("확인하기" in label and ("인사" in label or "요청" in label or "애프터" in label) for label in labels):
+        raise AssertionError("열어 본 대화나 요청의 도착 배너가 남아 있어요")
+
+
 def create_signature(device, choice, prefix=""):
     device.tap("발견 켜기")
     device.wait("시연용 가상 상대", exact=False)
@@ -260,17 +286,29 @@ def create_signature(device, choice, prefix=""):
         raise AssertionError("시그니처 초대가 후보 위에 있지 않아요")
     if any("잘 맞는 점" in label for label in device.labels(tree)):
         raise AssertionError("내 시그니처를 공개하기 전에 궁합이 보여요")
-    device.capture(prefix + "04-home-invitation", ["내 시그니처 만들기", "시연용 가상 상대"])
+    care = device.find("미리 채워 두는 드라이버", tree)
+    if care is None or abs(int(re.findall(r"\d+", care.get("bounds"))[1]) - int(re.findall(r"\d+", candidate.get("bounds"))[1])) > 110:
+        raise AssertionError("첫 홈 카드 줄에 차량 관리 칭호가 없어요")
+    assert_demo_chip(device, tree)
+    device.capture(prefix + "04-home-invitation", ["내 시그니처 만들기", "시연용 가상 상대", "미리 채워 두는 드라이버"])
+    # The scheduled incoming row shifts the invitation. Resolve tap bounds after it arrives.
+    device.wait("받은 연결 요청 보기", timeout=20)
     device.tap("시그니처 만들러 가기")
-    device.wait("합성 주행으로 먼저 만나보기")
-    device.tap("합성 주행으로 먼저 만나보기")
     device.wait("어떤 주행이 나를 닮았나요?")
-    device.capture(prefix + "04-demo", ["시연 제어", "합성 주행", "기어는 차량의 Virtual Console"])
+    tree = device.tree()
+    for hidden in ["시연 제어", "기어 제어", "합성 위치", "지원하지 않는 신호"]:
+        if device.find(hidden, tree) is not None:
+            raise AssertionError("시그니처 만들기에 제어 도구가 보여요: " + hidden)
+    care = device.find("떠나기 전에 챙기는 사람", tree)
+    gentle = device.find("편안하게 달리는 사람", tree)
+    if care is None or gentle is None or int(re.findall(r"\d+", care.get("bounds"))[1]) >= int(re.findall(r"\d+", gentle.get("bounds"))[1]):
+        raise AssertionError("차량 관리 선택지가 첫 번째가 아니에요")
+    device.capture(prefix + "04-demo", ["어떤 주행이 나를 닮았나요?", "합성 주행", "떠나기 전에 챙기는 사람"])
     began = time.monotonic()
     device.tap(choice)
     device.wait("합성 주행 2/3", timeout=25)
     device.capture(prefix + "04-live-progress", ["합성 주행 2/3"])
-    device.wait("내 주행이 매듭이 됐어요", timeout=40)
+    device.wait("이 주행이 매듭이 됐어요", timeout=40)
     device.wait("상대에게 어떻게 보일지 고르기")
     if time.monotonic() - began >= 60:
         raise AssertionError("합성 주행 공개에 1분 이상 걸렸어요")
@@ -278,7 +316,13 @@ def create_signature(device, choice, prefix=""):
     if len(titles) != 1:
         raise AssertionError("첫 시그니처 칭호가 하나가 아니에요: " + str(titles))
     title = titles[0]
-    device.capture(prefix + "05-first-signature", ["내 주행이 매듭이 됐어요", title, "합성 주행"])
+    tree = device.tree()
+    care_traits = ["타이어 관리", "미리 채우는 습관", "배터리 아끼기", "소모품 점검", "실내 공기 챙김"]
+    if not any(device.find(trait, tree) is not None for trait in care_traits):
+        raise AssertionError("첫 시그니처 순간에 차량 관리 특성이 보이지 않아요")
+    if device.find("내가 운전하지 않았어요", tree) is not None:
+        raise AssertionError("합성 주행에 실제 운전 제외 동작이 보여요")
+    device.capture(prefix + "05-first-signature", ["이 주행이 매듭이 됐어요", title, "합성 주행"])
     device.tap("상대에게 어떻게 보일지 고르기")
     device.wait("공개 범위")
     device.capture(prefix + "05-private-preview", ["나만 간직해요", "상대에게 이렇게 보여요"])
@@ -330,9 +374,12 @@ def run(with_real_drive=False, skip_build=False, apk=None):
         device.capture("07-formed-while-driving", ["주행 중", "나가기"])
         console.gear("Park")
         device.wait("주고받은 인사")
+        assert_demo_chip(device)
+        assert_no_arrival_banner(device)
         device.capture("08-connected", ["별보는밤 님과 이어져 있어요", "주고받은 인사"])
         device.tap("안녕하세요", exact=False)
         device.wait("보냈어요", exact=False)
+        assert_no_arrival_banner(device)
         device.capture("09-greetings", ["받았어요", "보냈어요", "실이 이어졌어요"])
         console.gear("Drive")
         device.wait("주차하면", exact=False)
@@ -358,6 +405,7 @@ def run(with_real_drive=False, skip_build=False, apk=None):
         device.tap("서로 멀어져요")
         device.shell("input", "keyevent", "KEYCODE_BACK")
         device.wait("연결 상태를 확인하고 있어요", timeout=8)
+        assert_no_arrival_banner(device)
         device.capture("15-checking", ["연결 상태를 확인하고 있어요"])
         device.wait("멀어져서 연결이 끝났어요")
         device.capture("16-distance-ended", ["멀어져서 연결이 끝났어요"])
@@ -368,12 +416,22 @@ def run(with_real_drive=False, skip_build=False, apk=None):
         device.tap("애프터 신청 보내기")
         device.wait("이어진 인연 보기")
         device.tap("이어진 인연 보기")
-        device.wait("서로 이어졌어요")
+        device.wait("대화 중인 인연")
         device.tap("안녕하세요")
         device.wait("보냈어요")
         reply = "다시 이야기하게 되어 반가워요. 야경 보는 걸 좋아하세요?"
         device.wait(reply)
-        device.capture("18-after-message", ["서로 이어졌어요", "보냈어요", reply])
+        assert_no_arrival_banner(device)
+        device.capture("18-after-message", ["대화 중인 인연", "보냈어요", reply, "메시지 보내기", "메시지"])
+        tree = device.tree()
+        send = device.find("메시지 보내기", tree)
+        message = device.find(reply, tree)
+        field = device.find("메시지", tree)
+        message_bounds = list(map(int, re.findall(r"\d+", message.get("bounds"))))
+        field_bounds = list(map(int, re.findall(r"\d+", field.get("bounds"))))
+        send_bounds = list(map(int, re.findall(r"\d+", send.get("bounds"))))
+        if message_bounds[3] > field_bounds[1] or field_bounds[3] > send_bounds[1]:
+            raise AssertionError("최근 답장, 입력 칸, 전송 버튼이 겹쳐요")
         device.tap("차단·신고", scroll=True)
         device.tap("별보는밤 님 차단")
         device.confirm("별보는밤 님 차단")
@@ -397,7 +455,7 @@ def run(with_real_drive=False, skip_build=False, apk=None):
             if dev.drive("care", "http://127.0.0.1:8088", device.serial, duration_seconds=210):
                 raise AssertionError("실제 플랫폼 주행 입력에 실패했어요")
             device.wait("주행 후 요약")
-            device.capture("22-vehicle-recap", ["주행 후 요약", "차량 주행"])
+            device.capture("22-vehicle-recap", ["주행 후 요약", "차량 주행", "내 주행이 매듭이 됐어요", "내가 운전하지 않았어요"])
             if debug_proof:
                 after = device.trip_summary()
                 if after["validVehicleRows"] != before["validVehicleRows"] + 1:
