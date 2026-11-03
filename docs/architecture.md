@@ -148,11 +148,17 @@ stateDiagram-v2
 - 주행 기록은 포그라운드 서비스에서 돌고, 지표만 SQLite에 저장합니다. 원시 값은 저장하지 않습니다.
 - `CarInfo`의 VIN과 CRN API는 호출하지 않습니다.
 
+주행 정책은 권한이 필요 없는 `CarUxRestrictionsManager`의 변경 리스너와 현재 제한 조회를 사용해요. 신선한 SDK 기어 P와 `isRequiresDistractionOptimization=false`가 함께 확인될 때만 허용해요. D/N/R 또는 DO 요구는 제한이며, 관찰 오류·2.5초 초과·차량 서비스 연결 해제는 UNKNOWN이에요. `CAR_DRIVING_STATE` 권한과 shell 권한 대여는 사용하지 않아요.
+
+`ChayeonApplication`은 `VehicleGraph`, `SocialGraph`, `SignaturePublisher`, `AppEvents`를 소유해요. 세션·서버의 차량 데이터 동의가 기록 게이트를 결정해요. 이 서비스용 동의는 주행 중에도 관찰되며 화면용 프로필과 분리되어 있어요. Android 14 기록 서비스는 Activity가 전경일 때만 시작하고 동의가 철회되면 멈춰요. `CAR_SPEED`·`CAR_ENERGY`는 동의 뒤 런타임에 요청해요. 거부한 신호는 UNSUPPORTED로 남아요.
+
+로그아웃과 삭제는 게이트를 먼저 닫고 게시 작업과 직렬화한 뒤 소셜 저장소의 정리 영수증 경로를 실행해요. 공개 투영 변경은 `SignaturePublisher`가 게시·철회하고 같은 명령으로 재시도해요. 화면은 현재 세션의 등록 상태로 복원되며 주행 중 알림은 메시지 내용 없는 `CATEGORY_MESSAGE`예요.
+
 Pleos 에뮬레이터 측정에서 온 조건입니다. 실차와 App Market 승인은 확인하지 못했습니다.
 
 | 측정 결과 | 설계 |
 |---|---|
-| P만 제한 없음. D와 N은 0km/h에서도 제한 | `ALLOWED`는 P와 주행 상태 0일 때만 |
+| P만 제한 없음. D와 N은 0km/h에서도 제한 | `ALLOWED`는 신선한 P와 UX 제한의 Requires DO=false일 때만 |
 | `distractionOptimized` 미선언 화면은 주행 중 가려짐 | 단일 Activity에 선언, 잠금은 앱이 처리 |
 | 일반 서비스는 60초 뒤 종료 | 기록과 발견 유지는 포그라운드 서비스 |
 | 상단 카드는 `CATEGORY_MESSAGE`만 표시 | 요청과 인사 알림에 사용 |
@@ -195,3 +201,11 @@ Vehicle SDK는 `https://nexus-playground.pleos.ai/repository/maven-releases/`의
 | `python3 scripts/dev.py drive <시나리오>` | Virtual Console로 차량 신호 입력 |
 | `python3 scripts/dev.py e2e` | 에뮬레이터 종단 검증 |
 | `python3 scripts/dev.py release` | 제출용 APK 생성 |
+
+## 제출 빌드와 종단 검증
+
+- `python3 scripts/dev.py release`는 R8·리소스 축소를 적용한 설치용 APK를 `apk/chayeon-release.apk`에 복사해요. 서버 주소는 비어 있고 `chayeon.demo=true`예요. 네트워크 없이 SOLO 엔진과 가상 상대를 사용할 수 있어요.
+- 설치용 서명은 무시된 `build/signing/`에서 로컬 키와 난수 비밀번호를 생성해요. 저장소에 서명 키를 넣지 않아요. 개발용 키이므로 실제 마켓 배포 서명과 달라요.
+- `-Pchayeon.serverUrl=http://10.0.2.2:<port>`를 지정한 debug 구성에서만 해당 호스트의 cleartext를 허용해요. 기본 debug와 release는 cleartext를 거부해요.
+- `python3 scripts/dev.py e2e`는 실행 중인 `emulator-5556`, 사용자 10에 정상 설치하고 실제 UI를 조작해요. `--with-real-drive`는 실제 플랫폼 신호를 3분 이상 입력하는 추가 경로예요. 화면·검증 결과는 무시된 `build/e2e/`에 남아요. 에뮬레이터를 시작하거나 종료하지 않아요.
+- 시연 콘솔은 `BuildConfig.DEMO_CONTROLS_ENABLED`로 열며 디버그 여부에 의존하지 않아요. 주행 시나리오는 `fixtures/drive` 한곳에서 assets와 CLI에 공급해요.

@@ -3,6 +3,7 @@ package dev.chayeon.feature.signature
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelStore
 import dev.chayeon.core.model.*
+import dev.chayeon.core.signature.DefaultSignatureEngine
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -324,7 +325,8 @@ class SignatureViewModelTest {
 
     @Test
     fun `projection excludes hidden recording and unsupported traits and preserves valid engine projection`() {
-        val signature = SignatureScreenFixtures.signature
+        val original = SignatureScreenFixtures.signature
+        val signature = original.copy(publicSignature = DefaultSignatureEngine().publicProjection(original))
         assertEquals(signature.publicSignature, signaturePreview(signature, signature.visibility))
         val preview = signaturePreview(signature, signature.visibility.copy(visibleTraits = TraitId.entries.toSet()))
         assertNotNull(preview)

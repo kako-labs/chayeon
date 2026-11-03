@@ -4,6 +4,7 @@ import dev.chayeon.core.model.AppResult
 import dev.chayeon.core.model.CommandMeta
 import dev.chayeon.core.model.Gear
 import dev.chayeon.core.model.RecordTripRequest
+import dev.chayeon.core.model.TripEligibility
 import dev.chayeon.core.signature.TripAccumulator
 import dev.chayeon.core.signature.VehicleSample
 import java.util.UUID
@@ -61,7 +62,7 @@ class TripRecorder(
                                 if (sample.value == Gear.PARK && accumulator != null) {
                                     val trip = accumulator!!.finish(epochMillis())
                                     accumulator = null
-                                    if (gate.permission.value == permission) {
+                                    if (gate.permission.value == permission && trip.eligibility != TripEligibility.TOO_SHORT) {
                                         val result = repository.recordTripFor(permission, RecordTripRequest(CommandMeta("trip-${trip.id}"), trip))
                                         if (result is AppResult.Failure) mutableStatus.value = RecordingStatus.STORAGE_UNAVAILABLE
                                     }

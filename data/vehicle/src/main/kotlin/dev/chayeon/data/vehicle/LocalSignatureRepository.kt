@@ -38,11 +38,13 @@ class LocalSignatureRepository(
     private data class Snapshot(val account: String?, val signature: LoadState<MySignature>, val recaps: LoadState<List<TripRecap>>)
     private val snapshots = MutableStateFlow(Snapshot(null, LoadState.Loading(), LoadState.Loading()))
     override val signature = combine(gate.permission, snapshots) { permission, snapshot ->
-        if (permission.accountId == null || permission.accountId != snapshot.account) LoadState.Ready(MySignature(), 0)
+        if (permission.accountId == null) LoadState.Ready(MySignature(), 0)
+        else if (permission.accountId != snapshot.account) LoadState.Loading()
         else snapshot.signature
     }
     override val recaps = combine(gate.permission, snapshots) { permission, snapshot ->
-        if (permission.accountId == null || permission.accountId != snapshot.account) LoadState.Ready(emptyList(), 0)
+        if (permission.accountId == null) LoadState.Ready(emptyList(), 0)
+        else if (permission.accountId != snapshot.account) LoadState.Loading()
         else snapshot.recaps
     }
     private val gateJob = scope.launch {

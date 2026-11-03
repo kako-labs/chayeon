@@ -12,10 +12,13 @@ import ai.pleos.playground.vehicle.constant.control.OilLevelState
 import ai.pleos.playground.vehicle.constant.control.VehicleGear
 import android.annotation.SuppressLint
 import android.car.Car
+import android.car.drivingstate.CarUxRestrictions
+import android.car.drivingstate.CarUxRestrictionsManager
 import android.car.VehiclePropertyIds
 import android.car.hardware.CarPropertyValue
 import android.car.hardware.property.CarPropertyManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.SystemClock
 import dev.chayeon.core.model.Gear
 import dev.chayeon.core.model.SignalKind
@@ -47,7 +50,8 @@ internal class AutomotiveBackend(
         private set
     private var car: Car? = null
     private var properties: CarPropertyManager? = null
-    private var driving: Any? = null
+    private var restrictions: CarUxRestrictionsManager? = null
+    @Volatile private var carReady = false
     private var vehicle: Vehicle? = null
     private val jobs = mutableListOf<Job>()
     @Volatile private var recording = false
@@ -56,6 +60,10 @@ internal class AutomotiveBackend(
     private val speedCallback = object : CarPropertyManager.CarPropertyEventCallback {
         override fun onChangeEvent(value: CarPropertyValue<*>) {
             if (!recording) return
+            if (!hasSignalPermission(context, SignalKind.SPEED)) {
+                unsupported(SignalKind.SPEED)
+                return
+            }
             val speed = (value.value as? Number)?.toDouble()
             val timestamp = value.timestamp / 1_000_000
             if (value.status == CarPropertyValue.STATUS_AVAILABLE && speed != null && speed.isFinite() && timestamp > 0) {
@@ -67,9 +75,27 @@ internal class AutomotiveBackend(
 
     fun start() {
         try {
-            car = Car.createCar(context)
-            properties = car?.getCarManager(Car.PROPERTY_SERVICE) as? CarPropertyManager
-            driving = car?.getCarManager("drivingstate")
+            car = Car.createCar(context, null, Car.CAR_WAIT_TIMEOUT_DO_NOT_WAIT) { connectedCar, ready ->
+                carReady = ready
+                safety.value = SafetyObservation()
+                if (ready) {
+                    try {
+                        properties = connectedCar.getCarManager(Car.PROPERTY_SERVICE) as? CarPropertyManager
+                        restrictions = connectedCar.getCarManager(Car.CAR_UX_RESTRICTION_SERVICE) as? CarUxRestrictionsManager
+                        restrictions?.registerListener(::updateRestrictions)
+                        updateRestrictions(restrictions?.currentCarUxRestrictions)
+                        speedRegistered = false
+                        setRecordingEnabled(recording)
+                    } catch (_: Exception) {
+                        carReady = false
+                        safety.value = SafetyObservation()
+                    }
+                } else {
+                    properties = null
+                    restrictions = null
+                    speedRegistered = false
+                }
+            }
         } catch (_: Exception) {
             safety.value = SafetyObservation()
         } catch (_: LinkageError) {
@@ -183,17 +209,24 @@ internal class AutomotiveBackend(
         }
     }
 
+    private fun updateRestrictions(value: CarUxRestrictions?) {
+        val state = if (!carReady || value == null) null else if (value.isRequiresDistractionOptimization) 1 else 0
+        safety.update { it.copy(drivingState = state, drivingReceivedAtMillis = if (state != null) now() else null) }
+    }
+
     private suspend fun pollSafety() {
+        if (!carReady || car?.isConnected != true) {
+            safety.value = SafetyObservation()
+            return
+        }
         val manager = properties
         try {
-            val manager = driving
-            val event = manager?.javaClass?.getMethod("getCurrentCarDrivingState")?.invoke(manager)
-            val state = event?.javaClass?.getField("eventValue")?.getInt(event)
-            safetyFailure = if (state == null) "NoDrivingStateService" else null
-            safety.update { it.copy(drivingState = state, drivingReceivedAtMillis = if (state != null) now() else null) }
-        } catch (failure: Exception) {
-            safetyFailure = (failure.cause ?: failure).javaClass.simpleName
-            safety.update { it.copy(drivingState = null, drivingReceivedAtMillis = null) }
+            updateRestrictions(restrictions?.currentCarUxRestrictions)
+            safetyFailure = if (safety.value.drivingState == null) "NoUxRestrictionsService" else null
+        } catch (_: Exception) {
+            safetyFailure = "UxRestrictionsUnavailable"
+            safety.value = SafetyObservation()
+            return
         }
         try {
             if (manager?.getCarPropertyConfig(VehiclePropertyIds.GEAR_SELECTION) == null) throw IllegalStateException()
@@ -246,7 +279,7 @@ internal class AutomotiveBackend(
             delay(3_000)
             while (isActive) {
                 if (recording) {
-                    val success = try { block() } catch (cancelled: CancellationException) { throw cancelled }
+                    val success = try { hasSignalPermission(context, kind) && block() } catch (cancelled: CancellationException) { throw cancelled }
                     catch (_: Exception) { false } catch (_: LinkageError) { false }
                     if (!success) unsupported(kind)
                 }
@@ -286,6 +319,8 @@ internal class AutomotiveBackend(
 
     override fun close() {
         recording = false
+        carReady = false
+        try { restrictions?.unregisterListener() } catch (_: Exception) { }
         jobs.forEach { it.cancel() }
         jobs.clear()
         try { properties?.unregisterCallback(speedCallback) } catch (_: Exception) { }
@@ -293,4 +328,13 @@ internal class AutomotiveBackend(
         try { car?.disconnect() } catch (_: Exception) { }
         safety.value = SafetyObservation()
     }
+}
+
+internal fun hasSignalPermission(context: Context, kind: SignalKind): Boolean {
+    val permission = when (kind) {
+        SignalKind.SPEED, SignalKind.TRIP_LENGTH -> "android.car.permission.CAR_SPEED"
+        SignalKind.FUEL_LEVEL, SignalKind.BATTERY_LEVEL, SignalKind.CHARGE_LIMIT -> "android.car.permission.CAR_ENERGY"
+        else -> return true
+    }
+    return context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
 }

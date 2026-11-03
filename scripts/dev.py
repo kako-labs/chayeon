@@ -158,10 +158,6 @@ def drive(scenario, base_url, serial="emulator-5556", duration_seconds=None):
     if data.get("source") != "SYNTHETIC" or data.get("schemaVersion") != 1:
         print("합성 주행 형식을 확인하세요.", file=sys.stderr)
         return 1
-    packaged = ROOT / "data/vehicle/src/main/assets/drive" / fixture.name
-    if packaged.read_bytes() != fixture.read_bytes():
-        print("앱과 도구의 합성 주행 파일이 달라요. 같은 파일로 맞추세요.", file=sys.stderr)
-        return 1
     duration = duration_seconds if duration_seconds is not None else data["durationMillis"] / 1000
     if not math.isfinite(duration) or duration <= 0:
         print("재생 시간은 0초보다 길어야 해요.", file=sys.stderr)
@@ -244,21 +240,46 @@ def drive(scenario, base_url, serial="emulator-5556", duration_seconds=None):
 
 
 def release():
-    result = gradle([":app:assembleRelease"])
+    import secrets
+    signing = ROOT / "build/signing"
+    signing.mkdir(parents=True, exist_ok=True)
+    password_file = signing / "password"
+    store = signing / "release.keystore"
+    if not password_file.exists():
+        password_file.write_text(secrets.token_urlsafe(32), encoding="utf-8")
+        password_file.chmod(0o600)
+    password = password_file.read_text(encoding="utf-8")
+    env = execution_environment(android=True)
+    env["CHAYEON_SIGNING_PASSWORD"] = password
+    if not store.exists():
+        keytool = str(java_home() / "bin/keytool") if java_home() else "keytool"
+        subprocess.run([keytool, "-genkeypair", "-keystore", str(store), "-alias", "chayeon-local",
+                        "-storepass:env", "CHAYEON_SIGNING_PASSWORD", "-keypass:env", "CHAYEON_SIGNING_PASSWORD",
+                        "-keyalg", "RSA", "-keysize", "2048", "-validity", "3650",
+                        "-dname", "CN=Chayeon Local Install"], env=env, check=True)
+    result = subprocess.call([str(ROOT / "gradlew"), ":app:assembleRelease", "-Pchayeon.demo=true",
+                              "-Pchayeon.serverUrl=", "--no-daemon"], cwd=ROOT, env=env)
     if result:
         return result
-    target = ROOT / "apk/chayeon-release-unsigned.apk"
+    target = ROOT / "apk/chayeon-release.apk"
     target.parent.mkdir(exist_ok=True)
-    shutil.copy2(ROOT / "app/build/outputs/apk/release/app-release-unsigned.apk", target)
-    print("apk/chayeon-release-unsigned.apk를 만들었어요. 제출용 서명은 배포 담당자가 진행하세요.")
+    shutil.copy2(ROOT / "app/build/outputs/apk/release/app-release.apk", target)
+    import audit_apk
+    audit_apk.audit(target)
+    print(f"apk/chayeon-release.apk를 만들었어요 ({target.stat().st_size:,} bytes). 로컬 일회용 키로 서명했어요.")
     return 0
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    for command in ["doctor", "setup-sdk", "verify", "server", "e2e", "release"]:
+    for command in ["doctor", "setup-sdk", "verify", "server", "release"]:
         commands.add_parser(command)
+    e2e_parser = commands.add_parser("e2e")
+    e2e_parser.add_argument("--with-real-drive", action="store_true")
+    e2e_parser.add_argument("--server", action="store_true")
+    e2e_parser.add_argument("--skip-build", action="store_true")
+    e2e_parser.add_argument("--apk")
     emulator_parser = commands.add_parser("emulator")
     emulator_parser.add_argument("--visible", action="store_true")
     drive_parser = commands.add_parser("drive")
@@ -272,8 +293,11 @@ def main():
     if args.command == "setup-sdk":
         return setup_sdk()
     if args.command == "e2e":
-        print("종단 검증은 아직 구현되지 않았어요. 기능·차량 작업자가 Pleos 시나리오를 연결한 뒤 실행하세요.", file=sys.stderr)
-        return 2
+        if args.server:
+            import server_e2e
+            return server_e2e.run()
+        import e2e
+        return e2e.run(args.with_real_drive, args.skip_build, args.apk)
     if args.command == "drive":
         return drive(args.scenario, args.console_url, args.serial, args.duration_seconds)
     if args.command == "emulator":

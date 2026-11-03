@@ -20,21 +20,40 @@ android {
         applicationId = "dev.chayeon"
         targetSdk = androidConfig.getProperty("targetSdk").toInt()
         versionCode = 1
-        versionName = "0.1.0-foundation"
+        versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         val serverUrl = providers.gradleProperty("chayeon.serverUrl").orElse("").get()
             .replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
         buildConfigField("String", "SERVER_URL", "\"$serverUrl\"")
-        buildConfigField("boolean", "DEMO_CONTROLS_ENABLED", "false")
+        buildConfigField("boolean", "DEMO_CONTROLS_ENABLED", providers.gradleProperty("chayeon.demo").orElse("false").get())
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures { compose = true; buildConfig = true }
-    buildTypes {
-        debug { buildConfigField("boolean", "DEMO_CONTROLS_ENABLED", "true") }
+    signingConfigs {
+        create("localRelease") {
+            val localStore = rootProject.file("build/signing/release.keystore")
+            if (localStore.exists()) {
+                storeFile = localStore
+                storePassword = System.getenv("CHAYEON_SIGNING_PASSWORD")
+                keyAlias = "chayeon-local"
+                keyPassword = System.getenv("CHAYEON_SIGNING_PASSWORD")
+            }
+        }
     }
+    buildTypes {
+        debug { buildConfigField("boolean", "DEMO_CONTROLS_ENABLED", providers.gradleProperty("chayeon.demo").orElse("true").get()) }
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("localRelease")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+    val localHttp = providers.gradleProperty("chayeon.serverUrl").orElse("").get().startsWith("http://10.0.2.2:")
+    if (localHttp) sourceSets["debug"].res.srcDir("src/localServer/res")
     testOptions { unitTests.isIncludeAndroidResources = true }
     lint {
         abortOnError = true
@@ -56,6 +75,7 @@ roborazzi { outputDir.set(file("src/test/screenshots")) }
 dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:signature"))
+    implementation(project(":core:engine"))
     implementation(project(":core:ui"))
     implementation(project(":data:social"))
     implementation(project(":data:vehicle"))

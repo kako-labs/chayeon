@@ -59,6 +59,9 @@ class MeetNavigationTest {
     @Test fun serverRequestConnectionAndEndDriveNavigationOnlyOnce() {
         launch()
         compose.runOnIdle { deps.requests.value = LoadState.Ready(listOf(MeetFixtures.request), 2) }
+        compose.waitForIdle()
+        compose.runOnIdle { assertEquals(MeetDestination.HOME, controller.currentDestination?.route) }
+        compose.onNodeWithText("받은 연결 요청 보기").performClick()
         awaitRoute(MeetDestination.REQUESTS)
         compose.runOnIdle {
             assertEquals("request", controller.currentBackStackEntry?.savedStateHandle?.get<String>("meet.requestId"))

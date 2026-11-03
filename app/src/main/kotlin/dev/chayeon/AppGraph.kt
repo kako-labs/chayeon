@@ -11,17 +11,6 @@ import dev.chayeon.core.model.SessionRepository
 import dev.chayeon.core.model.ServerTimeProvider
 import dev.chayeon.core.model.SignatureRepository
 import dev.chayeon.core.model.VehicleConsole
-import dev.chayeon.data.social.EmptyAfterRepository
-import dev.chayeon.data.social.EmptyConnectionRepository
-import dev.chayeon.data.social.EmptyDiscoveryRepository
-import dev.chayeon.data.social.EmptyEncounterRepository
-import dev.chayeon.data.social.EmptyProfileRepository
-import dev.chayeon.data.social.EmptySafetyRepository
-import dev.chayeon.data.social.EmptySessionRepository
-import dev.chayeon.data.social.EmptyServerTimeProvider
-import dev.chayeon.data.vehicle.EmptyDrivingStateProvider
-import dev.chayeon.data.vehicle.EmptySignatureRepository
-import dev.chayeon.data.vehicle.EmptyVehicleConsole
 import dev.chayeon.feature.history.HistoryDeps
 import dev.chayeon.feature.meet.MeetDeps
 import dev.chayeon.feature.signature.SignatureDeps
@@ -70,23 +59,7 @@ class AppGraph(
         override val vehicleConsole = this@AppGraph.vehicleConsole
     }
 
-    companion object {
-        fun foundation(
-            serverUrl: String = "",
-            drivingStateProvider: DrivingStateProvider = EmptyDrivingStateProvider(),
-        ): AppGraph = AppGraph(
-            sessionRepository = EmptySessionRepository(serverAvailable = serverUrl.isNotBlank()),
-            profileRepository = EmptyProfileRepository(),
-            discoveryRepository = EmptyDiscoveryRepository(),
-            connectionRepository = EmptyConnectionRepository(),
-            encounterRepository = EmptyEncounterRepository(),
-            afterRepository = EmptyAfterRepository(),
-            safetyRepository = EmptySafetyRepository(),
-            drivingStateProvider = drivingStateProvider,
-            signatureRepository = EmptySignatureRepository(),
-            vehicleConsole = EmptyVehicleConsole(),
-            serverTimeProvider = EmptyServerTimeProvider(),
-            serverUrl = serverUrl,
-        )
-    }
+    var currentPolicy: () -> dev.chayeon.core.model.DrivingPolicy = { dev.chayeon.core.model.DrivingPolicy.UNKNOWN }
+    var isRealVehicle: Boolean = true
+    var demoEnabled: Boolean = false
 }

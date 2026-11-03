@@ -1,6 +1,7 @@
 package dev.chayeon.data.vehicle
 
 import android.content.Context
+import android.app.Application
 import androidx.test.core.app.ApplicationProvider
 import dev.chayeon.core.model.*
 import dev.chayeon.core.signature.VehicleSample
@@ -16,6 +17,7 @@ import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.util.UUID
 
@@ -24,6 +26,22 @@ import java.util.UUID
 @OptIn(ExperimentalCoroutinesApi::class)
 class VehicleRecordingTest {
     private val context: Context get() = ApplicationProvider.getApplicationContext()
+
+    @Test fun `signal permissions are checked again after runtime denial and restoration`() {
+        val application = shadowOf(context as Application)
+        application.denyPermissions("android.car.permission.CAR_SPEED", "android.car.permission.CAR_ENERGY")
+        val energy = listOf(SignalKind.FUEL_LEVEL, SignalKind.BATTERY_LEVEL, SignalKind.CHARGE_LIMIT)
+        energy.forEach { assertFalse(hasSignalPermission(context, it)) }
+        assertFalse(hasSignalPermission(context, SignalKind.SPEED))
+        assertTrue(hasSignalPermission(context, SignalKind.GEAR))
+        application.grantPermissions("android.car.permission.CAR_ENERGY")
+        energy.forEach { assertTrue(hasSignalPermission(context, it)) }
+        assertFalse(hasSignalPermission(context, SignalKind.SPEED))
+        application.denyPermissions("android.car.permission.CAR_ENERGY")
+        energy.forEach { assertFalse(hasSignalPermission(context, it)) }
+        application.grantPermissions("android.car.permission.CAR_SPEED")
+        assertTrue(hasSignalPermission(context, SignalKind.SPEED))
+    }
 
     @Test fun `stream to parking stores only derived metrics and consent revocation drops the partial trip`() = runTest {
         var epoch = 1_800_000_000_000L
@@ -57,6 +75,10 @@ class VehicleRecordingTest {
                 assertEquals(TripEligibility.ELIGIBLE, VehicleStorageCodec.trip(stored).eligibility)
             }
         }
+        gateway.samples.emit(VehicleSample.Gear(245_000, Gear.DRIVE))
+        gateway.samples.emit(VehicleSample.Gear(245_010, Gear.PARK))
+        runCurrent()
+        assertEquals(1, (repository.recaps.first() as LoadState.Ready).value.size)
         gateway.samples.emit(VehicleSample.Gear(250_000, Gear.DRIVE))
         gate.update("driver", false)
         runCurrent()

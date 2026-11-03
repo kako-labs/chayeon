@@ -8,6 +8,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /** App wiring supplies the vehicle policy and a cleanup hook for device-only signature data. */
 class SocialGraph(
@@ -40,6 +42,30 @@ class SocialGraph(
     val afterRepository: AfterRepository = SocialAfterRepository(coordinator)
     val safetyRepository: SafetyRepository = SocialSafetyRepository(coordinator)
     val serverTimeProvider: ServerTimeProvider = SocialServerTimeProvider(coordinator)
+
+    // Service consent must remain observable while the UI is driving-restricted.
+    val recordingSettings = coordinator.store.state.map { state ->
+        when (val data = state.data) {
+            is LoadState.Ready -> LoadState.Ready(data.value.settings ?: ParticipationSettings("settings", data.version), data.version)
+            is LoadState.Loading -> data
+            is LoadState.Failed -> data
+        }
+    }
+
+    // Only opaque event identifiers leave this service channel; no message or profile content.
+    val messageSignals = coordinator.store.state.map { state ->
+        val snapshot = (state.data as? LoadState.Ready)?.value
+        buildList {
+            if (snapshot?.settings?.notifyRequests == true) {
+                addAll(snapshot.connectionRequests.filter { it.direction == RequestDirection.INCOMING && it.status == ConnectionRequestStatus.PENDING }.map { it.id })
+                addAll(snapshot.afterRequests.filter { it.direction == RequestDirection.INCOMING && it.status == AfterRequestStatus.PENDING }.map { it.id })
+            }
+            if (snapshot?.settings?.notifyGreetings == true) {
+                addAll(snapshot.greetings.filter { it.author == MessageAuthor.PEER }.map { it.id })
+                addAll(snapshot.afterMessages.filter { it.author == MessageAuthor.PEER }.map { it.id })
+            }
+        }
+    }.distinctUntilChanged()
 
     fun bindDrivingState(provider: DrivingStateProvider) = coordinator.bindDrivingState(provider)
 

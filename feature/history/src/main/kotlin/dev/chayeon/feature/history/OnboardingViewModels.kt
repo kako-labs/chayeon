@@ -31,8 +31,8 @@ class FirstRunViewModel(deps: HistoryDeps) : HistoryViewModel(deps) {
     }
     fun enter() {
         val state = content.value
-        if (state.selectedMode == SessionMode.SERVER_DEMO && state.roomCode.isBlank()) {
-            content.update { it.copy(draftError = "같은 공간에서 만날 방 코드를 입력해 주세요") }
+        if (state.selectedMode == SessionMode.SERVER_DEMO && !state.roomCode.trim().matches(Regex("[A-Za-z0-9_-]{4,32}"))) {
+            content.update { it.copy(draftError = "방 코드는 영문, 숫자, 밑줄, 하이픈으로 4~32자 입력해 주세요") }
             return
         }
         val request = EnterSessionRequest(newMeta(), state.selectedMode, state.selectedPersona,
