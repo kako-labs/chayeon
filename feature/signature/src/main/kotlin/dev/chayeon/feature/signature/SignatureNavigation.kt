@@ -1,19 +1,21 @@
 package dev.chayeon.feature.signature
 
-import androidx.compose.foundation.layout.fillMaxWidth
+import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavType
 import androidx.navigation.compose.composable
-import dev.chayeon.core.ui.ChayeonText
-import dev.chayeon.core.ui.ChayeonType
-import dev.chayeon.core.ui.HeroPanel
+import androidx.navigation.navArgument
+import dev.chayeon.core.model.TraitId
 import dev.chayeon.core.ui.ScreenChrome
-import dev.chayeon.core.ui.ScreenScaffold
+import kotlinx.coroutines.launch
 
 sealed interface SignatureExit {
     data object OpenMeet : SignatureExit
@@ -31,8 +33,8 @@ object SignatureDestination {
     const val VISIBILITY = "signature/visibility"
     const val RECAP = "signature/recap/{recapId}"
 
-    fun trait(traitId: String) = "signature/trait/$traitId"
-    fun recap(recapId: String) = "signature/recap/$recapId"
+    fun trait(traitId: String) = "signature/trait/${Uri.encode(traitId)}"
+    fun recap(recapId: String) = "signature/recap/${Uri.encode(recapId)}"
 }
 
 fun NavGraphBuilder.signatureGraph(
@@ -41,26 +43,85 @@ fun NavGraphBuilder.signatureGraph(
     navController: NavController,
     onExit: (SignatureExit) -> Unit,
 ) {
-    listOf(SignatureDestination.MY_PROFILE, SignatureDestination.MY_SIGNATURE, SignatureDestination.TRAIT, SignatureDestination.VISIBILITY, SignatureDestination.RECAP).forEach { route ->
-        composable(route) {
+    composable(SignatureDestination.MY_PROFILE) {
+        val model: MyProfileViewModel = viewModel { MyProfileViewModel(deps) }
+        val state by model.uiState.collectAsStateWithLifecycle()
+        val allowed = allowedAction(deps)
+        BackHandler { allowed { onExit(SignatureExit.OpenMeet) } }
+        MyProfileScreen(state, chrome,
+            onSignature = { allowed { navController.navigate(SignatureDestination.MY_SIGNATURE) { launchSingleTop = true } } },
+            onVisibility = { allowed { navController.navigate(SignatureDestination.VISIBILITY) { launchSingleTop = true } } },
+            onExit = { exit -> allowed { onExit(exit) } }, onRetry = model::retry)
+    }
+    composable(SignatureDestination.MY_SIGNATURE) {
+        val model: SignatureViewModel = viewModel { SignatureViewModel(deps) }
+        val state by model.uiState.collectAsStateWithLifecycle()
+        val allowed = allowedAction(deps)
+        val back = { allowed { if (!navController.popBackStack()) onExit(SignatureExit.OpenMeet) } }
+        BackHandler(onBack = back)
+        MySignatureScreen(state, chrome, back,
+            onVisibility = { allowed { navController.navigate(SignatureDestination.VISIBILITY) { launchSingleTop = true } } },
+            onTrait = { trait -> allowed { navController.navigate(SignatureDestination.trait(trait.name)) { launchSingleTop = true } } },
+            onDemo = { allowed { onExit(SignatureExit.OpenDemoConsole) } }, onRetry = model::retry)
+    }
+    composable(SignatureDestination.TRAIT, arguments = listOf(navArgument("traitId") { type = NavType.StringType })) { entry ->
+        val trait = TraitId.entries.firstOrNull { it.name == entry.arguments?.getString("traitId") }
+        val allowed = allowedAction(deps)
+        val back = { allowed { if (!navController.popBackStack()) navController.navigate(SignatureDestination.MY_SIGNATURE) } }
+        BackHandler(onBack = back)
+        if (trait != null) {
+            val model: TraitDetailViewModel = viewModel { TraitDetailViewModel(deps, trait) }
+            val state by model.uiState.collectAsStateWithLifecycle()
+            TraitDetailScreen(state, chrome, back, model::retry)
+        } else {
             val model: SignatureViewModel = viewModel { SignatureViewModel(deps) }
             val state by model.uiState.collectAsStateWithLifecycle()
-            navController.hashCode()
-            ScaffoldPlaceholder(state, chrome, onExit)
+            SignatureFrame("특성 상세", state.driving.policy, chrome, back, primary = {
+                SignatureMessage("특성을 찾을 수 없어요", "내 시그니처에서 특성을 다시 골라 주세요.", action = "내 시그니처 보기",
+                    onAction = { allowed { navController.navigate(SignatureDestination.MY_SIGNATURE) { launchSingleTop = true } } })
+            })
         }
+    }
+    composable(SignatureDestination.VISIBILITY) {
+        val model: SignatureVisibilityViewModel = viewModel { SignatureVisibilityViewModel(deps) }
+        val state by model.uiState.collectAsStateWithLifecycle()
+        val allowed = allowedAction(deps)
+        val back = { allowed {
+            if (!model.uiState.value.savingVisibility && !model.uiState.value.publishing && !navController.popBackStack())
+                navController.navigate(SignatureDestination.MY_PROFILE)
+        } }
+        BackHandler(onBack = back)
+        SignatureVisibilityScreen(state, chrome, back, model::setTraitVisible, model::setPublished, model::retry)
+    }
+    composable(SignatureDestination.RECAP, arguments = listOf(navArgument("recapId") { type = NavType.StringType })) { entry ->
+        val recapId = entry.arguments?.getString("recapId").orEmpty()
+        val model: TripRecapViewModel = viewModel { TripRecapViewModel(deps, recapId) }
+        val state by model.uiState.collectAsStateWithLifecycle()
+        val allowed = allowedAction(deps)
+        val back = { allowed {
+            val current = model.uiState.value
+            if (!current.excluding && !current.markingSeen && !current.pendingChanges && !navController.popBackStack())
+                onExit(SignatureExit.OpenMeet)
+        } }
+        BackHandler(onBack = back)
+        LaunchedEffect(state.openSignature) {
+            if (state.openSignature) {
+                model.consumeNavigation()
+                if (deps.allowedNow()) navController.navigate(SignatureDestination.MY_SIGNATURE) {
+                    popUpTo(entry.destination.id) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+        }
+        TripRecapScreen(state, chrome, back, model::excludeTrip, onSignature = {
+            if (state.recap.readyValue() == null) allowed { navController.navigate(SignatureDestination.MY_SIGNATURE) { launchSingleTop = true } }
+            else model.markSeen()
+        }, onRetry = model::retry)
     }
 }
 
 @Composable
-private fun ScaffoldPlaceholder(state: SignatureUiState, chrome: ScreenChrome, onExit: (SignatureExit) -> Unit) {
-    state.hashCode()
-    onExit.hashCode()
-    ScreenScaffold(
-        topBar = chrome.topBar,
-        primary = {
-            HeroPanel(Modifier.fillMaxWidth()) {
-                ChayeonText("내 프로필", style = ChayeonType.Title)
-            }
-        },
-    )
+private fun allowedAction(deps: SignatureDeps): (() -> Unit) -> Unit {
+    val scope = rememberCoroutineScope()
+    return { action -> scope.launch { if (deps.allowedNow()) action() }; Unit }
 }
