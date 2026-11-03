@@ -134,6 +134,30 @@ class HistoryScreenshotTest {
         HistoryFixtures.state.copy(requests = LoadState.Ready(listOf(HistoryFixtures.request.copy(status = AfterRequestStatus.WITHDRAWN)), 2)), "withdrawn")
     @Test fun after_accepted() = capture(HistoryScreen.AFTER_INCOMING, ScreenScenario.POPULATED,
         HistoryFixtures.state.copy(requests = LoadState.Ready(listOf(HistoryFixtures.request.copy(status = AfterRequestStatus.ACCEPTED)), 2)), "accepted")
+    @Test fun consentGrantedButDiscoveryOff() = capture(HistoryScreen.CONSENT, ScreenScenario.POPULATED,
+        consentReadyState(false), "granted_off")
+    @Test fun consentDiscoveryExplicitlyOn() = capture(HistoryScreen.CONSENT, ScreenScenario.POPULATED,
+        consentReadyState(true), "granted_on")
+    @Test fun blockReportAnonymizedPeer() = capture(HistoryScreen.BLOCK_REPORT, ScreenScenario.POPULATED,
+        screenState(HistoryScreen.BLOCK_REPORT, ScreenScenario.POPULATED).copy(safetyPeer = HistoryFixtures.peer.copy(
+            nickname = "가상 프로필", kind = ProfileKind.VIRTUAL_PROFILE, signature = null, interests = emptySet())), "anonymized")
+    @Test fun encounterWithoutSharedInterests() = capture(HistoryScreen.ENCOUNTER_DETAIL, ScreenScenario.POPULATED,
+        screenState(HistoryScreen.ENCOUNTER_DETAIL, ScreenScenario.POPULATED).let { state ->
+            state.copy(encounter = LoadState.Ready(state.encounter.valueOrNull()!!.copy(sharedInterests = emptySet()), 1))
+        }, "no_shared_interests")
+    @Test fun encounterWithoutChemistry() = capture(HistoryScreen.ENCOUNTER_DETAIL, ScreenScenario.POPULATED,
+        HistoryFixtures.state.copy(encounter = LoadState.Ready(HistoryFixtures.encounter.copy(chemistry = Chemistry()), 1)), "no_chemistry")
+    @Test fun firstRunSoloOnly() = capture(HistoryScreen.FIRST_RUN, ScreenScenario.POPULATED,
+        HistoryFixtures.state.copy(modes = setOf(SessionMode.SOLO)), "solo")
+    @Test fun firstRunServerRoom() = capture(HistoryScreen.FIRST_RUN, ScreenScenario.POPULATED,
+        HistoryFixtures.state.copy(selectedMode = SessionMode.SERVER_DEMO, roomCode = "DEMO-ROOM"), "server")
+
+    private fun consentReadyState(discoveryOn: Boolean) = HistoryFixtures.state.copy(
+        settings = LoadState.Ready(HistoryFixtures.settings.copy(consents = ConsentScope.entries.map {
+            ConsentRecord(it.name, 1, it, ConsentStatus.GRANTED, HistoryFixtures.policy.consentDocumentVersion, 1)
+        }), 1), discovery = DiscoveryState(mode = if (discoveryOn) DiscoveryMode.ON else DiscoveryMode.OFF),
+    )
+
     private fun confirmation(screen: HistoryScreen, kind: ConfirmationKind) {
         val deps = FakeHistoryDeps()
         val model: HistoryViewModel = when (screen) {

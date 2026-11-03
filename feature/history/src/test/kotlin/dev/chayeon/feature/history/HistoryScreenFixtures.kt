@@ -9,14 +9,26 @@ internal enum class ScreenScenario { POPULATED, LOADING, EMPTY, FAILURE, RESTRIC
 
 internal fun screenState(screen: HistoryScreen, scenario: ScreenScenario): HistoryUiState {
     var state = HistoryFixtures.state
+    if (screen == HistoryScreen.ENCOUNTER_DETAIL) state = state.copy(
+        encounter = LoadState.Ready(HistoryFixtures.encounter.copy(chemistry = HistoryFixtures.detailedChemistry,
+            peer = HistoryFixtures.peer.copy(signature = HistoryFixtures.detailedSignature)), 1),
+        profile = LoadState.Ready(HistoryFixtures.profile.copy(publicProfile = HistoryFixtures.mine.copy(signature = HistoryFixtures.detailedSignature)), 1),
+    )
+    if (screen == HistoryScreen.AFTER_CONNECTED) state = state.copy(relationships = LoadState.Ready(listOf(
+        HistoryFixtures.relationship.copy(availablePresets = HistoryFixtures.relationship.availablePresets + setOf(
+            PresetCode.NICE_TO_MEET_YOU, PresetCode.SHARED_INTERESTS, PresetCode.TALK_LATER, PresetCode.TAKE_CARE,
+        )),
+    ), 1))
     if (screen == HistoryScreen.AFTER_REQUEST) state = state.copy(requests = LoadState.Ready(emptyList(), 1))
-    if (screen == HistoryScreen.BLOCK_REPORT) state = state.copy(blocks = LoadState.Ready(emptyList(), 1))
+    if (screen == HistoryScreen.BLOCK_REPORT) state = state.copy(blocks = LoadState.Ready(emptyList(), 1), safetyPeer = HistoryFixtures.peer)
+    if (screen == HistoryScreen.CONSENT) state = state.copy(discovery = DiscoveryState(),
+        profile = LoadState.Ready(HistoryFixtures.profile.copy(registration = RegistrationState.CONSENT_REQUIRED), 1))
     return when (scenario) {
         ScreenScenario.POPULATED, ScreenScenario.NARROW -> state
         ScreenScenario.RESTRICTED -> state.copy(driving = DrivingState(policy = DrivingPolicy.RESTRICTED, gear = Gear.DRIVE))
         ScreenScenario.UNKNOWN -> state.copy(driving = DrivingState())
-        ScreenScenario.LOADING -> state.copy(personas = LoadState.Loading(), profile = LoadState.Loading(), settings = LoadState.Loading(), encounters = LoadState.Loading(), encounter = LoadState.Loading(), requests = LoadState.Loading(), relationships = LoadState.Loading(), messages = LoadState.Loading(), blocks = LoadState.Loading(), connection = LoadState.Loading(), draftLoaded = false)
-        ScreenScenario.EMPTY -> state.copy(personas = LoadState.Ready(emptyList(), 2), encounters = LoadState.Ready(emptyList(), 2), encounter = LoadState.Ready(null, 2), requests = LoadState.Ready(emptyList(), 2), relationships = LoadState.Ready(emptyList(), 2), messages = LoadState.Ready(emptyList(), 2), blocks = LoadState.Ready(emptyList(), 2), draft = ProfileDraft("", AvatarId.DAWN, emptySet()))
+        ScreenScenario.LOADING -> state.copy(personas = LoadState.Loading(), profile = LoadState.Loading(), settings = LoadState.Loading(), encounters = LoadState.Loading(), encounter = LoadState.Loading(), requests = LoadState.Loading(), relationships = LoadState.Loading(), messages = LoadState.Loading(), blocks = LoadState.Loading(), connection = LoadState.Loading(), draftLoaded = false, safetyPeer = null)
+        ScreenScenario.EMPTY -> state.copy(personas = LoadState.Ready(emptyList(), 2), encounters = LoadState.Ready(emptyList(), 2), encounter = LoadState.Ready(null, 2), requests = LoadState.Ready(emptyList(), 2), relationships = LoadState.Ready(emptyList(), 2), messages = LoadState.Ready(emptyList(), 2), blocks = LoadState.Ready(emptyList(), 2), draft = ProfileDraft("", AvatarId.DAWN, emptySet()), safetyPeer = null)
         ScreenScenario.FAILURE -> state.copy(personas = LoadState.Failed(AppError.Network), encounters = LoadState.Failed(AppError.Network),
             commands = listOf("enter", "save", "request", "respond:request", "compose:after", "report", "block", "unblock:block", "cleanup:DELETE_RECORDS:", "consent:VEHICLE_DATA", "delete").associateWith { CommandState(error = AppError.Network) },
             outbox = listOf(PendingAfterMessage(SendAfterMessageRequest(CommandMeta("send"), "after", "failed-message", AfterMessageContent.Text("다시 만나서 반가워요")), DeliveryState.FAILED)))

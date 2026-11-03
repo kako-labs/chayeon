@@ -40,10 +40,12 @@ data class HistoryUiState(
     val targetEncounterId: String? = null,
     val messageDrafts: Map<String, String> = emptyMap(),
     val outbox: List<PendingAfterMessage> = emptyList(),
+    val safetyPeer: PublicProfile? = null,
     val selectedReason: ReportReason = ReportReason.UNPLEASANT_MESSAGE,
     val confirmation: HistoryConfirmation? = null,
     val remainingMillis: Map<String, Long?> = emptyMap(),
 ) {
+    val requiredConsentsGranted: Boolean get() = policy?.let { settings.hasRequiredConsents(it.consentDocumentVersion) } == true
     val policy: ParticipationPolicy? get() = (session as? SessionState.Active)?.session?.policy
     fun command(key: String) = commands[sendCommands[key] ?: key] ?: CommandState()
     val myProfile: MyProfile? get() = profile.valueOrNull()
@@ -53,7 +55,32 @@ data class HistoryUiState(
 data class PendingAfterMessage(val request: SendAfterMessageRequest, val delivery: DeliveryState = DeliveryState.SENDING)
 
 enum class ConfirmationKind { DELETE_ENCOUNTER, WITHDRAW, END_RELATIONSHIP, BLOCK, UNBLOCK, DISCOVERY_OFF, LEAVE, DELETE_RECORDS, SIGN_OUT, DELETE_ACCOUNT }
-data class HistoryConfirmation(val kind: ConfirmationKind, val targetId: String = "", val title: String, val body: String, val commandKey: String)
+data class HistoryConfirmation(val kind: ConfirmationKind, val targetId: String = "", val title: String, val body: String, val commandKey: String, val actionLabel: String = kind.actionLabel)
+
+internal val ConfirmationKind.actionLabel: String get() = when (this) {
+    ConfirmationKind.DELETE_ENCOUNTER -> "이 기록 삭제"
+    ConfirmationKind.WITHDRAW -> "신청 철회"
+    ConfirmationKind.END_RELATIONSHIP -> "관계 끝내기"
+    ConfirmationKind.BLOCK -> "상대 차단"
+    ConfirmationKind.UNBLOCK -> "차단 해제"
+    ConfirmationKind.DISCOVERY_OFF -> "발견 끄기"
+    ConfirmationKind.LEAVE -> "일시 연결 나가기"
+    ConfirmationKind.DELETE_RECORDS -> "내 기록 삭제"
+    ConfirmationKind.SIGN_OUT -> "로그아웃"
+    ConfirmationKind.DELETE_ACCOUNT -> "계정 삭제"
+}
+
+internal fun LoadState<ParticipationSettings>.hasRequiredConsents(documentVersion: String): Boolean =
+    valueOrNull()?.consents?.let { records ->
+        ConsentScope.entries.all { scope -> records.any {
+            it.scope == scope && it.status == ConsentStatus.GRANTED && it.documentVersion == documentVersion
+        } }
+    } == true
+
+internal val PublicProfile?.safetyName: String get() = when {
+    this == null || nickname.isBlank() || nickname == "가상 프로필" -> "이 상대"
+    else -> "$nickname 님"
+}
 
 internal fun <T> LoadState<T>.valueOrNull(): T? = (this as? LoadState.Ready)?.value
 internal fun newMeta(version: Long? = null) = CommandMeta(UUID.randomUUID().toString(), version)
