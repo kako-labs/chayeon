@@ -6,6 +6,7 @@ import dev.chayeon.core.model.EvidenceWindow
 import dev.chayeon.core.model.KnotSeed
 import dev.chayeon.core.model.MySignature
 import dev.chayeon.core.model.PublicSignature
+import dev.chayeon.core.model.PublicTrait
 import dev.chayeon.core.model.TraitEvidence
 import dev.chayeon.core.model.TripRecap
 import dev.chayeon.core.model.VisibilitySettings
@@ -27,6 +28,9 @@ interface SignatureEngine {
     fun publicProjection(signature: MySignature): PublicSignature?
 
     fun chemistry(first: PublicSignature, second: PublicSignature): Chemistry
+
+    /** Deterministic rule-based title. Servers recompute it, so it can never carry free text. */
+    fun title(traits: List<PublicTrait>): String
 
     fun knot(evidence: List<TraitEvidence>): KnotSeed
 

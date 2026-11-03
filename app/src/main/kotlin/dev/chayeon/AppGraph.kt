@@ -52,6 +52,9 @@ class AppGraph(
 
     val historyDeps: HistoryDeps = object : HistoryDeps {
         override val sessionRepository = this@AppGraph.sessionRepository
+        override val discoveryRepository = this@AppGraph.discoveryRepository
+        override val connectionRepository = this@AppGraph.connectionRepository
+        override val signatureRepository = this@AppGraph.signatureRepository
         override val profileRepository = this@AppGraph.profileRepository
         override val encounterRepository = this@AppGraph.encounterRepository
         override val afterRepository = this@AppGraph.afterRepository
@@ -64,6 +67,7 @@ class AppGraph(
         override val profileRepository = this@AppGraph.profileRepository
         override val signatureRepository = this@AppGraph.signatureRepository
         override val drivingStateProvider = this@AppGraph.drivingStateProvider
+        override val vehicleConsole = this@AppGraph.vehicleConsole
     }
 
     companion object {

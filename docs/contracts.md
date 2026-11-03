@@ -22,8 +22,9 @@
 | HISTORY | 첫 실행·프로필 등록·동의·기록·애프터·차단·신고·정리 화면 |
 | SIGNATURE | `core:signature`의 순수 계산, 칭호·궁합·시드; 내 프로필·근거·공개 범위·요약 화면 |
 | VEHICLE | SDK와 `CarPropertyManager`, 주행 정책, 포그라운드 수집, 기기 안의 지표 저장, `SignatureRepository`, `VehicleConsole` |
-| SOCIAL | `data:social`의 Fake와 HTTP Repository, 동기화·명령 재시도, `ServerTimeProvider` |
-| SERVER | 인증·공간 격리, 명령 검증·원자성, 메모리 저장, 긴 폴링, 만료·이탈 판정 |
+| ENGINE | `core:engine`의 관계 상태 기계, 명령 검증·원자성, 만료·이탈 판정, 시연 상대. 서버와 기기 안 모드가 공유 |
+| SOCIAL | `data:social`의 기기 안 백엔드와 HTTP 백엔드, 동기화·명령 재시도, `ServerTimeProvider` |
+| SERVER | 토큰 인증·공간 격리, HTTP 경로, 긴 폴링, 엔진 호스팅 |
 | APP | 생성자 주입, 최상위 이동, 기기 데이터 정리 연결, 알림과 시연 제어 조립 |
 
 기능은 `core:model` 인터페이스만 주입받습니다. 다른 기능, 데이터 구현, HTTP, 차량 SDK를 참조하지 않습니다. 일시 연결은 `Connection`, 스친 기록은 `Encounter`, 후속 연결은 `AfterConnection`으로 분리되어 있습니다.

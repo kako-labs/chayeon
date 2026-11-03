@@ -13,5 +13,5 @@ data class SignatureUiState(val driving: DrivingState = DrivingState())
 class SignatureViewModel(deps: SignatureDeps) : ViewModel() {
     val uiState: StateFlow<SignatureUiState> = deps.drivingStateProvider.drivingState
         .map { SignatureUiState(driving = it) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SignatureUiState())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000, replayExpirationMillis = 0), SignatureUiState())
 }

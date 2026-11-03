@@ -13,5 +13,5 @@ data class HistoryUiState(val driving: DrivingState = DrivingState())
 class HistoryViewModel(deps: HistoryDeps) : ViewModel() {
     val uiState: StateFlow<HistoryUiState> = deps.drivingStateProvider.drivingState
         .map { HistoryUiState(driving = it) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryUiState())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000, replayExpirationMillis = 0), HistoryUiState())
 }

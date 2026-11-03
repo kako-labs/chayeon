@@ -11,17 +11,18 @@ plugins {
 }
 
 val allowedEdges = mapOf(
-    ":app" to setOf(":core:model", ":core:signature", ":core:ui", ":data:social", ":data:vehicle",
+    ":app" to setOf(":core:model", ":core:signature", ":core:engine", ":core:ui", ":data:social", ":data:vehicle",
         ":feature:meet", ":feature:history", ":feature:signature"),
     ":core:model" to emptySet(),
     ":core:signature" to setOf(":core:model"),
+    ":core:engine" to setOf(":core:model"),
     ":core:ui" to setOf(":core:model"),
-    ":data:social" to setOf(":core:model"),
+    ":data:social" to setOf(":core:model", ":core:engine"),
     ":data:vehicle" to setOf(":core:model", ":core:signature"),
     ":feature:meet" to setOf(":core:model", ":core:signature", ":core:ui"),
     ":feature:history" to setOf(":core:model", ":core:signature", ":core:ui"),
     ":feature:signature" to setOf(":core:model", ":core:signature", ":core:ui"),
-    ":server" to setOf(":core:model", ":core:signature"),
+    ":server" to setOf(":core:model", ":core:signature", ":core:engine"),
 )
 
 val verifyArchitecture by tasks.registering {

@@ -10,9 +10,10 @@ chayeon/
   core/
     model/           도메인 모델, 상태, Repository 인터페이스, API 계약 (순수 Kotlin)
     signature/       시그니처 계산, 칭호, 궁합, 매듭 시드 (순수 Kotlin)
+    engine/          서버와 혼자 둘러보기가 함께 쓰는 관계 상태 기계, 시연 상대 (순수 Kotlin)
     ui/              테마, 입체 컴포넌트, 매듭, 3D 에셋
   data/
-    social/          Fake와 서버 연동 구현
+    social/          기기 안 엔진과 서버 연동 구현
     vehicle/         차량 신호, 주행 기록, 시그니처 저장
   feature/
     meet/            발견, 요청, 일시 연결, 주행 중
@@ -43,7 +44,11 @@ flowchart TD
   Sig --> Model
   Sig --> SigCore
   Sig --> UI
+  App --> Engine[core:engine]
   Social --> Model
+  Social --> Engine
+  Engine --> Model
+  Server --> Engine
   Vehicle --> Model
   Vehicle --> SigCore
   SigCore --> Model
@@ -54,23 +59,25 @@ flowchart TD
 
 ```kotlin
 val allowedEdges = mapOf(
-    ":app" to setOf(":core:model", ":core:signature", ":core:ui", ":data:social", ":data:vehicle",
+    ":app" to setOf(":core:model", ":core:signature", ":core:engine", ":core:ui", ":data:social", ":data:vehicle",
         ":feature:meet", ":feature:history", ":feature:signature"),
     ":core:model" to emptySet(),
     ":core:signature" to setOf(":core:model"),
+    ":core:engine" to setOf(":core:model"),
     ":core:ui" to setOf(":core:model"),
-    ":data:social" to setOf(":core:model"),
+    ":data:social" to setOf(":core:model", ":core:engine"),
     ":data:vehicle" to setOf(":core:model", ":core:signature"),
     ":feature:meet" to setOf(":core:model", ":core:signature", ":core:ui"),
     ":feature:history" to setOf(":core:model", ":core:signature", ":core:ui"),
     ":feature:signature" to setOf(":core:model", ":core:signature", ":core:ui"),
-    ":server" to setOf(":core:model", ":core:signature"),
+    ":server" to setOf(":core:model", ":core:signature", ":core:engine"),
 )
 ```
 
 - feature는 서로 의존하지 않고 data 모듈도 보지 않습니다. 인터페이스만 보며 구현은 `app`의 `AppGraph`가 넣습니다.
 - 차량 SDK와 `android.car`는 `data:vehicle`에서만 씁니다.
-- HTTP는 `data:social`에서만 씁니다.
+- HTTP 클라이언트는 `data:social`에서만 씁니다.
+- 관계 규칙은 `core:engine` 한곳에 있습니다. 서버와 `혼자 둘러보기`가 같은 상태 기계를 실행해 두 모드의 동작이 갈라지지 않습니다.
 - 위 그래프는 `verifyArchitecture`가 빌드 때 검사합니다.
 
 ## 계약
@@ -120,7 +127,7 @@ stateDiagram-v2
 
 - **기술:** Ktor, kotlinx.serialization. 저장은 인터페이스 뒤의 메모리 구현입니다.
 - **동기화:** 명령은 REST, 상태는 `GET /v1/sync?since=버전` 긴 폴링입니다. 변경이 있으면 바로 응답하고 재접속도 같은 경로로 수렴합니다.
-- **시연 공간:** 공간마다 격리됩니다. `혼자 둘러보기`는 앱 안에서 Fake로 돌고, 공개 서버를 쓸 때는 공간마다 `시연용 가상 상대`를 둡니다.
+- **시연 공간:** 공간마다 격리됩니다. `혼자 둘러보기`는 앱 안에서 같은 엔진을 실행하고, 서버 모드도 공간마다 `시연용 가상 상대`를 둡니다.
 - **위치:** 합성 시나리오나 앱이 보낸 좌표로 근접만 판정합니다. 어떤 응답에도 좌표, 거리, 방향을 넣지 않습니다. 로그에도 남기지 않습니다.
 - **빌드:** `-Pchayeon.serverOnly=true`이면 Android 모듈 없이 서버만 빌드합니다. Dockerfile을 제공합니다.
 - **배포:** 공개 서버 운영은 별도 결정 사항입니다. 앱은 `chayeon.serverUrl` 값이 있을 때만 서버 모드를 보여줍니다.

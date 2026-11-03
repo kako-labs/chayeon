@@ -13,5 +13,5 @@ data class MeetUiState(val driving: DrivingState = DrivingState())
 class MeetViewModel(deps: MeetDeps) : ViewModel() {
     val uiState: StateFlow<MeetUiState> = deps.drivingStateProvider.drivingState
         .map { MeetUiState(driving = it) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MeetUiState())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000, replayExpirationMillis = 0), MeetUiState())
 }

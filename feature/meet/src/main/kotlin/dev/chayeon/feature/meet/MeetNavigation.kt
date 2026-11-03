@@ -1,7 +1,5 @@
 package dev.chayeon.feature.meet
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -10,74 +8,54 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import dev.chayeon.core.model.DrivingPolicy
-import dev.chayeon.core.model.ExperienceState
-import dev.chayeon.core.ui.ChayeonSpacing
 import dev.chayeon.core.ui.ChayeonText
-import dev.chayeon.core.ui.ChayeonTheme
 import dev.chayeon.core.ui.ChayeonType
-import dev.chayeon.core.ui.GearStrip
-import dev.chayeon.core.ui.GlassCard
 import dev.chayeon.core.ui.HeroPanel
-import dev.chayeon.core.ui.JellyButton
-import dev.chayeon.core.ui.JellyVariant
+import dev.chayeon.core.ui.ScreenChrome
 import dev.chayeon.core.ui.ScreenScaffold
-import dev.chayeon.core.ui.StateCard
+
+sealed interface MeetExit {
+    data class OpenEncounter(val encounterId: String) : MeetExit
+    data class OpenSafety(val peerProfileId: String) : MeetExit
+    data object OpenMySignature : MeetExit
+}
 
 object MeetDestination {
-    const val ROUTE = "meet/entry"
+    const val HOME = "meet/home"
+    const val CANDIDATE = "meet/candidate/{candidateId}"
+    const val REQUESTS = "meet/requests"
+    const val CONNECTED = "meet/connected"
+    const val ENDED = "meet/ended/{connectionId}"
+    const val DRIVING = "meet/driving"
+
+    fun candidate(candidateId: String) = "meet/candidate/$candidateId"
+    fun ended(connectionId: String) = "meet/ended/$connectionId"
 }
 
 fun NavGraphBuilder.meetGraph(
     deps: MeetDeps,
-    onOpenHistory: () -> Unit,
-    onOpenProfile: () -> Unit,
+    chrome: ScreenChrome,
+    onExit: (MeetExit) -> Unit,
 ) {
-    composable(MeetDestination.ROUTE) {
-        val model: MeetViewModel = viewModel { MeetViewModel(deps) }
-        val state by model.uiState.collectAsStateWithLifecycle()
-        MeetPlaceholder(state, onOpenHistory, onOpenProfile)
+    listOf(MeetDestination.HOME, MeetDestination.CANDIDATE, MeetDestination.REQUESTS, MeetDestination.CONNECTED, MeetDestination.ENDED, MeetDestination.DRIVING).forEach { route ->
+        composable(route) {
+            val model: MeetViewModel = viewModel { MeetViewModel(deps) }
+            val state by model.uiState.collectAsStateWithLifecycle()
+            ScaffoldPlaceholder(state, chrome, onExit)
+        }
     }
 }
 
 @Composable
-internal fun MeetPlaceholder(
-    state: MeetUiState,
-    onOpenHistory: () -> Unit,
-    onOpenProfile: () -> Unit,
-) {
-    ChayeonTheme(policy = state.driving.policy) {
-        ScreenScaffold(
-            topBar = { GearStrip(state.driving.gear, state.driving.policy, syntheticLocation = true) },
-            primary = {
-                HeroPanel(Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
-                        ChayeonText("차연", style = ChayeonType.Hero)
-                        ChayeonText("오늘의 인연", style = ChayeonType.Title)
-                        ChayeonText("길 위에서 시작되는 인연")
-                        ChayeonText("화면을 준비하고 있어요.", style = ChayeonType.Secondary)
-                    }
-                }
-            },
-            secondary = {
-                if (state.driving.policy == DrivingPolicy.ALLOWED) {
-                    GlassCard(Modifier.fillMaxWidth()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-                    JellyButton("스친 인연", onOpenHistory, Modifier.fillMaxWidth(), variant = JellyVariant.SECONDARY)
-                    JellyButton("내 프로필", onOpenProfile, Modifier.fillMaxWidth(), variant = JellyVariant.SECONDARY)
-                        }
-                    }
-                } else {
-                    StateCard(
-                        if (state.driving.policy == DrivingPolicy.RESTRICTED) {
-                            ExperienceState.DRIVING_RESTRICTED
-                        } else {
-                            ExperienceState.DRIVING_UNKNOWN
-                        },
-                        Modifier.fillMaxWidth(),
-                    )
-                }
-            },
-        )
-    }
+private fun ScaffoldPlaceholder(state: MeetUiState, chrome: ScreenChrome, onExit: (MeetExit) -> Unit) {
+    state.hashCode()
+    onExit.hashCode()
+    ScreenScaffold(
+        topBar = chrome.topBar,
+        primary = {
+            HeroPanel(Modifier.fillMaxWidth()) {
+                ChayeonText("오늘의 인연", style = ChayeonType.Title)
+            }
+        },
+    )
 }

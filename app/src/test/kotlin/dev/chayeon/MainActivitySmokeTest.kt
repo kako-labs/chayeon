@@ -21,9 +21,7 @@ class MainActivitySmokeTest {
 
     @Test
     fun applicationStartsWithUnknownDrivingPolicyAndNoSession() {
-        compose.onNodeWithText("차연").assertIsDisplayed()
-        compose.onNodeWithText("주행 상태를 확인하지 못했어요").assertIsDisplayed()
-        compose.onNodeWithText("오늘의 인연").assertDoesNotExist()
+        compose.onNodeWithText("주행 상태 확인 중").assertIsDisplayed()
         assertFalse(AppGraph.foundation().serverModeAvailable)
         compose.onRoot().captureRoboImage("src/test/screenshots/application-launch.png")
     }

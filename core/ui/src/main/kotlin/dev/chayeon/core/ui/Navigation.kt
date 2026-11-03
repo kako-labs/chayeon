@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -121,6 +122,16 @@ fun BottomNav(selected: NavigationItem, discoveryOn: Boolean, onSelect: (Navigat
         }
     }
 }
+
+/**
+ * App-owned chrome. Screens place it through ScreenScaffold slots and never wire gear state,
+ * the discovery orb, or tab navigation themselves.
+ */
+@Stable
+class ScreenChrome(
+    val topBar: @Composable () -> Unit,
+    val bottomBar: @Composable (NavigationItem) -> Unit,
+)
 
 @Composable
 fun ScreenScaffold(
