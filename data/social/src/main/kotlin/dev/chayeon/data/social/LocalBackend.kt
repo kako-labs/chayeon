@@ -116,8 +116,13 @@ class LocalBackend(
             emit(result)
             if (result is AppResult.Success) {
                 cursor = result.value.version
-                val source = mutex.withLock { currentEngine().revision }
-                withTimeoutOrNull(25_000) { source.first { it > cursor } }
+                val source = mutex.withLock { currentEngine() }
+                withTimeoutOrNull(25_000) {
+                    source.revision.first {
+                        val visible = source.snapshotFor(session.accountId)
+                        visible !is AppResult.Success || visible.value.version > cursor
+                    }
+                }
             } else {
                 delay(1_000)
             }

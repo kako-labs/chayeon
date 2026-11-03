@@ -31,6 +31,7 @@ class RemoteBackend(
     private val sessionStorage: SessionStorage,
     private val client: HttpClient = createSocialHttpClient(),
     private val retryDelayMillis: Long = 250,
+    private val secretStorage: ClientSecretStorage,
 ) : SocialBackend {
     private val baseUrl = serverUrl.trimEnd('/')
     override val mode = SessionMode.SERVER_DEMO
@@ -48,7 +49,9 @@ class RemoteBackend(
     override suspend fun enter(request: EnterSessionRequest): AppResult<Session> {
         if (request.mode != mode) return AppResult.Failure(AppError.Unknown)
         return try {
-            val body = socialJson.encodeToString(EnterSessionRequest.serializer(), request)
+            val room = request.roomCode ?: return AppResult.Failure(AppError.Restricted)
+            val secret = secretStorage.getOrCreate(baseUrl, room)
+            val body = socialJson.encodeToString(EnterSessionRequest.serializer(), request.copy(clientSecret = secret))
             val response = retryNetwork { post(ApiRoutes.ENTER_SESSION, body, null) }
             val result = socialJson.decodeFromString(EnterSessionResponse.serializer(), response).result
             if (result is AppResult.Success) {

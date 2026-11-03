@@ -18,6 +18,7 @@ internal class Room(
     val demoEnabled: Boolean,
     var now: Long,
 ) {
+    var expectedRevision: Long? = null
     val v get() = state.revision
     fun stamp(): Long {
         state = state.copy(revision = state.revision + 1)
@@ -27,7 +28,7 @@ internal class Room(
         ?: reject(AppError.NotAuthorized)
     fun put(account: EngineAccount) { state = state.copy(accounts = state.accounts + (account.id to account)) }
     fun checkVersion(meta: CommandMeta, version: Long) {
-        ensure(meta.expectedVersion == null || meta.expectedVersion == version, AppError.AlreadyClosed)
+        ensure(meta.expectedVersion == null || meta.expectedVersion == (expectedRevision ?: version), AppError.AlreadyClosed)
     }
     fun blocked(a: String, b: String) = state.blocks.values.any {
         (it.owner == a && it.peer == b) || (it.owner == b && it.peer == a)
@@ -57,7 +58,8 @@ internal class Room(
     fun publicProfile(owner: String, viewer: String): PublicProfile {
         val a = state.accounts.getValue(owner)
         val public = a.profile.publicProfile
-        if (a.deleted || (owner != viewer && !consent(a, ConsentScope.PUBLIC_PROFILE))) {
+        if (a.deleted || (owner != viewer && (!consent(a, ConsentScope.PUBLIC_PROFILE) ||
+                state.blocks.values.any { it.owner == owner && it.peer == viewer }))) {
             return public.copy(version = v, nickname = "가상 프로필", avatar = AvatarId.DAWN,
                 interests = emptySet(), signature = null)
         }

@@ -25,6 +25,7 @@ data class ServerPolicy(
 
 internal class HostedRoom(val engine: ChayeonEngine, var lastAccess: Long) {
     val actors = mutableMapOf<PersonaCode, String>()
+    val claims = mutableMapOf<PersonaCode, ByteArray>()
 }
 
 internal class Authorization(val roomCode: String, val actor: String, val sessionId: String) {
@@ -50,8 +51,11 @@ class RoomRegistry(
 
     @Synchronized
     fun enter(request: EnterSessionRequest): AppResult<Session> {
-        if (request.mode != SessionMode.SERVER_DEMO || request.roomCode?.matches(Regex("[A-Za-z0-9_-]{1,32}")) != true)
+        if (request.mode != SessionMode.SERVER_DEMO || request.roomCode?.matches(Regex("[A-Za-z0-9_-]{4,32}")) != true)
             return AppResult.Failure(AppError.Restricted)
+        val secret = request.clientSecret
+        if (secret == null || secret.length !in 32..256) return AppResult.Failure(AppError.NotAuthorized)
+        val secretHash = MessageDigest.getInstance("SHA-256").digest(secret.toByteArray(Charsets.UTF_8))
         expireIdle()
         val code = request.roomCode!!
         val room = rooms[code] ?: run {
@@ -59,10 +63,14 @@ class RoomRegistry(
             HostedRoom(ChayeonEngine(rules, clock = clock, policy = enginePolicy, roomId = code, demoEnabled = demoEnabled), clock.now())
                 .also { rooms[code] = it }
         }
-        room.lastAccess = clock.now()
-        val actor = room.actors.getOrPut(request.persona) { UUID.randomUUID().toString() }
+        val claim = room.claims[request.persona]
+        if (claim != null && !MessageDigest.isEqual(claim, secretHash)) return AppResult.Failure(AppError.NotAuthorized)
+        val actor = room.actors[request.persona] ?: UUID.randomUUID().toString()
         val result = room.engine.enterSession(actor, request)
         if (result !is AppResult.Success) return result
+        room.claims[request.persona] = secretHash
+        room.actors[request.persona] = actor
+        room.lastAccess = clock.now()
         val session = result.value
         val current = room.engine.snapshotFor(actor)
         if (current !is AppResult.Success || current.value.id != session.id) return AppResult.Failure(AppError.AlreadyClosed)
@@ -91,7 +99,10 @@ class RoomRegistry(
     @Synchronized
     internal fun revoke(identity: Authorization, deleted: Boolean) {
         tokens.entries.removeAll { it.value.roomCode == identity.roomCode && it.value.actor == identity.actor }
-        if (deleted) rooms[identity.roomCode]?.actors?.entries?.removeAll { it.value == identity.actor }
+        if (deleted) rooms[identity.roomCode]?.let { room ->
+            val personas = room.actors.filterValues { it == identity.actor }.keys
+            personas.forEach { room.actors.remove(it); room.claims.remove(it) }
+        }
     }
 
     @Synchronized
@@ -105,7 +116,7 @@ class RoomRegistry(
         val response = EngineApi(engine).execute(identity.actor, route, body)
         if (route == ApiRoutes.SIGN_OUT || route == ApiRoutes.DELETE_ACCOUNT) {
             val receipt = EngineJson.decodeFromString(SignOutResponse.serializer(), response)
-            if (receipt.result is AppResult.Success) {
+            if (receipt.result is AppResult.Success && engine.exportState().accounts[identity.actor]?.active == false) {
                 retired[header!!.removePrefix("Bearer ")] = RetiredReceipt(route, digest(body), response, clock.now() + policy.retiredReceiptTtlMillis)
                 while (retired.size > policy.maximumRetiredReceipts) retired.remove(retired.keys.first())
                 revoke(identity, route == ApiRoutes.DELETE_ACCOUNT)

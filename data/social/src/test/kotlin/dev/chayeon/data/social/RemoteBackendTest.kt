@@ -17,6 +17,35 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class RemoteBackendTest {
+    @Test fun installSecretSurvivesTokenCleanupAndIsScopedToServerAndRoom() = runTest {
+        val storage = MemorySessionStorage()
+        val secrets = MemoryClientSecretStorage()
+        val sent = mutableListOf<EnterSessionRequest>()
+        fun backend(url: String = "https://example.test") = RemoteBackend(url, storage, HttpClient(MockEngine {
+            sent += socialJson.decodeFromString(EnterSessionRequest.serializer(), (it.body as TextContent).text)
+            respond(socialJson.encodeToString(EnterSessionResponse.serializer(),
+                EnterSessionResponse(AppResult.Success(SocialCoordinatorTest.testSession(SessionMode.SERVER_DEMO)))),
+                HttpStatusCode.OK, jsonHeaders)
+        }), secretStorage = secrets)
+        val request = EnterSessionRequest(CommandMeta("enter"), SessionMode.SERVER_DEMO, PersonaCode.ACCOUNT_A, "room")
+        val first = backend()
+        first.enter(request)
+        first.clearLocalData()
+        first.close()
+        val next = backend()
+        next.enter(request.copy(meta = CommandMeta("recover")))
+        next.enter(request.copy(roomCode = "other"))
+        next.close()
+        val other = backend("https://other.test")
+        other.enter(request)
+        other.close()
+        assertTrue(sent.all { it.clientSecret?.length == 43 })
+        assertEquals(sent[0].clientSecret, sent[1].clientSecret)
+        assertNotEquals(sent[0].clientSecret, sent[2].clientSecret)
+        assertNotEquals(sent[0].clientSecret, sent[3].clientSecret)
+        assertFalse(sent[0].toString().contains(sent[0].clientSecret!!))
+    }
+
     @Test fun `network command retry sends the exact same id and body with bearer authentication`() = runTest {
         val seenBodies = mutableListOf<String>()
         val seenTokens = mutableListOf<String?>()
@@ -26,7 +55,7 @@ class RemoteBackendTest {
             if (seenBodies.size == 1) throw IOException("Interrupted")
             respond(SocialCoordinatorTest.receipt(), HttpStatusCode.OK, jsonHeaders)
         }
-        val backend = RemoteBackend("https://example.test", MemorySessionStorage(), HttpClient(engine), retryDelayMillis = 1)
+        val backend = RemoteBackend("https://example.test", MemorySessionStorage(), HttpClient(engine), retryDelayMillis = 1, secretStorage = MemoryClientSecretStorage())
         val session = SocialCoordinatorTest.testSession(SessionMode.SERVER_DEMO)
         val body = socialJson.encodeToString(SignOutRequest.serializer(), SignOutRequest(CommandMeta("stable-command")))
         backend.execute(session, ApiRoutes.SIGN_OUT, body)
@@ -42,7 +71,7 @@ class RemoteBackendTest {
             attempts++
             allowed = false
             throw IOException("Interrupted")
-        }), retryDelayMillis = 1)
+        }), retryDelayMillis = 1, secretStorage = MemoryClientSecretStorage())
         val result = runCatching {
             backend.execute(SocialCoordinatorTest.testSession(SessionMode.SERVER_DEMO), ApiRoutes.SEND_GREETING, "{}") { allowed }
         }
@@ -62,7 +91,7 @@ class RemoteBackendTest {
             respond(socialJson.encodeToString(SyncResponse.serializer(), SyncResponse(AppResult.Success(
                 SyncSnapshot("session", version, 1_000 + count.toLong())))), HttpStatusCode.OK, jsonHeaders)
         }
-        val backend = RemoteBackend("https://example.test", MemorySessionStorage(), HttpClient(engine), retryDelayMillis = 1)
+        val backend = RemoteBackend("https://example.test", MemorySessionStorage(), HttpClient(engine), retryDelayMillis = 1, secretStorage = MemoryClientSecretStorage())
         val results = backend.snapshots(SocialCoordinatorTest.testSession(SessionMode.SERVER_DEMO), 5).take(3).toList()
         assertEquals(AppResult.Failure(AppError.Network), results.first())
         assertEquals(listOf("5", "5", "7"), cursors)
@@ -74,7 +103,7 @@ class RemoteBackendTest {
         val backend = RemoteBackend("https://example.test", MemorySessionStorage(), HttpClient(MockEngine {
             count++
             respond("{}", HttpStatusCode.Unauthorized, jsonHeaders)
-        }), retryDelayMillis = 1)
+        }), retryDelayMillis = 1, secretStorage = MemoryClientSecretStorage())
         assertEquals(listOf(AppResult.Failure(AppError.NotAuthorized)),
             backend.snapshots(SocialCoordinatorTest.testSession(SessionMode.SERVER_DEMO), 0).toList())
         assertEquals(1, count)
@@ -88,8 +117,8 @@ class RemoteBackendTest {
             assertNull(it.headers[HttpHeaders.Authorization])
             respond(socialJson.encodeToString(EnterSessionResponse.serializer(), EnterSessionResponse(AppResult.Success(session))),
                 HttpStatusCode.OK, jsonHeaders)
-        }))
-        val result = backend.enter(EnterSessionRequest(CommandMeta("enter"), SessionMode.SERVER_DEMO, PersonaCode.ACCOUNT_A))
+        }), secretStorage = MemoryClientSecretStorage())
+        val result = backend.enter(EnterSessionRequest(CommandMeta("enter"), SessionMode.SERVER_DEMO, PersonaCode.ACCOUNT_A, "room"))
         assertEquals(AppResult.Success(session), result)
         assertEquals(session, storage.value)
         assertEquals(AppResult.Success(session), backend.restoreSession())

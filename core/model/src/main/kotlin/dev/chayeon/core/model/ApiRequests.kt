@@ -13,7 +13,10 @@ data class EnterSessionRequest(
     val mode: SessionMode,
     val persona: PersonaCode,
     val roomCode: String? = null,
-)
+    val clientSecret: String? = null,
+) {
+    override fun toString(): String = "EnterSessionRequest(redacted)"
+}
 
 @Serializable
 data class SignOutRequest(val meta: CommandMeta)

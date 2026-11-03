@@ -52,7 +52,7 @@ internal fun Room.recordConsent(actor: String, r: RecordConsentRequest): Partici
         }))))
     if (r.action == ConsentAction.REVOKE) {
         put(state.accounts.getValue(actor).copy(discovery = DiscoveryMode.OFF, discoverySince = null))
-        revoke(actor, null, ConnectionEndReason.DISCOVERY_OFF)
+        revoke(actor, null, if (r.scope == ConsentScope.PUBLIC_PROFILE) ConnectionEndReason.SELF_LEFT else ConnectionEndReason.DISCOVERY_OFF)
     }
     return settings
 }
@@ -146,6 +146,13 @@ internal fun Room.deleteAccount(actor: String, r: DeleteAccountRequest): Command
                 interests = emptySet(), signature = null))))
     locations.remove(actor)
     state = state.copy(encounters = state.encounters.filterValues { it.owner != actor },
+        afterConnections = state.afterConnections.mapValues { (_, connection) ->
+            if (actor in setOf(connection.first, connection.second)) connection.copy(version = v,
+                firstReason = AfterCloseReason.ACCOUNT_DELETED, secondReason = AfterCloseReason.ACCOUNT_DELETED)
+            else connection
+        },
+        messages = state.messages.filterValues { it.author != actor },
+        greetings = state.greetings.filterValues { it.author != actor },
         blocks = state.blocks.filterValues { it.owner != actor }, commands = state.commands.filterNot { it.actor == actor })
     return CommandReceipt(r.meta.commandId, v)
 }

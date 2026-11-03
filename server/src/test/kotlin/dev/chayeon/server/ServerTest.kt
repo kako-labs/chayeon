@@ -38,7 +38,7 @@ private class Api(val client: HttpClient) {
     }
     suspend fun enter(persona: PersonaCode, room: String = "room"): Session =
         post<EnterSessionRequest, EnterSessionResponse>(null, ApiRoutes.ENTER_SESSION,
-            EnterSessionRequest(meta(), SessionMode.SERVER_DEMO, persona, room)).result.ok()
+            EnterSessionRequest(meta(), SessionMode.SERVER_DEMO, persona, room, "test-install-secret".repeat(3))).result.ok()
     suspend fun ready(session: Session) {
         post<SaveProfileRequest, SaveProfileResponse>(session, ApiRoutes.SAVE_PROFILE,
             SaveProfileRequest(meta(), ProfileDraft("가상프로필", AvatarId.DAWN, setOf(InterestId.JAZZ)))).result.ok()
@@ -64,6 +64,28 @@ private suspend fun <T> race(first: suspend () -> T, second: suspend () -> T): L
 }
 
 class ServerTest {
+    @Test fun blockedPeerProfileEditsDoNotWakeLongPoll() = testApplication {
+        application { chayeonModule(RoomRegistry(fakeRules, ServerPolicy(pollTimeoutMillis = 2_000), demoEnabled = false)) }
+        val api = Api(client); val a = api.enter(PersonaCode.ACCOUNT_A); val b = api.enter(PersonaCode.ACCOUNT_B)
+        api.ready(a); api.ready(b); api.connect(a, b)
+        api.post<BlockPeerRequest, BlockPeerResponse>(a, ApiRoutes.BLOCK_PEER,
+            BlockPeerRequest(meta(), api.sync(b).profile!!.id)).result.ok()
+        val before = api.sync(b)
+        coroutineScope {
+            val poll = async(Dispatchers.IO) { api.sync(b, before.version) }
+            delay(100)
+            api.post<SaveProfileRequest, SaveProfileResponse>(a, ApiRoutes.SAVE_PROFILE,
+                SaveProfileRequest(meta(), ProfileDraft("바뀐프로필", AvatarId.STAR, emptySet()))).result.ok()
+            delay(200)
+            assertFalse("Hidden activity woke the peer poll", poll.isCompleted)
+            api.post<UpdateSettingsRequest, UpdateSettingsResponse>(b, ApiRoutes.UPDATE_SETTINGS,
+                UpdateSettingsRequest(CommandMeta(UUID.randomUUID().toString(), before.version), false, false)).result.ok()
+            val changed = withTimeout(1_000) { poll.await() }
+            assertEquals(before.version + 1, changed.version)
+            assertEquals(before.connections.single().peer.copy(version = changed.version), changed.connections.single().peer)
+        }
+    }
+
     @Test fun `idle rooms expire tokens and free bounded room capacity`() = testApplication {
         val clock = AtomicLong(1_000_000)
         val registry = RoomRegistry(fakeRules, ServerPolicy(maximumRooms = 1, idleRoomMillis = 1000), EngineClock(clock::get), demoEnabled = false)
@@ -253,7 +275,7 @@ class ServerTest {
         val response = client.post(ApiRoutes.SAVE_PROFILE) { bearerAuth(a.accessToken!!); setBody("x".repeat(1025)) }
         assertEquals(HttpStatusCode.PayloadTooLarge, response.status)
         assertEquals(AppResult.Failure(AppError.Restricted), api.post<EnterSessionRequest, EnterSessionResponse>(null, ApiRoutes.ENTER_SESSION,
-            EnterSessionRequest(meta(), SessionMode.SERVER_DEMO, PersonaCode.ACCOUNT_A, "extra")).result)
+            EnterSessionRequest(meta(), SessionMode.SERVER_DEMO, PersonaCode.ACCOUNT_A, "extra", "test-install-secret".repeat(3))).result)
         api.post<DeleteAccountRequest, DeleteAccountResponse>(a, ApiRoutes.DELETE_ACCOUNT, DeleteAccountRequest(meta())).result.ok()
         assertEquals(HttpStatusCode.Unauthorized, client.get(ApiRoutes.SYNC) { bearerAuth(a.accessToken!!) }.status)
         val fresh = api.enter(PersonaCode.ACCOUNT_A)
