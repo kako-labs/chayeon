@@ -1,6 +1,13 @@
 package dev.chayeon.feature.meet
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.layout.Layout
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,15 +94,33 @@ private fun MeetCandidatePerson(peer: PublicProfile, modifier: Modifier) {
 
 @Composable
 private fun MeetCandidateDetails(state: CandidateUiState, candidate: Candidate, wide: Boolean) {
-    MeetPane(centered = true) {
-        MeetPublicTraits(candidate.profile.signature, wide)
-        MeetCompactChemistry(candidate.chemistry, state.ownProfile?.signature, candidate.profile.signature)
-        if (candidate.profile.interests.isNotEmpty()) {
-            ChayeonText("좋아하는 것 · " + candidate.profile.interests.sortedBy { it.ordinal }.joinToString(" · ") { it.label },
-                style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val minimumHeight = if (wide && constraints.hasBoundedHeight) maxHeight else ChayeonSpacing.Tiny * 0
+        val scroll = rememberScrollState()
+        Layout(modifier = Modifier.fillMaxWidth().then(if (constraints.hasBoundedHeight) Modifier.scrollEdgeFade(scroll).verticalScroll(scroll) else Modifier), content = {
+            Box { MeetPublicTraits(candidate.profile.signature, wide) }
+            Box(propagateMinConstraints = true) { MeetCompactChemistry(candidate.chemistry, state.ownProfile?.signature, candidate.profile.signature, Modifier.fillMaxSize()) }
+            Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+                if (candidate.profile.interests.isNotEmpty()) {
+                    ChayeonText("좋아하는 것 · " + candidate.profile.interests.sortedBy { it.ordinal }.joinToString(" · ") { it.label },
+                        style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
+                }
+                ChayeonText("서로 수락하면 주차 중에 짧게 인사해요. 멀어지면 연결이 끝나요.",
+                    style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+            }
+        }) { measurables, constraints ->
+            val gap = ChayeonSpacing.Gap.roundToPx()
+            val loose = constraints.copy(minHeight = 0)
+            val traits = measurables[0].measure(loose)
+            val footer = measurables[2].measure(loose)
+            val spare = (minimumHeight.roundToPx() - traits.height - footer.height - gap * 2).coerceAtLeast(0)
+            val chemistry = measurables[1].measure(loose.copy(minHeight = if (candidate.chemistry.lines.isEmpty()) 0 else spare))
+            layout(constraints.maxWidth, traits.height + chemistry.height + footer.height + gap * 2) {
+                traits.placeRelative(0, 0)
+                chemistry.placeRelative(0, traits.height + gap)
+                footer.placeRelative(0, traits.height + chemistry.height + gap * 2)
+            }
         }
-        ChayeonText("서로 수락하면 주차 중에 짧게 인사해요. 멀어지면 연결이 끝나요.",
-            style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
     }
 }
 
@@ -119,8 +144,15 @@ private fun MeetTraitGroup(category: TraitCategory, traits: List<PublicTrait>, c
     Column(modifier, verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
         ChayeonText(category.label, style = ChayeonType.Label, color = ChayeonColors.Pink)
         traits.forEach { trait ->
-            Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Tiny)) {
-                ChayeonText(trait.trait.presentation.name, style = if (compact) ChayeonType.Label else ChayeonType.Body)
+            Column(Modifier.fillMaxWidth()
+                .background(Brush.verticalGradient(listOf(ChayeonColors.White.copy(alpha = .18f), ChayeonColors.GlassButtonBottom)), RoundedCornerShape(ChayeonRadii.Tag))
+                .border(ChayeonElevation.Border, ChayeonColors.GlassBorder, RoundedCornerShape(ChayeonRadii.Tag))
+                .padding(horizontal = ChayeonSpacing.Compact, vertical = if (compact) ChayeonSpacing.Tiny * 0 else ChayeonSpacing.Compact),
+                verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Tiny)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
+                    ChayeonIcon(trait.trait.presentation.icon, Modifier.size(ChayeonDimensions.SmallIcon), ChayeonColors.Pink)
+                    ChayeonText(trait.trait.presentation.name, style = if (compact) ChayeonType.Label else ChayeonType.Body)
+                }
                 ChayeonText(trait.trait.presentation.publicPhrase, style = if (compact) ChayeonType.Minimum else ChayeonType.Secondary, color = ChayeonColors.Secondary)
             }
         }
@@ -128,9 +160,9 @@ private fun MeetTraitGroup(category: TraitCategory, traits: List<PublicTrait>, c
 }
 
 @Composable
-internal fun MeetCompactChemistry(chemistry: Chemistry, own: PublicSignature?, peer: PublicSignature?) {
+internal fun MeetCompactChemistry(chemistry: Chemistry, own: PublicSignature?, peer: PublicSignature?, modifier: Modifier = Modifier) {
     if (chemistry.lines.isEmpty()) return
-    GlassCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(ChayeonSpacing.Medium)) {
+    GlassCard(modifier.fillMaxWidth(), contentPadding = PaddingValues(ChayeonSpacing.Medium)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
             if (own != null && peer != null) SignatureKnot(own.knotSeed,
                 Modifier.size(ChayeonDimensions.PeerLarge, ChayeonDimensions.Avatar),

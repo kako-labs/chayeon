@@ -205,15 +205,84 @@ class Console:
         self.worker.join(timeout=4)
 
 
-def assert_locked(device):
+def assert_locked(device, hidden_peers=()):
     tree = device.tree()
     labels = [node.get("text", "") for node in tree.iter("node") if node.get("package") == "dev.chayeon"]
     if any(re.search(r"[0-9]", text) for text in labels):
         raise AssertionError("주행 제한 화면에 숫자가 있어요")
+    app_labels = [value for node in tree.iter("node") if node.get("package") == "dev.chayeon"
+                  for value in (node.get("text", ""), node.get("content-desc", ""))]
+    if any(peer in value for peer in hidden_peers for value in app_labels):
+        raise AssertionError("주행 중 성립한 연결의 상대 신원이 보이고 있어요")
     actions = [node for node in tree.iter("node") if node.get("package") == "dev.chayeon" and node.get("clickable") == "true" and node.get("enabled") == "true"]
     for node in actions:
         if device.find("나가기", node) is None:
             raise AssertionError("주행 중 나가기 외 조작이 열려 있어요")
+
+
+def enter_solo(device, prefix=""):
+    device.launch()
+    device.wait("이 계정으로 시작")
+    device.capture(prefix + "01-first-run", ["혼자 둘러보기(가상 상대)", "주차 중"])
+    device.tap("이 계정으로 시작")
+    device.wait("저장하고 다음")
+    device.capture(prefix + "02-profile", ["프로필 만들기", "가상 프로필"])
+    device.tap("저장하고 다음", scroll=True)
+    device.wait("차량 데이터·위치·공개 범위")
+    device.capture(prefix + "03-consent", ["차량 데이터·위치·공개 범위"])
+    device.tap("성인이고, 직접 참여해요")
+    device.tap("차량 데이터 사용에 동의해요")
+    device.permissions()
+    device.tap("위치 사용에 동의해요")
+    device.tap("프로필 공개에 동의해요")
+    device.permissions()
+    device.tap("선택한 설정으로 시작")
+    device.wait("내 시그니처 만들기")
+
+
+def create_signature(device, choice, prefix=""):
+    device.tap("발견 켜기")
+    device.wait("시연용 가상 상대", exact=False)
+    tree = device.tree()
+    invitation = device.find("내 시그니처 만들기", tree)
+    candidate = device.find("느린오후", tree)
+    if invitation is None or candidate is None:
+        raise AssertionError("시그니처 초대와 후보가 홈에 함께 보이지 않아요")
+    if int(re.findall(r"\d+", invitation.get("bounds"))[1]) >= int(re.findall(r"\d+", candidate.get("bounds"))[1]):
+        raise AssertionError("시그니처 초대가 후보 위에 있지 않아요")
+    if any("잘 맞는 점" in label for label in device.labels(tree)):
+        raise AssertionError("내 시그니처를 공개하기 전에 궁합이 보여요")
+    device.capture(prefix + "04-home-invitation", ["내 시그니처 만들기", "시연용 가상 상대"])
+    device.tap("시그니처 만들러 가기")
+    device.wait("합성 주행으로 먼저 만나보기")
+    device.tap("합성 주행으로 먼저 만나보기")
+    device.wait("어떤 주행이 나를 닮았나요?")
+    device.capture(prefix + "04-demo", ["시연 제어", "합성 주행", "기어는 차량의 Virtual Console"])
+    began = time.monotonic()
+    device.tap(choice)
+    device.wait("합성 주행 2/3", timeout=25)
+    device.capture(prefix + "04-live-progress", ["합성 주행 2/3"])
+    device.wait("내 주행이 매듭이 됐어요", timeout=40)
+    device.wait("상대에게 어떻게 보일지 고르기")
+    if time.monotonic() - began >= 60:
+        raise AssertionError("합성 주행 공개에 1분 이상 걸렸어요")
+    titles = [label for label in device.labels(device.tree()) if label.endswith("드라이버")]
+    if len(titles) != 1:
+        raise AssertionError("첫 시그니처 칭호가 하나가 아니에요: " + str(titles))
+    title = titles[0]
+    device.capture(prefix + "05-first-signature", ["내 주행이 매듭이 됐어요", title, "합성 주행"])
+    device.tap("상대에게 어떻게 보일지 고르기")
+    device.wait("공개 범위")
+    device.capture(prefix + "05-private-preview", ["나만 간직해요", "상대에게 이렇게 보여요"])
+    device.tap("시그니처 공개")
+    device.wait("고른 특성이 상대에게 보여요.")
+    device.capture(prefix + "05-public-preview", ["상대에게 이렇게 보여요", title, "합성 주행"])
+    device.tap("오늘의 인연")
+    device.wait("잘 맞는 점", exact=False)
+    if device.find("내 시그니처 만들기", device.tree()) is not None:
+        raise AssertionError("공개 후에도 시그니처 초대가 남아 있어요")
+    device.capture(prefix + "06-cast", ["시연용 가상 상대", "잘 맞는 점", "드라이버"])
+    return title
 
 
 def run(with_real_drive=False, skip_build=False, apk=None):
@@ -222,51 +291,36 @@ def run(with_real_drive=False, skip_build=False, apk=None):
         return 1
     debug_proof = apk is None
     apk = Path(apk) if apk else dev.ROOT / "app/build/outputs/apk/debug/app-debug.apk"
-    (device.output / "run-metadata.json").write_text(json.dumps({
+    metadata = {
         "apkSha256": hashlib.sha256(apk.read_bytes()).hexdigest(), "withRealDrive": with_real_drive,
         "normalInstall": True, "serial": device.serial, "user": 10,
-        "notCovered": ["synthetic peer after-message reply"],
-    }, indent=2), encoding="utf-8")
+    }
+    packages = device.shell("pm", "list", "packages", "--user", "10").splitlines()
+    for package in packages:
+        name = package.removeprefix("package:")
+        if name.startswith("dev.chayeon") and name.endswith(".signatureproof"):
+            device.run("uninstall", name)
     with Console(device) as console:
         device.run("uninstall", "dev.chayeon", check=False)
         device.run("install", "--user", "10", str(apk))
-        device.launch()
-        device.wait("이 계정으로 시작")
-        device.capture("01-first-run", ["혼자 둘러보기(가상 상대)", "주차 중"])
-        device.tap("이 계정으로 시작")
-        device.wait("저장하고 다음")
-        device.capture("02-profile", ["프로필 만들기", "가상 프로필"])
-        device.tap("저장하고 다음", scroll=True)
-        device.wait("차량 데이터·위치·공개 범위")
-        device.capture("03-consent", ["차량 데이터·위치·공개 범위"])
-        device.tap("성인이고, 직접 참여해요")
-        device.tap("차량 데이터 사용에 동의해요")
-        device.permissions()
-        device.tap("위치 사용에 동의해요")
-        device.tap("프로필 공개에 동의해요")
-        device.permissions()
-        device.tap("선택한 설정으로 시작")
-        device.wait("내 프로필")
-        device.tap("내 프로필")
-        device.tap("시연 제어")
-        device.wait("합성 주행 3회로 시그니처 채우기")
-        device.capture("04-demo", ["시연 제어", "합성 주행", "기어는 차량의 Virtual Console"])
-        began = time.monotonic()
-        device.tap("합성 주행 3회로 시그니처 채우기")
-        device.wait("시연 내용을 반영했어요", timeout=55)
-        if time.monotonic() - began >= 60:
-            raise AssertionError("합성 주행 공개에 1분 이상 걸렸어요")
-        device.tap("내 프로필")
-        device.wait("합성 주행")
-        device.capture("05-my-signature", ["합성 주행", "드라이버"])
-        device.tap("오늘의 인연")
-        device.tap("발견 켜기")
-        device.wait("잘 맞는 점", exact=False)
-        device.capture("06-cast", ["시연용 가상 상대", "잘 맞는 점", "드라이버"])
+        installed_path = device.shell("pm", "path", "--user", "10", "dev.chayeon").strip().removeprefix("package:")
+        installed_hash = hashlib.sha256(device.run("exec-out", "cat", installed_path, binary=True)).hexdigest()
+        metadata["installedApkSha256"] = installed_hash
+        metadata["installedApkMatches"] = installed_hash == metadata["apkSha256"]
+        if not metadata["installedApkMatches"]:
+            raise AssertionError("설치된 APK와 입력 파일의 SHA-256이 달라요")
+        (device.output / "run-metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+        enter_solo(device)
+        first_title = create_signature(device, "다음 움직임을 알려 주는 사람")
         device.card("별보는밤")
         device.wait("연결 요청 보내기")
-        device.capture("07-candidate", ["별보는밤", "함께하면 잘 맞는 점", "시그니처 매듭", "합성 주행"])
+        device.capture("07-candidate", ["별보는밤", "함께하면 잘 맞는 점", "시그니처 매듭", "합성 주행", "한 분은 편안하게 달리고, 한 분은 함께 타는 공기까지 신경 써요"])
         device.tap("연결 요청 보내기")
+        console.gear("Drive")
+        device.wait("나가기")
+        assert_locked(device, hidden_peers=("별보는밤", "새벽드라이브"))
+        device.capture("07-formed-while-driving", ["주행 중", "나가기"])
+        console.gear("Park")
         device.wait("주고받은 인사")
         device.capture("08-connected", ["별보는밤 님과 이어져 있어요", "주고받은 인사"])
         device.tap("안녕하세요", exact=False)
@@ -309,9 +363,11 @@ def run(with_real_drive=False, skip_build=False, apk=None):
         device.wait("서로 이어졌어요")
         device.tap("안녕하세요")
         device.wait("보냈어요")
-        device.capture("18-after-message", ["서로 이어졌어요", "보냈어요"])
+        reply = "다시 이야기하게 되어 반가워요. 야경 보는 걸 좋아하세요?"
+        device.wait(reply)
+        device.capture("18-after-message", ["서로 이어졌어요", "보냈어요", reply])
         device.tap("차단·신고", scroll=True)
-        device.tap("이 사람 차단")
+        device.tap("별보는밤 님 차단")
         device.tap("확인하고 진행")
         device.wait("차단했어요")
         device.capture("19-blocked", ["차단했어요"])
@@ -341,7 +397,17 @@ def run(with_real_drive=False, skip_build=False, apk=None):
                 (device.output / "drive-proof.json").write_text(json.dumps({"before": before, "after": after}, indent=2), encoding="utf-8")
                 print("PASS derived vehicle trip: new eligible row, duration >= 180 seconds", flush=True)
             device.tap("내 시그니처 보기")
-        return finish_session(device, debug_proof)
+        finish_session(device, debug_proof)
+        device.run("uninstall", "dev.chayeon")
+        device.run("install", "--user", "10", str(apk))
+        enter_solo(device, "second-")
+        second_title = create_signature(device, "편안하게 달리는 사람", "second-")
+        if first_title == second_title:
+            raise AssertionError("다른 주행 시나리오가 같은 시그니처 칭호를 만들었어요")
+        metadata["scenarioTitles"] = {"SIGNAL_MANNERS": first_title, "GENTLE": second_title}
+        (device.output / "run-metadata.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+        print("PASS distinct fresh-install scenarios: " + first_title + " / " + second_title, flush=True)
+        return 0
 
 
 def finish_session(device, debug_proof):

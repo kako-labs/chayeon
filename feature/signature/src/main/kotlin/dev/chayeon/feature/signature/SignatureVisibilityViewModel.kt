@@ -98,7 +98,7 @@ class SignatureVisibilityViewModel(private val deps: SignatureDeps) : ViewModel(
                     samePublicContent(remote, signaturePreview(signature, desired))) return@launch
                 val projection = signaturePreview(signature, desired)
                 pending = VisibilityCommand(
-                    update = UpdateVisibilityRequest(commandMeta(signature.visibility.version), desired.visibleTraits, desired.publishSignature),
+                    update = UpdateVisibilityRequest(commandMeta(signature.version), desired.visibleTraits, desired.publishSignature),
                     desired = desired,
                     publish = PublishSignatureRequest(commandMeta(), projection),
                 )
@@ -148,7 +148,7 @@ class SignatureVisibilityViewModel(private val deps: SignatureDeps) : ViewModel(
         }
         val desired = current.visibility
         pending = VisibilityCommand(
-            UpdateVisibilityRequest(commandMeta(desired.version), desired.visibleTraits, desired.publishSignature),
+            UpdateVisibilityRequest(commandMeta(current.version), desired.visibleTraits, desired.publishSignature),
             desired, PublishSignatureRequest(commandMeta(), projection), saved = true,
         )
         command.value = VisibilityCommandState(draft = desired, preview = projection, publishing = true, pending = true)
