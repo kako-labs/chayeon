@@ -2,8 +2,12 @@
 
 ## 저장소 문서
 
-- [기획서 초안](proposal.md): 공식 접수양식의 8개 항목에 맞춘 초안
-- [프로젝트 뼈대 초안](architecture.md): 저장소 구조, 모듈, 계약, 차량 환경 조건, 결정할 항목
+- [기획서](proposal.md): 공식 접수양식의 8개 항목에 맞춘 내용
+- [아키텍처](architecture.md): 저장소 구조, 모듈, 계약, 차량 환경 조건
+- [공통 계약](contracts.md): 상태 규칙, 공개 경계, 서버 경로
+- [드라이브 시그니처](product/drive-signature.md): 특성, 근거 기준, 칭호, 매듭, 궁합
+- [경험 명세](product/experience-spec.md): 화면, 움직임, 주행 정책, 문구
+- [품질 기준](product/quality-bar.md): 출시 판단 기준
 - [디자인 시안](design/README.md): 채택한 디자인 방향, 화면 목록, 색과 글자 기준, 3D 에셋
 
 아래 링크는 내부용입니다. Notion에는 실명이 있으므로 제출 자료에 넣지 않습니다.
