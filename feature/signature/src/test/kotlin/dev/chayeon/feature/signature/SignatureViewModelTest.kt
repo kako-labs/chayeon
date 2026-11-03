@@ -122,6 +122,31 @@ class SignatureViewModelTest {
     }
 
     @Test
+    fun `first publication uses the signature revision after trips and recap acknowledgement`() = scenario {
+        val deps = SignatureTestDeps()
+        val signature = SignatureScreenFixtures.signature.copy(version = 9, publicSignature = null,
+            visibility = SignatureScreenFixtures.visibility.copy(version = 0, publishSignature = false))
+        deps.signatureRepository.signature.value = LoadState.Ready(signature, signature.version)
+        val profile = SignatureScreenFixtures.profile
+        deps.profileRepository.profile.value = LoadState.Ready(profile.copy(
+            publicProfile = profile.publicProfile.copy(signature = null)), profile.version)
+        deps.signatureRepository.beforeVisibility = { request ->
+            val current = (deps.signatureRepository.signature.value as LoadState.Ready).value
+            deps.signatureRepository.visibilityError = if (request.meta.expectedVersion == current.version) null else AppError.AlreadyClosed
+        }
+        val model = keep(SignatureVisibilityViewModel(deps))
+        observe(model.uiState)
+        runCurrent()
+        model.setPublished(true)
+        runCurrent()
+        assertNull(model.uiState.value.error)
+        assertTrue(model.uiState.value.published)
+        assertFalse(model.uiState.value.pendingChanges)
+        assertEquals(9L, deps.signatureRepository.visibilityCalls.single().meta.expectedVersion)
+        assertNotNull(deps.profileRepository.publishCalls.single().signature)
+    }
+
+    @Test
     fun `failed visibility save retries the same command and duplicate taps do not dispatch`() = scenario {
         val deps = SignatureTestDeps()
         deps.signatureRepository.visibilityError = AppError.Unknown

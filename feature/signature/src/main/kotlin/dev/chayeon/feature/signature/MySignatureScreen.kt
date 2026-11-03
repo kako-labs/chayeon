@@ -11,8 +11,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Alignment
@@ -42,6 +40,7 @@ fun MySignatureScreen(
                     val signature = loaded.value
                     BoxWithConstraints(Modifier.fillMaxWidth()) {
                         val bounded = constraints.hasBoundedHeight
+                        val knotSize = if (bounded) minOf(ChayeonDimensions.ChemistryKnot, maxHeight * .55f) else ChayeonDimensions.ChemistryKnot
                         HeroPanel(Modifier.fillMaxWidth().then(if (bounded) Modifier.fillMaxHeight() else Modifier),
                             contentPadding = PaddingValues(ChayeonSpacing.Screen)) {
                             val scroll = rememberScrollState()
@@ -49,7 +48,7 @@ fun MySignatureScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large, Alignment.CenterVertically)) {
                                 ChayeonText("주행으로 쓰는 나의 한 문장", style = ChayeonType.Label, color = ChayeonColors.Pink)
-                                SignatureKnot(signature.knotSeed, Modifier.size(ChayeonDimensions.ChemistryKnot), reveal = false)
+                                SignatureKnot(signature.knotSeed, Modifier.size(knotSize), reveal = false)
                                 GradientText(signature.displayTitle, style = ChayeonType.Title)
                                 SignatureSource(signature.displaySource)
                                 JellyButton("공개 범위", onVisibility, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
@@ -128,8 +127,7 @@ private fun EarnedTrait(evidence: TraitEvidence, onClick: () -> Unit, modifier: 
         .background(Brush.verticalGradient(if (pearl) listOf(ChayeonColors.White, ChayeonColors.WhiteBottom)
             else listOf(ChayeonColors.DishTop, ChayeonColors.DishMiddle, ChayeonColors.DishBottom)))
         .drawBehind {
-            drawOval(Brush.verticalGradient(listOf(ChayeonColors.White.copy(alpha = .35f), ChayeonColors.Transparent), endY = size.height * .5f),
-                topLeft = Offset(size.width * .05f, 0f), size = Size(size.width * .9f, size.height * .55f))
+            drawRect(Brush.verticalGradient(listOf(ChayeonColors.White.copy(alpha = .14f), ChayeonColors.Transparent), endY = size.height * .5f))
         }
         .border(ChayeonElevation.Border, ChayeonColors.ButtonBorder, shape)
         .clickable(enabled = LocalDrivingPolicy.current == DrivingPolicy.ALLOWED, role = Role.Button, onClick = onClick)

@@ -107,8 +107,7 @@ fun BottomNav(selected: NavigationItem, discoveryOn: Boolean, onSelect: (Navigat
                             else listOf(ChayeonColors.DishTop, ChayeonColors.DishMiddle, ChayeonColors.DishBottom),
                             center = Offset(size.width * .34f, size.height * .24f), radius = size.width,
                         ))
-                        drawOval(Brush.verticalGradient(listOf(ChayeonColors.White.copy(alpha = .5f), ChayeonColors.Transparent), endY = size.height * .45f),
-                            topLeft = Offset(size.width * .19f, size.height * .08f), size = androidx.compose.ui.geometry.Size(size.width * .62f, size.height * .38f))
+                        drawCircle(Brush.verticalGradient(listOf(ChayeonColors.White.copy(alpha = .22f), ChayeonColors.Transparent), endY = size.height * .55f))
                     }.border(ChayeonElevation.StrongBorder, ChayeonColors.ButtonBorder.copy(alpha = .8f), CircleShape)
                         .toggleable(discoveryOn, enabled = interactive, role = Role.Switch, onValueChange = { onDiscoveryToggle() })
                         .semantics { contentDescription = if (discoveryOn) "발견 끄기" else "발견 켜기" }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Tiny, Alignment.CenterVertically)) {

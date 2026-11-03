@@ -308,7 +308,7 @@ def main():
         return gradle(["-Pchayeon.serverOnly=true", ":server:run"], android=False)
     if args.command == "release":
         return release()
-    return gradle(["verifyAll"])
+    return gradle(["clean", "verifyAll", "--rerun-tasks", "--no-build-cache"])
 
 
 if __name__ == "__main__":

@@ -150,8 +150,9 @@ internal fun MeetPrivacy() {
 @Composable
 internal fun MeetDiscoveryHero(state: HomeUiState, onToggle: (Boolean) -> Unit) {
     val enabled = state.discovery.mode == DiscoveryMode.ON
+    val compact = state.profileLoaded && state.profile?.signature == null
     HeroPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues()) {
-        BoxWithConstraints(Modifier.fillMaxWidth().heightIn(min = ChayeonDimensions.HeroKnot + ChayeonSpacing.Screen)) {
+        BoxWithConstraints(Modifier.fillMaxWidth().heightIn(min = if (compact) ChayeonDimensions.Avatar else ChayeonDimensions.HeroKnot + ChayeonSpacing.Screen)) {
             val wide = maxWidth >= ChayeonSpacing.NarrowBreakpoint
             if (wide) Box(Modifier.matchParentSize()) {
                 Image(painterResource(ChayeonAssets.KeyVisual), null,
@@ -171,11 +172,16 @@ internal fun MeetDiscoveryHero(state: HomeUiState, onToggle: (Boolean) -> Unit) 
                 }, style = ChayeonType.Title)
                 ChayeonText(if (enabled) "서로 수락하면 대화가 시작돼요" else "켜면 닉네임과 공개한 시그니처, 관심사가 보여요",
                     style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
-                GlassCard(Modifier.width(ChayeonDimensions.Knot), contentPadding = PaddingValues(horizontal = ChayeonSpacing.Compact, vertical = ChayeonSpacing.Tiny)) {
+                if (!compact || !wide) GlassCard(Modifier.width(ChayeonDimensions.Knot), contentPadding = PaddingValues(horizontal = ChayeonSpacing.Compact, vertical = ChayeonSpacing.Tiny)) {
                     GelToggle(enabled, onToggle, if (state.toggle.inProgress) "바꾸고 있어요" else if (enabled) "발견 켜짐" else "발견 꺼짐",
                         Modifier.fillMaxWidth(), enabled = !state.toggle.inProgress)
                 }
                 MeetError(state.toggle.error)
+            }
+            if (compact && wide) GlassCard(Modifier.align(Alignment.CenterEnd).padding(ChayeonSpacing.Large).width(ChayeonDimensions.Knot),
+                contentPadding = PaddingValues(horizontal = ChayeonSpacing.Compact, vertical = ChayeonSpacing.Tiny)) {
+                GelToggle(enabled, onToggle, if (state.toggle.inProgress) "바꾸고 있어요" else if (enabled) "발견 켜짐" else "발견 꺼짐",
+                    Modifier.fillMaxWidth(), enabled = !state.toggle.inProgress)
             }
         }
     }
