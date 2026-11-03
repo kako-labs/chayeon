@@ -22,7 +22,7 @@
 
 `ExperienceState` 18종은 `StateCard`에 대응합니다. `onAction`이 없으면 행동 버튼을 생략합니다. 상대 차단 여부나 비공개 상태의 이유를 추측해 표시하지 않습니다. 의미 있는 에셋에는 설명이 있고, 중복 장식에는 `decorative = true`를 씁니다.
 
-`SignatureKnot`은 시드를 섞어 고리의 위상·기울기·폭을 정하고, 3차원 곡선을 투영해 깊이 순서로 그립니다. 어두운 외곽·붉은 몸체·가는 반사광을 따로 그려 교차점의 위아래를 보존합니다. 두 매듭도 같은 깊이 정렬에 참여합니다.
+`SignatureKnot`은 시드를 섞어 고리의 위상·기울기·폭을 정하고, 3차원 곡선을 투영해 깊이 순서로 그립니다. 연속 튜브 면의 깊이와 법선을 보간해 진홍색 음영·가변 반사광·교차 그림자를 계산해요. 상대의 가닥은 진주빛 흰색이며 같은 깊이 버퍼에 참여해요. 시드와 크기에 따른 래스터·표시 경로를 캐시하고 reveal 프레임에서는 경로와 마스크를 재사용해요. 래스터의 긴 변은 960px 이하예요.
 
 ## 글꼴과 이미지
 
@@ -158,3 +158,19 @@ class FeatureScreenshotTest {
 ```
 
 새 키트의 갤러리와 개별 기준 이미지는 `kit_gallery_*.png`, `kit_*.png`입니다. `ScreenKitBehaviorTest`는 정책 전환·입력 포커스·관심사 한도·가상 표시·모달 중복 방지·카운트다운 경계를 검증합니다.
+
+## 단어 줄바꿈과 스크롤 가장자리
+
+`ChayeonText`는 API 34에서도 한글 어절을 유지해요. 보이지 않는 연결 문자는 렌더에만 들어가고 Compose 텍스트 탐색과 스크린 리더에는 원문을 전달해요. 칸보다 긴 어절은 비상 줄바꿈하며 `maxLines`를 넘으면 말줄임해요. `onTextLayout`은 표시 레이어의 결과이므로 원문을 저장하거나 전송하는 용도로 쓰지 않아요.
+
+좁은 `ScreenScaffold`의 스크롤 가장자리는 자동으로 페이드돼요. 넓은 화면에서 feature가 소유하는 스크롤에는 같은 `Modifier.scrollEdgeFade`를 적용해요. 스크롤할 내용이 남은 가장자리만 흐려지며, 내용이 칸 안에 들어가면 페이드하지 않아요.
+
+```kotlin
+val scroll = rememberScrollState()
+Column(Modifier.scrollEdgeFade(scroll).verticalScroll(scroll)) { /* Screen content */ }
+
+val list = rememberLazyListState()
+LazyColumn(state = list, modifier = Modifier.scrollEdgeFade(list)) { /* Screen items */ }
+```
+
+페이드는 `verticalScroll` 앞에 둬요. 콘텐츠와 배경을 분리한 뷰포트에 적용하면 기존 글래스 배경과 자연스럽게 이어져요.

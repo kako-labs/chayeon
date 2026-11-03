@@ -1,34 +1,31 @@
 package dev.chayeon.core.ui
 
+import androidx.core.graphics.withSave
+import android.graphics.Paint
+import android.graphics.Path as AndroidPath
+import android.graphics.PathMeasure
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import dev.chayeon.core.model.KnotSeed
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 internal data class KnotPoint(val x: Float, val y: Float, val depth: Float, val progress: Float)
@@ -59,47 +56,13 @@ internal fun knotGeometry(seed: KnotSeed, samples: Int = 480): List<KnotPoint> {
     return points.map { it.copy(x = it.x / extent, y = it.y / extent) }
 }
 
-private data class KnotCrossing(val rope: Int, val index: Int, val depth: Float, val x: Float, val y: Float)
-
-private fun findCrossings(ropes: List<List<KnotPoint>>): List<KnotCrossing> {
-    val found = mutableListOf<KnotCrossing>()
-    ropes.forEachIndexed { ropeA, a ->
-        ropes.forEachIndexed { ropeB, b ->
-            if (ropeB < ropeA) return@forEachIndexed
-            for (i in 0 until a.lastIndex) {
-                for (j in 0 until b.lastIndex) {
-                    if (ropeA == ropeB && (j <= i + 12 || j - i > a.lastIndex - 12)) continue
-                    val ax = a[i + 1].x - a[i].x
-                    val ay = a[i + 1].y - a[i].y
-                    val bx = b[j + 1].x - b[j].x
-                    val by = b[j + 1].y - b[j].y
-                    val determinant = ax * by - ay * bx
-                    if (abs(determinant) < .0000001f) continue
-                    val dx = b[j].x - a[i].x
-                    val dy = b[j].y - a[i].y
-                    val t = (dx * by - dy * bx) / determinant
-                    val u = (dx * ay - dy * ax) / determinant
-                    if (t !in 0f..1f || u !in 0f..1f) continue
-                    val depthA = a[i].depth + t * (a[i + 1].depth - a[i].depth)
-                    val depthB = b[j].depth + u * (b[j + 1].depth - b[j].depth)
-                    val x = a[i].x + t * ax
-                    val y = a[i].y + t * ay
-                    val crossing = if (depthA > depthB) KnotCrossing(ropeA, i, depthA, x, y) else KnotCrossing(ropeB, j, depthB, x, y)
-                    if (found.none { it.rope == crossing.rope && abs(it.index - crossing.index) < 4 }) found += crossing
-                }
-            }
-        }
-    }
-    return found.sortedBy { it.depth }
-}
-
 @Composable
 fun SignatureKnot(
     seed: KnotSeed,
     modifier: Modifier = Modifier,
     reveal: Boolean = true,
     interlockedWith: KnotSeed? = null,
-    contentDescription: String = if (interlockedWith == null) "나의 붉은 시그니처 매듭" else "서로 엮인 두 시그니처 매듭",
+    contentDescription: String = if (interlockedWith == null) "나의 붉은 시그니처 매듭" else "나의 붉은 실과 상대의 진주빛 흰 실로 엮은 두 사람의 시그니처 매듭",
 ) {
     val motion = LocalDecorativeMotion.current
     val progress = remember { Animatable(1f) }
@@ -116,55 +79,54 @@ fun SignatureKnot(
             knotGeometry(interlockedWith).map { it.copy(x = it.x * .38f + .231f, y = it.y * .38f, depth = -it.depth) },
         )
     }
-    val crossings = remember(ropes) { findCrossings(ropes) }
-    Canvas(modifier.size(if (interlockedWith == null) ChayeonDimensions.Knot else ChayeonDimensions.ChemistryKnot, ChayeonDimensions.Knot).semantics { this.contentDescription = contentDescription }) {
-        val scale = size.minDimension
-        val thickness = scale * .056f
-        fun path(points: List<KnotPoint>): Path = Path().apply {
-            points.forEachIndexed { index, point ->
-                val x = center.x + point.x * scale
-                val y = center.y + point.y * scale
-                if (index == 0) moveTo(x, y) else lineTo(x, y)
+    Box(modifier.size(if (interlockedWith == null) ChayeonDimensions.Knot else ChayeonDimensions.ChemistryKnot, ChayeonDimensions.Knot)
+        .semantics { this.contentDescription = contentDescription }
+        .drawWithCache {
+            // Geometry, lighting and path measures change only with the seed or measured size.
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val scale = size.minDimension
+            val raster = renderKnot(ropes, size.width.roundToInt(), size.height.roundToInt())
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+            val destination = android.graphics.RectF(0f, 0f, size.width, size.height)
+            val measures = ropes.map { points ->
+                val path = AndroidPath()
+                points.forEachIndexed { index, point ->
+                    val x = center.x + point.x * scale
+                    val y = center.y + point.y * scale
+                    if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                }
+                PathMeasure(path, false)
             }
-        }
-        drawOval(Brush.radialGradient(listOf(ChayeonColors.Glow.copy(alpha = .18f), ChayeonColors.Transparent), center, scale * .51f))
-        ropes.forEach { points ->
-            val line = path(points.filter { it.progress <= progress.value })
-            translate(top = thickness * .48f) {
-                drawPath(line, ChayeonColors.Black.copy(alpha = .16f), style = Stroke(thickness * 1.65f, cap = StrokeCap.Round, join = StrokeJoin.Round))
-                drawPath(line, ChayeonColors.Black.copy(alpha = .20f), style = Stroke(thickness * 1.3f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+            val revealPath = AndroidPath()
+            val outline = AndroidPath()
+            val maskPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.STROKE
+                strokeWidth = scale * KnotMaterial.RevealWidth
+                strokeCap = Paint.Cap.ROUND
+                strokeJoin = Paint.Join.ROUND
             }
-        }
-        ropes.forEach { points -> drawRope(path(points.filter { it.progress <= progress.value }), thickness) }
-        // Only the short overpass is repainted, so long curves retain uninterrupted reflections.
-        crossings.forEach { crossing ->
-            val points = ropes[crossing.rope]
-            val span = 42
-            val bridge = ((crossing.index - span)..(crossing.index + span)).map {
-                points[Math.floorMod(it, points.lastIndex)]
-            }.filter { it.progress <= progress.value }
-            if (bridge.size > 1) {
-                val centerX = center.x + crossing.x * scale
-                val centerY = center.y + crossing.y * scale
-                val radius = thickness * 1.65f
-                val area = Path().apply { addOval(Rect(centerX - radius, centerY - radius, centerX + radius, centerY + radius)) }
-                clipPath(area) { drawRope(path(bridge), thickness) }
+            val shadowSize = Size(scale * (if (ropes.size == 1) .76f else 1.25f), scale * .16f)
+            val shadowCenter = Offset(center.x, center.y + scale * .39f)
+            val shadow = Brush.radialGradient(listOf(ChayeonColors.Black.copy(alpha = .38f), ChayeonColors.Transparent), Offset.Zero, 1f)
+            onDrawBehind {
+                // Disabling motion takes effect in this draw, without waiting for an effect frame.
+                val fraction = if (!motion || !reveal) 1f else progress.value
+                withTransform({
+                    translate(shadowCenter.x, shadowCenter.y)
+                    scale(shadowSize.width / 2, shadowSize.height / 2, Offset.Zero)
+                }) { drawCircle(shadow, 1f, Offset.Zero, alpha = fraction) }
+                drawIntoCanvas { canvas ->
+                    val native = canvas.nativeCanvas
+                    native.withSave {
+                        if (fraction < 1f) {
+                            revealPath.rewind()
+                            measures.forEach { it.getSegment(0f, it.length * fraction, revealPath, true) }
+                            maskPaint.getFillPath(revealPath, outline)
+                            native.clipPath(outline)
+                        }
+                        native.drawBitmap(raster, null, destination, paint)
+                    }
+                }
             }
-        }
-    }
-}
-
-private fun DrawScope.drawRope(path: Path, thickness: Float) {
-    fun stroke(color: Color, width: Float, offset: Float = 0f) {
-        translate(left = -thickness * .12f * offset, top = -thickness * .20f * offset) {
-            drawPath(path, color, style = Stroke(thickness * width, cap = StrokeCap.Round, join = StrokeJoin.Round))
-        }
-    }
-    stroke(ChayeonColors.KnotBase, 1.08f)
-    stroke(ChayeonColors.KnotShadow, 1f)
-    for (layer in 0..16) {
-        val fraction = layer / 16f
-        stroke(lerp(ChayeonColors.KnotBody, ChayeonColors.BrightRed, fraction), .94f - fraction * .65f, fraction * 1.1f)
-    }
-    stroke(ChayeonColors.KnotSpecular.copy(alpha = .78f), .10f, 1.6f)
+        })
 }

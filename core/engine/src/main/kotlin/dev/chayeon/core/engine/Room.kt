@@ -72,11 +72,14 @@ internal class Room(
         val second = publicProfile(b, a).signature ?: return Chemistry()
         return rules.chemistry(first, second)
     }
-    fun presets(actor: String, other: String): Set<PresetCode> = BASE_PRESETS +
-        publicProfile(other, actor).signature?.traits.orEmpty().map { trait ->
-            PresetCode.valueOf(if (trait.trait in setOf(TraitId.LONG_ROAD, TraitId.NIGHT_DRIVE))
-                "SHARE_${trait.trait}" else "ADMIRE_${trait.trait}")
+    fun presets(actor: String, other: String): Set<PresetCode> {
+        val mine = publicProfile(actor, other).signature?.traits.orEmpty().map { it.trait }.toSet()
+        return BASE_PRESETS + publicProfile(other, actor).signature?.traits.orEmpty().mapNotNull { trait ->
+            val shared = trait.trait == TraitId.LONG_ROAD || trait.trait == TraitId.NIGHT_DRIVE
+            if (shared && trait.trait !in mine) null
+            else PresetCode.valueOf(if (shared) "SHARE_${trait.trait}" else "ADMIRE_${trait.trait}")
         }
+    }
 
     fun freshness(actor: String): LocationAvailability {
         val a = state.accounts.getValue(actor)
@@ -201,7 +204,7 @@ internal class Room(
     }
 
     companion object {
-        val BASE_PRESETS = setOf(PresetCode.HELLO, PresetCode.NICE_TO_MEET_YOU, PresetCode.GOOD_EVENING,
+        val BASE_PRESETS = setOf(PresetCode.HELLO, PresetCode.NICE_TO_MEET_YOU,
             PresetCode.SHARED_INTERESTS, PresetCode.TALK_LATER, PresetCode.TAKE_CARE, PresetCode.NICE_TO_MEET_AGAIN)
     }
 }

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,6 +31,8 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.res.painterResource
 import dev.chayeon.core.model.DrivingPolicy
@@ -40,7 +43,9 @@ enum class PeerHeaderSize { SMALL, LARGE }
 
 @Composable
 fun GradientText(text: String, modifier: Modifier = Modifier, style: TextStyle = ChayeonType.Hero) {
-    BasicText(text, modifier, style.copy(brush = Brush.verticalGradient(.2f to ChayeonColors.White, 1f to ChayeonColors.Accent)))
+    val rendered = remember(text) { keepHangulWords(text) }
+    BasicText(rendered, modifier.clearAndSetSemantics { this.text = AnnotatedString(text) },
+        style.copy(brush = Brush.verticalGradient(.2f to ChayeonColors.White, 1f to ChayeonColors.Accent)))
 }
 
 @Composable

@@ -16,17 +16,17 @@ data class TraitPresentation(val name: String, val publicPhrase: String, val ico
 
 val TraitId.presentation: TraitPresentation get() = when (this) {
     TraitId.GENTLE_RIDE -> TraitPresentation("부드러운 주행", "함께 타면 편안한 운전이에요", ChayeonIcon.GENTLE, TraitCategory.STYLE)
-    TraitId.EARLY_BRAKE -> TraitPresentation("여유로운 제동", "미리 천천히 멈춰요", ChayeonIcon.BRAKE, TraitCategory.STYLE)
-    TraitId.SIGNAL_MANNERS -> TraitPresentation("깜빡이 매너", "방향지시등을 잊지 않아요", ChayeonIcon.SIGNAL, TraitCategory.STYLE)
+    TraitId.EARLY_BRAKE -> TraitPresentation("여유로운 제동", "옆 사람이 놀라지 않게 미리 멈춰요", ChayeonIcon.BRAKE, TraitCategory.STYLE)
+    TraitId.SIGNAL_MANNERS -> TraitPresentation("깜빡이 매너", "다음 움직임을 미리 알려 줘요", ChayeonIcon.SIGNAL, TraitCategory.STYLE)
     TraitId.STEADY_PACE -> TraitPresentation("한결같은 항속", "흐름을 지키며 달려요", ChayeonIcon.PACE, TraitCategory.STYLE)
-    TraitId.BELT_FIRST -> TraitPresentation("벨트 먼저", "출발 전에 안전벨트부터 매요", ChayeonIcon.BELT, TraitCategory.STYLE)
+    TraitId.BELT_FIRST -> TraitPresentation("벨트 먼저", "출발 전에 안전부터 챙겨요", ChayeonIcon.BELT, TraitCategory.STYLE)
     TraitId.LONG_ROAD -> TraitPresentation("긴 여정파", "긴 드라이브를 즐겨요", ChayeonIcon.ROAD, TraitCategory.STYLE)
     TraitId.NIGHT_DRIVE -> TraitPresentation("밤 드라이브파", "밤길 드라이브를 좋아해요", ChayeonIcon.MOON, TraitCategory.STYLE)
-    TraitId.TIRE_CARE -> TraitPresentation("타이어 관리", "타이어 공기압을 챙겨요", ChayeonIcon.TIRE, TraitCategory.CARE)
-    TraitId.ENERGY_PLANNER -> TraitPresentation("미리 채우는 습관", "연료와 배터리를 미리 채워요", ChayeonIcon.ENERGY, TraitCategory.CARE)
-    TraitId.BATTERY_KIND -> TraitPresentation("배터리 아끼기", "배터리를 오래 쓰도록 충전해요", ChayeonIcon.BATTERY, TraitCategory.CARE)
-    TraitId.FLUID_READY -> TraitPresentation("소모품 점검", "소모품을 제때 점검해요", ChayeonIcon.DROP, TraitCategory.CARE)
-    TraitId.CABIN_CARE -> TraitPresentation("실내 공기 챙김", "실내 공기를 쾌적하게 유지해요", ChayeonIcon.AIR, TraitCategory.CARE)
+    TraitId.TIRE_CARE -> TraitPresentation("타이어 관리", "떠나기 전에 미리 살펴요", ChayeonIcon.TIRE, TraitCategory.CARE)
+    TraitId.ENERGY_PLANNER -> TraitPresentation("미리 채우는 습관", "기다리게 하지 않게 미리 채워 둬요", ChayeonIcon.ENERGY, TraitCategory.CARE)
+    TraitId.BATTERY_KIND -> TraitPresentation("배터리 아끼기", "오래 함께할 것을 아껴 써요", ChayeonIcon.BATTERY, TraitCategory.CARE)
+    TraitId.FLUID_READY -> TraitPresentation("소모품 점검", "작은 것도 미리 챙겨요", ChayeonIcon.DROP, TraitCategory.CARE)
+    TraitId.CABIN_CARE -> TraitPresentation("실내 공기 챙김", "함께 타는 공기까지 신경 써요", ChayeonIcon.AIR, TraitCategory.CARE)
 }
 
 val TraitLevel.label: String get() = when (this) {
@@ -65,14 +65,14 @@ val PresetCode.label: String get() = when (this) {
     PresetCode.ADMIRE_EARLY_BRAKE -> "여유롭게 멈추는 습관이 멋져요"
     PresetCode.ADMIRE_SIGNAL_MANNERS -> "깜빡이 매너가 멋져요"
     PresetCode.ADMIRE_STEADY_PACE -> "한결같은 주행이 멋져요"
-    PresetCode.ADMIRE_BELT_FIRST -> "벨트부터 챙기는 습관이 멋져요"
+    PresetCode.ADMIRE_BELT_FIRST -> "안전부터 챙기는 모습이 좋아요"
     PresetCode.SHARE_LONG_ROAD -> "저도 긴 드라이브를 좋아해요"
     PresetCode.SHARE_NIGHT_DRIVE -> "저도 밤 드라이브를 좋아해요"
-    PresetCode.ADMIRE_TIRE_CARE -> "타이어까지 챙기는 모습이 멋져요"
-    PresetCode.ADMIRE_ENERGY_PLANNER -> "미리 채우는 습관이 멋져요"
-    PresetCode.ADMIRE_BATTERY_KIND -> "배터리를 아끼는 모습이 멋져요"
-    PresetCode.ADMIRE_FLUID_READY -> "꼼꼼하게 점검하는 모습이 멋져요"
-    PresetCode.ADMIRE_CABIN_CARE -> "실내 공기까지 챙기는 모습이 멋져요"
+    PresetCode.ADMIRE_TIRE_CARE -> "미리 살피는 모습이 좋아요"
+    PresetCode.ADMIRE_ENERGY_PLANNER -> "미리 채워 두는 배려가 좋아요"
+    PresetCode.ADMIRE_BATTERY_KIND -> "아껴 쓰는 마음이 좋아요"
+    PresetCode.ADMIRE_FLUID_READY -> "작은 것도 챙기는 모습이 좋아요"
+    PresetCode.ADMIRE_CABIN_CARE -> "공기까지 신경 쓰는 마음이 좋아요"
 }
 
 val ReportReason.label: String get() = when (this) {
