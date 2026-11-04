@@ -16,7 +16,7 @@
 
 ## 정상 설치와 릴리스
 
-`python3 scripts/dev.py e2e --with-real-drive`는 실행 중인 `emulator-5556`의 사용자 10에서 앱을 제거하고 정상 설치해요. 권한은 화면에서 허용하며 shell 권한을 앱에 빌려주지 않아요. Virtual Console은 포트 8088을 전달하고 약 1초마다 세션을 유지해요.
+`python3 scripts/dev.py e2e --with-real-drive`는 `CHAYEON_EMULATOR_SERIAL`로 지정한 에뮬레이터, 또는 AVD 이름이 `Pleos_Connect_v2_0`인 에뮬레이터 한 대의 사용자 10에서 앱을 제거하고 정상 설치해요. 권한은 화면에서 허용하며 shell 권한을 앱에 빌려주지 않아요. Virtual Console은 포트 8088을 전달하고 약 1초마다 세션을 유지해요.
 
 `python3 scripts/dev.py e2e --server`는 호스트 서버와 실제 HTTP 상대 계정을 만들어요. 앱은 `http://10.0.2.2:18765`로 연결하며 이 debug 구성에만 해당 호스트의 cleartext를 허용해요. 서버 프로세스는 검증 명령이 직접 시작하고 끝내요.
 
