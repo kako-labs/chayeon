@@ -86,7 +86,14 @@ class TextAndScrollTest {
             }
         }
         val actual = File("build/test-render/scroll-edges.png").apply { parentFile?.mkdirs() }
-        compose.onRoot().captureRoboImage(actual.path, roborazziOptions = RoborazziOptions(taskType = RoborazziTaskType.Record))
+        // Pixel probes below use dp coordinates, so this capture stays at full size.
+        compose.onRoot().captureRoboImage(
+            actual.path,
+            roborazziOptions = RoborazziOptions(
+                taskType = RoborazziTaskType.Record,
+                recordOptions = RoborazziOptions.RecordOptions(resizeScale = 1.0),
+            ),
+        )
         val bitmap = BitmapFactory.decodeFile(actual.path)
         fun red(column: Int, y: Int) = AndroidColor.red(bitmap.getPixel(column * 140 + 50, y)) / 255f
         assertTrue(red(0, 2) > .95f && red(0, 75) > .95f)

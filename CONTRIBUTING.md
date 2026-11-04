@@ -28,6 +28,8 @@ env -u ANDROID_HOME -u ANDROID_SDK_ROOT ./gradlew -Pchayeon.serverOnly=true :ser
 `verify`는 허용 의존 방향, 모든 JVM·Android 호스트 테스트, Roborazzi 비교,
 경고를 오류로 처리하는 lint, debug 조립을 실행합니다. Kotlin 컴파일도 포함됩니다.
 의도적으로 디자인을 바꿀 때만 스크린샷을 다시 기록하고 PNG를 직접 검토합니다.
+
+기준 이미지는 저장소 크기를 줄이려고 절반 크기로 저장합니다. 원본 크기로 보려면 `./gradlew :core:ui:recordRoborazziDebug -Pchayeon.screenshotScale=1.0`으로 기록한 뒤, 커밋 전에 기본 크기로 다시 기록합니다.
 기준 이미지는 각 UI 모듈의 `src/test/screenshots`에 둡니다.
 테스트 규격은 `config/android-test.properties`의 1682×1210dp, landscape, mdpi입니다.
 

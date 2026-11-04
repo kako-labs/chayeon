@@ -73,5 +73,10 @@ subprojects {
     }
     pluginManager.withPlugin("io.github.takahirom.roborazzi") {
         verifyAll.configure { dependsOn("$module:verifyRoborazziDebug") }
+        // Baselines are stored at half size to keep the repository small. Override to review at full size.
+        val screenshotScale = providers.gradleProperty("chayeon.screenshotScale").orElse("0.5")
+        tasks.withType<Test>().configureEach {
+            systemProperty("roborazzi.record.resizeScale", screenshotScale.get())
+        }
     }
 }
