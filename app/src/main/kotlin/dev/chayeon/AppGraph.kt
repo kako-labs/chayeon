@@ -11,6 +11,7 @@ import dev.chayeon.core.model.SessionRepository
 import dev.chayeon.core.model.ServerTimeProvider
 import dev.chayeon.core.model.SignatureRepository
 import dev.chayeon.core.model.VehicleConsole
+import dev.chayeon.core.model.HomeZoneRepository
 import dev.chayeon.feature.history.HistoryDeps
 import dev.chayeon.feature.meet.MeetDeps
 import dev.chayeon.feature.signature.SignatureDeps
@@ -28,6 +29,8 @@ class AppGraph(
     val vehicleConsole: VehicleConsole,
     val serverTimeProvider: ServerTimeProvider,
     val serverUrl: String,
+    val homeZoneRepository: HomeZoneRepository,
+    val homeZoneCoordinator: HomeZoneCoordinator,
 ) {
     val serverModeAvailable: Boolean get() = serverUrl.isNotBlank()
 
@@ -37,6 +40,7 @@ class AppGraph(
         override val profileRepository = this@AppGraph.profileRepository
         override val drivingStateProvider = this@AppGraph.drivingStateProvider
         override val serverTimeProvider = this@AppGraph.serverTimeProvider
+        override val homeZoneRepository = this@AppGraph.homeZoneRepository
     }
 
     val historyDeps: HistoryDeps = object : HistoryDeps {
@@ -50,6 +54,9 @@ class AppGraph(
         override val safetyRepository = this@AppGraph.safetyRepository
         override val drivingStateProvider = this@AppGraph.drivingStateProvider
         override val serverTimeProvider = this@AppGraph.serverTimeProvider
+        override val homeZoneRepository = this@AppGraph.homeZoneRepository
+        override val syntheticHomeEnabled get() = this@AppGraph.demoEnabled
+        override suspend fun prepareHomeLocation() = this@AppGraph.prepareHomeLocation()
     }
 
     val signatureDeps: SignatureDeps = object : SignatureDeps {
@@ -62,4 +69,6 @@ class AppGraph(
     var currentPolicy: () -> dev.chayeon.core.model.DrivingPolicy = { dev.chayeon.core.model.DrivingPolicy.UNKNOWN }
     var isRealVehicle: Boolean = true
     var demoEnabled: Boolean = false
+    var prepareHomeLocation: suspend () -> Boolean = { false }
+    var syntheticHomePosition: suspend (Boolean) -> dev.chayeon.core.model.AppResult<Unit> = { dev.chayeon.core.model.AppResult.Failure(dev.chayeon.core.model.AppError.Restricted) }
 }

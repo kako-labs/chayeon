@@ -125,6 +125,16 @@ private fun Room.scheduled(): List<Scheduled> = buildList {
             stamp(); put(state.accounts.getValue(a.id).copy(locationAvailability = LocationAvailability.STALE)); evaluateConnections()
         })
     }
+    if (policy.presenceLeaseMillis != null) state.accounts.values.filter {
+        it.active && !it.deleted && it.profile.publicProfile.kind != ProfileKind.DEMO_PEER &&
+            it.locationSource == LocationSource.SYNTHETIC && it.syntheticPresence == SyntheticPresence.NEARBY
+    }.forEach { account ->
+        account.presenceLeaseDeadline?.let { deadline ->
+            add(Scheduled(deadline, "presence-${account.id}-$deadline") {
+                applySyntheticPresence(state.accounts.getValue(account.id), SyntheticPresence.AWAY)
+            })
+        }
+    }
     if (demoEnabled) DemoCast.peers.forEach { demo ->
         state.requests.values.filter { it.recipient == demo.id && it.status == ConnectionRequestStatus.PENDING && demo.response != DemoResponse.IGNORE }.forEach { r ->
             add(Scheduled(r.createdAt + demo.responseDelayMillis, "demo-respond-${r.id}") {

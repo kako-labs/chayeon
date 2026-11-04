@@ -52,7 +52,9 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
-    val localHttp = providers.gradleProperty("chayeon.serverUrl").orElse("").get().startsWith("http://10.0.2.2:")
+    val localHttp = listOf("http://10.0.2.2:", "http://127.0.0.1:").any {
+        providers.gradleProperty("chayeon.serverUrl").orElse("").get().startsWith(it)
+    }
     if (localHttp) sourceSets["debug"].res.srcDir("src/localServer/res")
     testOptions { unitTests.isIncludeAndroidResources = true }
     lint {
@@ -111,4 +113,6 @@ dependencies {
     testImplementation(libs.turbine)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    testImplementation(libs.ktor.client.core)
+    testImplementation(libs.ktor.client.mock)
 }

@@ -14,16 +14,37 @@ import androidx.lifecycle.repeatOnLifecycle
 import dev.chayeon.core.model.*
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CompletableDeferred
 
 class MainActivity : ComponentActivity() {
     private val vehiclePermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         (application as ChayeonApplication).vehicleGraph.permissionsChanged()
     }
     private val notifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    private var locationResult: CompletableDeferred<Boolean>? = null
+    private val locationPermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        val app = application as ChayeonApplication
+        app.vehicleGraph.prepareHomeLocation()
+        locationResult?.complete(checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+        locationResult = null
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val app = application as ChayeonApplication
+        app.graph.prepareHomeLocation = {
+            if (app.graph.currentPolicy() != DrivingPolicy.ALLOWED) false
+            else if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                app.vehicleGraph.prepareHomeLocation()
+                true
+            } else {
+                val result = CompletableDeferred<Boolean>()
+                locationResult?.complete(false)
+                locationResult = result
+                locationPermissions.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+                result.await()
+            }
+        }
         setContent { ChayeonApp(app.graph, events = app.events, publisherFailure = app.publisher.failure, recordingFailure = app.vehicleGraph.recordingFailure) }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -57,5 +78,11 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         (application as ChayeonApplication).vehicleGraph.setForeground(false)
         super.onPause()
+    }
+
+    override fun onDestroy() {
+        locationResult?.complete(false)
+        (application as ChayeonApplication).graph.prepareHomeLocation = { false }
+        super.onDestroy()
     }
 }

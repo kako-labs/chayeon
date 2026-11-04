@@ -64,6 +64,49 @@ private suspend fun <T> race(first: suspend () -> T, second: suspend () -> T): L
 }
 
 class ServerTest {
+    @Test fun defaultModuleEnforcesSixtySecondPresenceLeaseWithoutExposingItsDeadline() = testApplication {
+        lateinit var registry: RoomRegistry
+        application { chayeonModule(); registry = attributes[roomRegistryKey] }
+        val api = Api(client)
+        val session = api.enter(PersonaCode.ACCOUNT_A)
+        val engine = registry.authorize("Bearer ${session.accessToken}")!!.second
+        assertEquals(60_000L, engine.policy.presenceLeaseMillis)
+        val deadline = engine.exportState().accounts.getValue(session.accountId).presenceLeaseDeadline!!
+        assertTrue(deadline - System.currentTimeMillis() in 55_000..60_000)
+        val snapshotBody = client.get(ApiRoutes.SYNC) { bearerAuth(session.accessToken!!); parameter("since", 0) }.bodyAsText()
+        assertTrue(json.decodeFromString<SyncResponse>(snapshotBody).result is AppResult.Success)
+        assertFalse(snapshotBody.contains("lease", ignoreCase = true))
+        assertTrue(api.responses.none { it.second.contains("lease", ignoreCase = true) })
+    }
+
+    @Test fun expiryWithoutHolderTrafficWakesAnAlreadyWaitingPeerLongPoll() = testApplication {
+        val clock = AtomicLong(1_000_000)
+        val registry = RoomRegistry(fakeRules, ServerPolicy(tickIntervalMillis = 10), EngineClock(clock::get),
+            EnginePolicy(presenceLeaseMillis = 60_000), demoEnabled = false)
+        application { chayeonModule(registry) }
+        val api = Api(client); val a = api.enter(PersonaCode.ACCOUNT_A); val b = api.enter(PersonaCode.ACCOUNT_B)
+        api.ready(a); api.ready(b); api.connect(a, b)
+        clock.addAndGet(30_000)
+        val before = api.sync(b)
+        coroutineScope {
+            val waiting = async(Dispatchers.IO) { api.sync(b, before.version) }
+            delay(100)
+            api.post<SetSyntheticPresenceRequest, SetSyntheticPresenceResponse>(b, ApiRoutes.SET_SYNTHETIC_PRESENCE,
+                SetSyntheticPresenceRequest(meta(), SyntheticPresence.NEARBY)).result.ok()
+            delay(100)
+            assertFalse("A renewal must not wake the peer poll", waiting.isCompleted)
+            clock.addAndGet(30_000)
+            val checking = withTimeout(2_000) { waiting.await() }
+            assertEquals(ConnectionStatus.CHECKING, checking.connections.single().status)
+            val ending = async(Dispatchers.IO) { api.sync(b, checking.version) }
+            delay(100)
+            assertFalse(ending.isCompleted)
+            clock.addAndGet(10_000)
+            val ended = withTimeout(2_000) { ending.await() }
+            assertEquals(ConnectionEndReason.DISTANCE, ended.connections.single().endReason)
+        }
+    }
+
     @Test fun blockedPeerProfileEditsDoNotWakeLongPoll() = testApplication {
         application { chayeonModule(RoomRegistry(fakeRules, ServerPolicy(pollTimeoutMillis = 2_000), demoEnabled = false)) }
         val api = Api(client); val a = api.enter(PersonaCode.ACCOUNT_A); val b = api.enter(PersonaCode.ACCOUNT_B)

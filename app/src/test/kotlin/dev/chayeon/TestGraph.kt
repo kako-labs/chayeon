@@ -27,6 +27,15 @@ internal class TestGraph(vehicleConsole: VehicleConsole = EmptyVehicleConsole())
     val publications = mutableListOf<PublishSignatureRequest>()
     var publicationResult: AppResult<MyProfile> = AppResult.Failure(AppError.Network)
     var discoveryCalls = 0
+    val homeZone = MutableStateFlow(HomeZoneState())
+    val homeRepository = object : HomeZoneRepository {
+        override val state = homeZone
+        override suspend fun setFromCurrentPosition(radius: HomeZoneRadius, source: LocationSource) = AppResult.Success(Unit)
+        override suspend fun changeRadius(radius: HomeZoneRadius) = AppResult.Success(Unit)
+        override suspend fun clear() = AppResult.Success(Unit)
+    }
+    private val homeScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Unconfined)
+    val homeCoordinator = HomeZoneCoordinator(homeRepository, {}, homeScope)
     val graph = AppGraph(
         object : SessionRepository by EmptySessionRepository() { override val session = sessions },
         object : ProfileRepository by EmptyProfileRepository() {
@@ -77,7 +86,7 @@ internal class TestGraph(vehicleConsole: VehicleConsole = EmptyVehicleConsole())
             }
             override fun observeRecap(recapId: String) = recaps.map { state -> LoadState.Ready((state as? LoadState.Ready)?.value?.find { it.id == recapId }, state.version) }
         },
-        vehicleConsole, EmptyServerTimeProvider(), "",
+        vehicleConsole, EmptyServerTimeProvider(), "", homeRepository, homeCoordinator,
     ).apply { currentPolicy = { driving.value.policy }; demoEnabled = true }
     fun ready() {
         sessions.value = SessionState.Active(active)

@@ -78,6 +78,9 @@ class ProfileSetupViewModel(deps: HistoryDeps) : HistoryViewModel(deps) {
 }
 
 class ConsentViewModel(deps: HistoryDeps) : HistoryViewModel(deps) {
+    fun openHomeZone(action: () -> Unit) = edit {
+        if (ConsentScope.entries.none { busy("consent:$it") }) action()
+    }
     init {
         observeSession()
         observeProfile()

@@ -12,6 +12,9 @@ import dev.chayeon.core.model.ServerTimeProvider
 import dev.chayeon.core.model.SignatureRepository
 
 interface HistoryDeps {
+    val homeZoneRepository: dev.chayeon.core.model.HomeZoneRepository
+    val syntheticHomeEnabled: Boolean get() = false
+    suspend fun prepareHomeLocation(): Boolean = false
     val sessionRepository: SessionRepository
     val discoveryRepository: DiscoveryRepository
     val connectionRepository: ConnectionRepository

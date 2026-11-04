@@ -128,7 +128,7 @@ stateDiagram-v2
 - **기술:** Ktor, kotlinx.serialization. 저장은 인터페이스 뒤의 메모리 구현입니다.
 - **동기화:** 명령은 REST, 상태는 `GET /v1/sync?since=버전` 긴 폴링입니다. 변경이 있으면 바로 응답하고 재접속도 같은 경로로 수렴합니다.
 - **시연 공간:** 공간마다 격리됩니다. `혼자 둘러보기`는 앱 안에서 같은 엔진을 실행하고, 서버 모드도 공간마다 `시연용 가상 상대`를 둡니다.
-- **위치:** 합성 시나리오나 앱이 보낸 좌표로 근접만 판정합니다. 어떤 응답에도 좌표, 거리, 방향을 넣지 않습니다. 로그에도 남기지 않습니다.
+- **위치:** 이번 앱 릴리스는 합성 presence로 근접을 판정해요. 기기 위치는 집 보호 비교에만 쓰고 서버로 보내지 않아요. 엔진의 기존 위치 입력 계약은 유지해요. 어떤 응답에도 좌표, 거리, 방향을 넣지 않습니다. 로그에도 남기지 않습니다.
 - **빌드:** `-Pchayeon.serverOnly=true`이면 Android 모듈 없이 서버만 빌드합니다. Dockerfile을 제공합니다.
 - **배포:** 공개 서버 운영은 별도 결정 사항입니다. 앱은 `chayeon.serverUrl` 값이 있을 때만 서버 모드를 보여줍니다.
 
@@ -150,7 +150,7 @@ stateDiagram-v2
 
 주행 정책은 권한이 필요 없는 `CarUxRestrictionsManager`의 변경 리스너와 현재 제한 조회를 사용해요. 신선한 SDK 기어 P와 `isRequiresDistractionOptimization=false`가 함께 확인될 때만 허용해요. D/N/R 또는 DO 요구는 제한이며, 관찰 오류·2.5초 초과·차량 서비스 연결 해제는 UNKNOWN이에요. `CAR_DRIVING_STATE` 권한과 shell 권한 대여는 사용하지 않아요.
 
-`ChayeonApplication`은 `VehicleGraph`, `SocialGraph`, `SignaturePublisher`, `AppEvents`를 소유해요. 세션·서버의 차량 데이터 동의가 기록 게이트를 결정해요. 이 서비스용 동의는 주행 중에도 관찰되며 화면용 프로필과 분리되어 있어요. Android 14 기록 서비스는 Activity가 전경일 때만 시작하고 동의가 철회되면 멈춰요. `CAR_SPEED`·`CAR_ENERGY`는 동의 뒤 런타임에 요청해요. 거부한 신호는 UNSUPPORTED로 남아요.
+`ChayeonApplication`은 `VehicleGraph`, `SocialGraph`, `SignaturePublisher`, `AppEvents`를 소유해요. 세션·서버의 차량 데이터 동의가 기록 게이트를 결정해요. 이 서비스용 동의는 주행 중에도 관찰되며 화면용 프로필과 분리되어 있어요. Android 14 서비스는 Activity가 전경일 때 시작해요. 동의가 철회되면 기록을 멈추고, 발견·연결·집 보호도 필요 없으면 서비스를 끝내요. `CAR_SPEED`·`CAR_ENERGY`는 동의 뒤 런타임에 요청해요. 거부한 신호는 UNSUPPORTED로 남아요.
 
 로그아웃과 삭제는 게이트를 먼저 닫고 게시 작업과 직렬화한 뒤 소셜 저장소의 정리 영수증 경로를 실행해요. 공개 투영 변경은 `SignaturePublisher`가 게시·철회하고 같은 명령으로 재시도해요. 화면은 현재 세션의 등록 상태로 복원되며 주행 중 알림은 메시지 내용 없는 `CATEGORY_MESSAGE`예요.
 
@@ -206,6 +206,22 @@ Vehicle SDK는 `https://nexus-playground.pleos.ai/repository/maven-releases/`의
 
 - `python3 scripts/dev.py release`는 R8·리소스 축소를 적용한 설치용 APK를 `apk/chayeon-release.apk`에 복사해요. 서버 주소는 비어 있고 `chayeon.demo=true`예요. 네트워크 없이 SOLO 엔진과 가상 상대를 사용할 수 있어요.
 - 설치용 서명은 무시된 `build/signing/`에서 로컬 키와 난수 비밀번호를 생성해요. 저장소에 서명 키를 넣지 않아요. 개발용 키이므로 실제 마켓 배포 서명과 달라요.
-- `-Pchayeon.serverUrl=http://10.0.2.2:<port>`를 지정한 debug 구성에서만 해당 호스트의 cleartext를 허용해요. 기본 debug와 release는 cleartext를 거부해요.
-- `python3 scripts/dev.py e2e`는 실행 중인 `emulator-5556`, 사용자 10에 정상 설치하고 실제 UI를 조작해요. `--with-real-drive`는 실제 플랫폼 신호를 3분 이상 입력하는 추가 경로예요. 화면·검증 결과는 무시된 `build/e2e/`에 남아요. 에뮬레이터를 시작하거나 종료하지 않아요.
+- `-Pchayeon.serverUrl=http://10.0.2.2:<port>` 또는 선택한 기기의 `adb reverse`를 쓰는 `http://127.0.0.1:<port>` debug 구성에서만 해당 로컬 호스트의 cleartext를 허용해요. 기본 debug와 release는 cleartext를 거부해요.
+- `python3 scripts/dev.py e2e`는 자동 감지한 실행 중 에뮬레이터, 사용자 10에 정상 설치하고 실제 UI를 조작해요. `--with-real-drive`는 실제 플랫폼 신호를 3분 이상 입력하는 추가 경로예요. 화면·검증 결과는 무시된 `build/e2e/`에 남아요. 에뮬레이터를 시작하거나 종료하지 않아요.
 - 시연 콘솔은 `BuildConfig.DEMO_CONTROLS_ENABLED`로 열며 디버그 여부에 의존하지 않아요. 주행 시나리오는 `fixtures/drive` 한곳에서 assets와 CLI에 공급해요.
+
+## 기기 안의 집 보호 구역
+
+`HomeZoneRepository`는 좌표 없는 기기 전용 계약이에요. `data:vehicle`의 순수 `HomeZoneEvaluator`가 신선도·정확도·히스테리시스를 판정하고 `LocalHomeZoneRepository`가 기존 SQLite의 `home_zone`에 계정별로 흔든 중심만 저장해요. 집 기록은 시그니처 동의와 독립적이며 로그아웃·삭제의 로컬 정리 훅에서 함께 지워요. 백업은 계속 꺼져 있어요.
+
+`PlatformHomeLocationProvider`는 정밀 위치 권한을 받은 뒤 `LocationManager`를 구독해요. 현재 fix가 5초 미만이면 정확도가 더 나쁜 새 fix는 무시해요. 좋은 fix가 오래되면 낮은 정확도의 fix도 기존의 보수적인 판정에 사용해요. 위치는 기기 안 비교에만 쓰며 이번 릴리스에서 `UpdateLocation`을 호출하지 않아요. `VehicleRecordingService`는 기존 주행 기록 외에도 발견·활성 연결·집 보호를 유지해요. Activity 전경에서 시작하고 필요한 경우 `dataSync|location` 타입으로 올려 화면이 꺼진 뒤에도 관찰해요.
+
+Application 소유 `HomeZoneCoordinator` 한곳만 presence를 전송해요. `prepareSession`은 계정의 집을 읽은 뒤 세션을 공개하며 네트워크 응답은 기다리지 않아요. 보호 상태에는 기존 `SetSyntheticPresence(AWAY)`, 그 밖에는 선택한 presence를 보내요. 전송 중에는 조정기 잠금을 잡지 않아 세션 시작·종료·현재 확인을 막지 않아요. 전송·재시도 직전 계정과 보호 상태를 다시 확인하고, 보호 전환 시 오래된 시도를 취소해요. 보호 명령은 같은 키로 최대 30초 간격까지 지수 재시도해요. 서버 세션의 성공한 NEARBY는 20초마다 새 키로 갱신해요. AWAY에는 heartbeat가 없으며 세션 종료 시 모두 멈춰요. heartbeat 실패는 화면 오류로 내보내지 않아요.
+
+서버의 `chayeonModule()`은 60초 presence lease를 켜요. NEARBY 명령이 기한을 늘리지만 이미 NEARBY인 갱신은 버전이나 long-poll을 깨우지 않아요. 기한 만료는 서버 ticker에서 명시적 AWAY와 같은 경로로 처리하며 CHECKING → 유예 → DISTANCE로 끝나요. DemoCast는 제외해요. `EnginePolicy.presenceLeaseMillis = null`인 로컬 엔진은 기존 동작을 유지해요. 앱 종료·차량 전원 종료·통신 단절 뒤에도 발견 가능 상태는 최대 lease 길이만큼 남을 수 있고, 연결 종료에는 기존 유예 시간이 추가돼요.
+
+응답을 기다리는 동안 `HomeProtectedDiscoveryRepository`는 후보를 숨기고 발견 ON을 presence 확인 뒤에만 보내요. `HomeProtectedConnectionRepository`는 보호 중 요청·수락을 막고 거절·취소·나가기·인사는 그대로 전달해요. 활성 세션의 프로필을 아직 받지 못해도 홈과 내 프로필의 로컬 설정에 접근할 수 있어요. 발견 토글은 조정기가 바꾸지 않아요.
+
+좌표와 반경은 서버로 보내지 않으며 엔진·서버에는 집 개념을 추가하지 않아요. 상대는 집 보호, 앱 종료, 차량 전원 종료, 통신 단절에서 같은 거리 이탈 화면을 봐요. 다만 서버 운영자는 명시적 AWAY가 도착했음을 볼 수 있어요. 이번 빌드에는 실제 위치 기반 이탈이 없어 집 보호 때문이라고 추측할 수 있어요. `data:social`의 내부 presence 명령은 주행 제한 중에도 실행되며 사람이 누르는 콘솔과 집 설정은 현재 정책을 다시 확인해요.
+
+종단 도구는 `--serial`, `CHAYEON_EMULATOR_SERIAL`, `ANDROID_SERIAL` 순서로 선택을 우선해요. 지정한 기기가 사라지면 다른 기기로 바꾸지 않아요. 지정이 없으면 실행 대수와 무관하게 AVD 이름이 `Pleos_Connect_v2_0`인 한 대만 자동 선택하며, 없거나 둘 이상이면 명시적 선택을 요청해요. 선택한 serial의 부팅 완료를 기다리고 설치·셸·포트 전달을 모두 그 기기로 제한해요. 에뮬레이터를 시작하거나 종료하지 않아요. 모의 ADB 선택·격리 테스트도 `verify`에 포함해요.

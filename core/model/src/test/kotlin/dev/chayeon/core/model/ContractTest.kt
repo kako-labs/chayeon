@@ -201,6 +201,25 @@ class ContractTest {
         UnblockPeerResponse.serializer(), ReportPeerResponse.serializer(), SyncResponse.serializer(),
     )
 
+    @Test
+    fun `home zone types never enter any request or response graph`() {
+        (requestSerializers() + responseSerializers()).forEach { serializer ->
+            visit(serializer.descriptor, mutableSetOf()) { descriptor ->
+                assertFalse(descriptor.serialName, descriptor.serialName.substringAfterLast('.') in setOf(
+                    "HomeZoneRadius", "HomeZoneStatus", "HomeZoneState", "HomeZoneRepository"))
+                repeat(descriptor.elementsCount) { index ->
+                    assertFalse(descriptor.getElementName(index), descriptor.getElementName(index).lowercase().let {
+                        "home" in it || "zone" in it || "radius" in it
+                    })
+                }
+            }
+        }
+        listOf(HomeZoneRadius::class.java, HomeZoneStatus::class.java, HomeZoneState::class.java).forEach {
+            assertFalse(it.declaredMethods.any { method -> method.name == "serializer" })
+            assertFalse(it.declaredFields.any { field -> field.name in setOf("latitude", "longitude", "center") })
+        }
+    }
+
     private val privateTypeNames = setOf("LocationInput", "UpdateLocationRequest", "MySignature", "TraitEvidence",
         "PrivateMetric", "DerivedTripMetrics", "DerivedTraitMetrics", "TripRecap", "SignalKind")
     private val privateFieldNames = setOf("latitude", "longitude", "coordinates", "distance", "trajectory",

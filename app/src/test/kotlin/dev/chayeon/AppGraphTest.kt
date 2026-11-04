@@ -168,7 +168,7 @@ class AppGraphTest {
         val fixture = TestGraph()
         assertEquals(HistoryDestination.FIRST_RUN, rootRoute(SessionState.SignedOut(), fixture.profiles.value))
         assertNull(rootRoute(SessionState.Entering(), fixture.profiles.value))
-        assertNull(rootRoute(SessionState.Active(fixture.active), LoadState.Loading()))
+        assertEquals(MeetDestination.HOME, rootRoute(SessionState.Active(fixture.active), LoadState.Loading()))
         val routes = mapOf(RegistrationState.PROFILE_REQUIRED to HistoryDestination.PROFILE_SETUP,
             RegistrationState.CONSENT_REQUIRED to HistoryDestination.CONSENT, RegistrationState.READY to MeetDestination.HOME)
         routes.forEach { (registration, route) ->

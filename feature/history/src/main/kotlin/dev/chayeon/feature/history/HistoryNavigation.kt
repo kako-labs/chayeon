@@ -22,6 +22,7 @@ object HistoryDestination {
     const val PROFILE_SETUP = "history/profile-setup"
     const val PROFILE_EDIT = "history/profile-edit"
     const val CONSENT = "history/consent"
+    const val HOME_ZONE = "history/home-zone"
     const val ENCOUNTERS = "history/encounters"
     const val ENCOUNTER = "history/encounters/{encounterId}"
     const val AFTER_REQUEST = "history/after-request/{encounterId}"
@@ -88,7 +89,13 @@ fun NavGraphBuilder.historyGraph(
         ConsentScreen(state, chrome, model::record, model::setDiscovery,
             { model.navigate { onExit(HistoryExit.OpenSignatureVisibility) } },
             { model.navigate { if (state.myProfile?.registration == RegistrationState.READY) onExit(HistoryExit.OpenMeet) } },
-            model::retry, { model.navigate(::back) })
+            model::retry, { model.navigate(::back) }, { model.openHomeZone { open(HistoryDestination.HOME_ZONE) } })
+    }
+    composable(HistoryDestination.HOME_ZONE) {
+        val model: HomeZoneViewModel = viewModel { HomeZoneViewModel(deps) }
+        val state by model.uiState.collectAsStateWithLifecycle()
+        HomeZoneScreen(state, chrome, model::setHome, model::selectRadius, model::askClear,
+            model::clear, model::dismissClear, { model.back(::back) })
     }
     composable(HistoryDestination.ENCOUNTERS) {
         val model: EncountersViewModel = viewModel { EncountersViewModel(deps) }

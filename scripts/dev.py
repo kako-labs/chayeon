@@ -109,6 +109,33 @@ def sdk_tool(folder, name):
     return str(candidate) if candidate and candidate.is_file() else shutil.which(name)
 
 
+def emulator_serial(override=None):
+    adb = sdk_tool("platform-tools", "adb")
+    if not adb:
+        raise RuntimeError("adb를 찾지 못했어요. Android SDK를 확인해 주세요.")
+    result = subprocess.run([adb, "devices"], capture_output=True, text=True, check=True)
+    running = [line.split()[0] for line in result.stdout.splitlines()
+               if line.startswith("emulator-") and len(line.split()) >= 2 and line.split()[1] == "device"]
+    selected = override or os.environ.get("CHAYEON_EMULATOR_SERIAL") or os.environ.get("ANDROID_SERIAL")
+    if selected:
+        if selected not in running:
+            raise RuntimeError("지정한 에뮬레이터가 실행 중이지 않아요: " + selected)
+        return selected
+    # A lone emulator may belong to another project, and e2e uninstalls and reinstalls the app on it.
+    matches = []
+    for serial in running:
+        try:
+            name = subprocess.run([adb, "-s", serial, "emu", "avd", "name"],
+                                  capture_output=True, text=True, check=True, timeout=5).stdout.splitlines()
+        except (OSError, subprocess.SubprocessError):
+            raise RuntimeError("에뮬레이터 이름을 확인하지 못했어요. --serial 또는 CHAYEON_EMULATOR_SERIAL로 골라 주세요.") from None
+        if name and name[0].strip() == "Pleos_Connect_v2_0":
+            matches.append(serial)
+    if len(matches) == 1:
+        return matches[0]
+    raise RuntimeError("실행 중인 Pleos_Connect_v2_0 에뮬레이터를 하나로 정하지 못했어요. --serial 또는 CHAYEON_EMULATOR_SERIAL로 골라 주세요.")
+
+
 def setup_sdk():
     sdk = sdk_path()
     executable = "sdkmanager.bat" if os.name == "nt" else "sdkmanager"
@@ -143,13 +170,14 @@ def console_request(base_url, method, route, **parameters):
         response.read()
 
 
-def drive(scenario, base_url, serial="emulator-5556", duration_seconds=None):
+def drive(scenario, base_url, serial=None, duration_seconds=None):
     import json
     import math
     adb = sdk_tool("platform-tools", "adb")
     if not adb:
         print("adb를 찾지 못했어요. setup-sdk를 실행하세요.", file=sys.stderr)
         return 1
+    serial = emulator_serial(serial)
     fixture = ROOT / "fixtures/drive" / (scenario + ".json")
     if not fixture.is_file():
         print("합성 주행 시나리오를 찾지 못했어요.", file=sys.stderr)
@@ -280,12 +308,13 @@ def main():
     e2e_parser.add_argument("--server", action="store_true")
     e2e_parser.add_argument("--skip-build", action="store_true")
     e2e_parser.add_argument("--apk")
+    e2e_parser.add_argument("--serial")
     emulator_parser = commands.add_parser("emulator")
     emulator_parser.add_argument("--visible", action="store_true")
     drive_parser = commands.add_parser("drive")
     drive_parser.add_argument("scenario", choices=["gentle", "early-brake", "signal-manners", "care", "unsupported"])
     drive_parser.add_argument("--console-url", default="http://127.0.0.1:8088")
-    drive_parser.add_argument("--serial", default="emulator-5556")
+    drive_parser.add_argument("--serial")
     drive_parser.add_argument("--duration-seconds", type=float)
     args = parser.parse_args()
     if args.command == "doctor":
@@ -295,9 +324,9 @@ def main():
     if args.command == "e2e":
         if args.server:
             import server_e2e
-            return server_e2e.run()
+            return server_e2e.run(serial=args.serial)
         import e2e
-        return e2e.run(args.with_real_drive, args.skip_build, args.apk)
+        return e2e.run(args.with_real_drive, args.skip_build, args.apk, serial=args.serial)
     if args.command == "drive":
         return drive(args.scenario, args.console_url, args.serial, args.duration_seconds)
     if args.command == "emulator":
@@ -308,6 +337,8 @@ def main():
         return gradle(["-Pchayeon.serverOnly=true", ":server:run"], android=False)
     if args.command == "release":
         return release()
+    if subprocess.call([sys.executable, "-m", "unittest", "discover", "-s", "scripts", "-p", "test_*.py"], cwd=ROOT):
+        return 1
     return gradle(["clean", "verifyAll", "--rerun-tasks", "--no-build-cache"])
 
 

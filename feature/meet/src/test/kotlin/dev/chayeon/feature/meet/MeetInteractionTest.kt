@@ -160,6 +160,22 @@ class MeetInteractionTest {
         assertEquals(deps.requestCommands.first(), deps.requestCommands.last())
     }
 
+    @Test fun suppressedHomeExplainsAndBlocksAcceptIncludingDirectEntryButAllowsDecline() {
+        val deps = FakeMeetDeps()
+        deps.requests.value = LoadState.Ready(listOf(MeetFixtures.request), 2)
+        deps.homeZone.value = HomeZoneState(HomeZoneStatus.LOCATION_UNKNOWN, HomeZoneRadius.MEDIUM, LocationSource.DEVICE)
+        val model = keep(RequestViewModel(deps))
+        showRequest(model)
+        compose.onNodeWithText("집 근처에서 쉬는 동안에는 수락할 수 없어요").assertIsDisplayed()
+        compose.onNodeWithText("수락하고 연결").assertIsNotEnabled()
+        compose.runOnIdle { model.accept() }
+        compose.waitForIdle()
+        assertTrue(deps.respondCommands.isEmpty())
+        compose.runOnIdle { model.decline() }
+        compose.waitUntil(timeoutMillis = 5_000) { deps.respondCommands.size == 1 }
+        assertEquals(RequestDecision.DECLINE, deps.respondCommands.single().decision)
+    }
+
     @Test fun incomingAcceptRetriesSameDecisionAfterFailure() {
         val deps = FakeMeetDeps()
         deps.requests.value = LoadState.Ready(listOf(MeetFixtures.request), 2)
@@ -286,6 +302,25 @@ class MeetInteractionTest {
         compose.waitUntil(timeoutMillis = 5_000) { deps.leaveCommands.size == 1 }
         assertEquals(MeetFixtures.connection.id, deps.leaveCommands.single().connectionId)
         assertTrue(deps.greetingCommands.isEmpty())
+    }
+
+    @Test fun homeProtectionHidesAnAlreadySeenConnectionUntilParkingAgain() {
+        val deps = FakeMeetDeps()
+        deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3)
+        val model = keep(ConnectedViewModel(deps))
+        showConnected(model)
+        compose.onNodeWithText(MeetFixtures.peer.nickname).assertExists()
+        compose.runOnIdle {
+            deps.drivingState.value = MeetFixtures.parked.copy(policy = DrivingPolicy.RESTRICTED, gear = Gear.DRIVE)
+            deps.homeZone.value = HomeZoneState(HomeZoneStatus.INSIDE, HomeZoneRadius.MEDIUM, LocationSource.SYNTHETIC)
+        }
+        compose.waitUntil { model.uiState.value.awaitingPark }
+        compose.onNodeWithText(MeetFixtures.peer.nickname).assertDoesNotExist()
+        compose.onNodeWithText("나가기").assertIsEnabled()
+        compose.runOnIdle { deps.homeZone.value = deps.homeZone.value.copy(status = HomeZoneStatus.OUTSIDE) }
+        compose.onNodeWithText(MeetFixtures.peer.nickname).assertDoesNotExist()
+        compose.runOnIdle { deps.drivingState.value = MeetFixtures.parked }
+        compose.onNodeWithText(MeetFixtures.peer.nickname).assertExists()
     }
 
     @Test fun restrictedFailedObservationKeepsExitWithoutStalePeerContent() {

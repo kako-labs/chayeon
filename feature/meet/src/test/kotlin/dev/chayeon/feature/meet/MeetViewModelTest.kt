@@ -19,6 +19,30 @@ class MeetViewModelTest {
     private fun <T : ViewModel> ViewModelStore.keep(model: T): T = model.also { put(model.javaClass.name, it) }
     private fun TestScope.observe(flow: StateFlow<*>) = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { flow.collect() }
 
+    @Test fun definitiveAcceptRejectionGetsANewKeyAndNetworkRetryNeverCarriesAStaleVersion() = scenario { deps, store ->
+        deps.requests.value = LoadState.Ready(listOf(MeetFixtures.request), 2)
+        val model = store.keep(RequestViewModel(deps)); observe(model.uiState); runCurrent()
+        for (error in listOf(AppError.PeerUnavailable, AppError.AlreadyClosed, AppError.Restricted, AppError.NotAuthorized, AppError.Expired)) {
+            deps.respondResult = { AppResult.Failure(error) }
+            model.accept(); runCurrent()
+            val first = deps.respondCommands.last()
+            model.accept(); runCurrent()
+            assertNotEquals(first.meta.commandId, deps.respondCommands.last().meta.commandId)
+        }
+        deps.respondResult = { AppResult.Failure(AppError.Network) }
+        model.accept(); runCurrent()
+        val uncertain = deps.respondCommands.last()
+        deps.requests.value = LoadState.Ready(listOf(MeetFixtures.request.copy(version = 50)), 50)
+        deps.respondResult = { payload ->
+            assertNull(payload.meta.expectedVersion)
+            AppResult.Success(MeetFixtures.request.copy(version = 51, status = ConnectionRequestStatus.ACCEPTED))
+        }
+        model.accept(); runCurrent()
+        assertEquals(uncertain, deps.respondCommands.last())
+        assertNull(uncertain.meta.expectedVersion)
+        assertNull(model.uiState.value.accept.error)
+    }
+
     @Test fun `home retries exact discovery payload and rejects duplicate taps`() = scenario { deps, store ->
         val result = CompletableDeferred<AppResult<DiscoveryState>>()
         deps.setDiscoveryResult = { result.await() }
@@ -77,6 +101,7 @@ class MeetViewModelTest {
         deps.requestResult = { AppResult.Success(MeetFixtures.request) }
         model.requestConnection(); runCurrent(); model.requestConnection(); runCurrent()
         assertEquals(2, deps.requestCommands.size); assertEquals(deps.requestCommands[0], deps.requestCommands[1])
+        assertTrue(deps.requestCommands.all { it.meta.expectedVersion == null })
     }
 
     @Test fun `request countdown uses monotonic anchor and zero stays pending`() = scenario { deps, store ->

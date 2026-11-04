@@ -175,7 +175,8 @@ fun previewChrome(
     policy: DrivingPolicy = DrivingPolicy.ALLOWED,
     discoveryOn: Boolean = true,
     syntheticLocation: Boolean = true,
+    resting: Boolean = false,
 ): ScreenChrome = ScreenChrome(
     topBar = { GearStrip(gear, policy, syntheticLocation) },
-    bottomBar = { selected -> BottomNav(selected, discoveryOn, {}, {}) },
+    bottomBar = { selected -> BottomNav(selected, discoveryOn, {}, {}, resting = resting) },
 )

@@ -2,6 +2,7 @@ package dev.chayeon.server
 
 import dev.chayeon.core.engine.EngineApi
 import dev.chayeon.core.engine.EngineJson
+import dev.chayeon.core.engine.EnginePolicy
 import dev.chayeon.core.engine.SignatureRules
 import dev.chayeon.core.model.*
 import dev.chayeon.core.signature.DefaultSignatureEngine
@@ -14,6 +15,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.readAvailable
+import io.ktor.util.AttributeKey
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.encodeToString
@@ -31,7 +33,13 @@ fun defaultRules(): SignatureRules {
     }
 }
 
-fun Application.chayeonModule(registry: RoomRegistry = RoomRegistry(defaultRules())) {
+internal fun productionRegistry(clock: dev.chayeon.core.engine.EngineClock = dev.chayeon.core.engine.EngineClock(System::currentTimeMillis)) =
+    RoomRegistry(defaultRules(), clock = clock, enginePolicy = EnginePolicy(presenceLeaseMillis = 60_000))
+
+internal val roomRegistryKey = AttributeKey<RoomRegistry>("room-registry")
+
+fun Application.chayeonModule(registry: RoomRegistry = productionRegistry()) {
+    attributes.put(roomRegistryKey, registry)
     install(StatusPages) {
         exception<BodyLimit> { call, _ -> call.failure(AppError.Restricted, HttpStatusCode.PayloadTooLarge) }
         exception<Throwable> { call, cause ->

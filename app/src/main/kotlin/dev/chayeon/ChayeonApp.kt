@@ -28,7 +28,7 @@ fun rootRoute(session: SessionState, profile: LoadState<MyProfile?>): String? = 
             RegistrationState.CONSENT_REQUIRED -> HistoryDestination.CONSENT
             else -> HistoryDestination.PROFILE_SETUP
         }
-        else -> null
+        else -> MeetDestination.HOME
     }
 }
 
@@ -38,6 +38,7 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
     recordingFailure: StateFlow<Boolean> = remember { MutableStateFlow(false) }) {
     val driving by graph.drivingStateProvider.drivingState.collectAsStateWithLifecycle(DrivingState())
     val discovery by graph.discoveryRepository.discovery.collectAsStateWithLifecycle(DiscoveryState())
+    val homeZone by graph.homeZoneRepository.state.collectAsStateWithLifecycle(HomeZoneState(HomeZoneStatus.LOCATION_UNKNOWN))
     val session by graph.sessionRepository.session.collectAsStateWithLifecycle(SessionState.Entering())
     val profile by graph.profileRepository.profile.collectAsStateWithLifecycle(LoadState.Loading())
     val recaps by graph.signatureRepository.recaps.collectAsStateWithLifecycle(LoadState.Loading())
@@ -58,7 +59,8 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
         Column {
             BoxWithConstraints(Modifier.fillMaxWidth().height(ChayeonDimensions.Banner), contentAlignment = Alignment.Center) {
                 GearStrip(driving.gear, driving.policy, discovery.locationSource == LocationSource.SYNTHETIC,
-                    onDemo = if (graph.demoEnabled && route != DEMO_ROUTE) ({ open(DEMO_ROUTE) }) else null)
+                    onDemo = if (graph.demoEnabled && route != DEMO_ROUTE) ({ open(DEMO_ROUTE) }) else null,
+                    resting = driving.policy != DrivingPolicy.ALLOWED && discovery.mode == DiscoveryMode.ON && homeZone.suppressed)
                 if (driving.policy == DrivingPolicy.ALLOWED) {
                     val notice = event
                     val text = notice?.text ?: when {
@@ -101,7 +103,7 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
                         } finally { discoveryBusy = false }
                     }
                 }
-            })
+            }, resting = homeZone.suppressed)
     }, onViewing = { request, relationship -> events?.viewing(request, relationship) ?: {} })
     ChayeonTheme(policy = driving.policy) {
         NavHost(navController, startDestination = HistoryDestination.FIRST_RUN) {
@@ -127,6 +129,7 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
                     SignatureExit.OpenMeet -> open(MeetDestination.HOME)
                     SignatureExit.OpenProfileEdit -> open(HistoryDestination.PROFILE_EDIT)
                     SignatureExit.OpenConsent -> open(HistoryDestination.CONSENT)
+                    SignatureExit.OpenHomeZone -> open(HistoryDestination.HOME_ZONE)
                     SignatureExit.OpenBlocks -> open(HistoryDestination.BLOCKS)
                     SignatureExit.OpenCleanup -> open(HistoryDestination.CLEANUP)
                     SignatureExit.CreateSignature -> if (graph.demoEnabled) open(CREATE_SIGNATURE_ROUTE)
@@ -152,7 +155,8 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
                             else open(SignatureDestination.MY_PROFILE)
                         }
                     }, returnToConnection = navController.previousBackStackEntry?.destination?.route == MeetDestination.CONNECTED,
-                    onCreate = { open(CREATE_SIGNATURE_ROUTE) })
+                    onCreate = { open(CREATE_SIGNATURE_ROUTE) }, syntheticHomeSet = homeZone.radius != null && homeZone.source == LocationSource.SYNTHETIC,
+                    onHomePosition = model::homePosition)
             } }
         }
     }

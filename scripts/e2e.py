@@ -18,14 +18,21 @@ except ImportError:
 
 
 class Device:
-    def __init__(self, serial="emulator-5556", output="build/e2e"):
+    PERMISSION_ACTIONS = ("앱 사용 중에만 허용", "앱 사용 중에 허용", "허용")
+
+    def __init__(self, serial=None, output="build/e2e"):
         self.adb = dev.sdk_tool("platform-tools", "adb")
         if not self.adb:
             raise RuntimeError("adb를 찾지 못했어요")
-        self.serial = serial
+        self.serial = dev.emulator_serial(serial)
         self.output = dev.ROOT / output
         self.output.mkdir(parents=True, exist_ok=True)
         self.steps = []
+        deadline = time.monotonic() + 120
+        while self.shell("getprop", "sys.boot_completed").strip() != "1":
+            if time.monotonic() >= deadline:
+                raise RuntimeError("에뮬레이터 부팅이 끝나지 않았어요")
+            time.sleep(1)
 
     def run(self, *args, binary=False, check=True, timeout=35):
         return subprocess.run([self.adb, "-s", self.serial, *args], check=check, capture_output=True,
@@ -79,6 +86,12 @@ class Device:
     def tap(self, label, exact=True, scroll=False, last=False):
         for attempt in range(8):
             tree = self.tree()
+            # Consent writes can trigger a runtime dialog after the explicit permission drain.
+            if label not in self.PERMISSION_ACTIONS and any(
+                    "permissioncontroller" in node.get("package", "") for node in tree.iter("node")) and any(
+                    self.find(action, tree) is not None for action in self.PERMISSION_ACTIONS):
+                self.permissions()
+                continue
             parents = {child: parent for parent in tree.iter() for child in parent}
             node = None
             matches = []
@@ -110,11 +123,13 @@ class Device:
             time.sleep(0.4)
         raise AssertionError("누를 항목을 찾지 못했어요: " + label)
 
-    def card(self, title, button="프로필 보기"):
+    def card(self, title, button="프로필 보기", navigate=True):
         for _ in range(7):
             tree = self.tree()
             node = self.find(title, tree)
             if node is not None:
+                if not navigate:
+                    return
                 x1, y1, x2, y2 = map(int, re.findall(r"\d+", node.get("bounds")))
                 parents = {child: parent for parent in tree.iter() for child in parent}
                 target = node
@@ -141,10 +156,11 @@ class Device:
     def permissions(self):
         for index in range(4):
             tree = self.tree()
-            if self.find("허용", tree) is None:
+            label = next((value for value in self.PERMISSION_ACTIONS if self.find(value, tree) is not None), None)
+            if label is None:
                 return
             self.capture("permission-" + str(len(self.steps)))
-            self.tap("허용")
+            self.tap(label)
 
     def trip_summary(self):
         import sqlite3
@@ -162,15 +178,15 @@ class Device:
 
     def capture(self, name, contains=()):
         tree = self.tree()
-        for label in contains:
-            if self.find(label, tree, exact=False) is None:
-                raise AssertionError(name + ": 화면 검증 실패: " + label)
         (self.output / (name + ".xml")).write_text(ET.tostring(tree, encoding="unicode"), encoding="utf-8")
         (self.output / (name + ".png")).write_bytes(self.run("exec-out", "screencap", "-p", binary=True))
-        result = "failed" if name == "failure" else "passed"
+        missing = [label for label in contains if self.find(label, tree, exact=False) is None]
+        result = "failed" if missing or name == "failure" else "passed"
         self.steps.append({"step": name, "asserted": list(contains), "result": result})
         (self.output / "results.json").write_text(json.dumps(self.steps, ensure_ascii=False, indent=2), encoding="utf-8")
         print(("FAIL " if result == "failed" else "PASS ") + name + ": " + ", ".join(contains), flush=True)
+        if missing:
+            raise AssertionError(name + ": 화면 검증 실패: " + missing[0])
 
 
 class Console:
@@ -344,8 +360,164 @@ def create_signature(device, choice, prefix=""):
     return title
 
 
-def run(with_real_drive=False, skip_build=False, apk=None):
-    device = Device(output="build/e2e/release" if apk else "build/e2e")
+def set_synthetic_home(device):
+    device.tap("내 프로필")
+    device.tap("집 보호 구역", scroll=True)
+    device.wait("지금 위치를 집으로 정하기")
+    device.tap("합성 위치로 집 정하기", scroll=True)
+    device.wait("합성 위치 · 가상 집")
+    device.capture("home-zone-set", ["집 근처에서는 쉬고 있어요", "합성 위치 · 가상 집", "500m"])
+    device.tap("오늘의 인연")
+    assert_home_rest(device)
+
+
+def assert_home_rest(device):
+    device.wait("쉬는 중")
+    tree = device.tree()
+    if any(device.find(label, tree) is not None for label in ["프로필 보기", "지금 연결할 수 있는 사람"]):
+        raise AssertionError("집 보호 중 후보가 보여요")
+
+
+def home_position(device, inside, external=False):
+    if external:
+        device.shell("am", "broadcast", "--user", "10", "-n", "dev.chayeon/.VehicleConnectionProofReceiver",
+                     "--es", "operation", "synthetic-home-inside" if inside else "synthetic-home-outside")
+    else:
+        device.tap("시연 제어")
+        device.tap("집 근처로 오기" if inside else "집에서 멀어지기", scroll=True)
+        device.tap("오늘의 인연")
+    if not inside:
+        device.wait("시연용 가상 상대", timeout=20, exact=False)
+
+
+def prove_home_zone(device, console):
+    set_synthetic_home(device)
+    device.tap("시연 제어")
+    device.tap("가까이 있어요")
+    device.tap("오늘의 인연")
+    assert_home_rest(device)
+    device.capture("home-zone-presence-guard", ["집 근처에서는 쉬고 있어요", "벗어나면 다시 찾을 수 있어요", "쉬는 중"])
+    for driving in (False, True):
+        home_position(device, False)
+        device.card("별보는밤")
+        device.wait("연결 요청 보내기")
+        device.tap("연결 요청 보내기")
+        device.wait("주고받은 인사")
+        if driving:
+            console.gear("Drive")
+            device.wait("주행 중", exact=False)
+            device.shell("input", "keyevent", "KEYCODE_SLEEP")
+            home_position(device, True, external=True)
+            time.sleep(12)
+            device.shell("input", "keyevent", "KEYCODE_WAKEUP")
+            device.launch()
+            device.wait("쉬는 중")
+            assert_locked(device, hidden_peers=("별보는밤", "새벽드라이브"))
+            device.capture("home-zone-arrival-driving", ["쉬는 중", "주차하면"])
+            console.gear("Park")
+        else:
+            device.tap("시연 제어")
+            device.tap("집 근처로 오기", scroll=True)
+            device.shell("input", "keyevent", "KEYCODE_BACK")
+        device.wait("멀어져서 연결이 끝났어요")
+        if device.find("집", device.tree(), exact=False) is not None:
+            raise AssertionError("연결 종료 화면에 집 사유가 보여요")
+        device.capture("home-zone-ended-" + ("driving" if driving else "parked"), ["멀어져서 연결이 끝났어요"])
+        device.tap("오늘의 인연으로")
+        assert_home_rest(device)
+    home_position(device, False)
+    device.capture("home-zone-return", ["시연용 가상 상대", "발견 중"])
+
+
+def prove_platform_home(device, console):
+    stop = threading.Event()
+    geo_ok = []
+    position = ["127", "37"]
+    def feed():
+        while not stop.is_set():
+            result = device.run("emu", "geo", "fix", *position, check=False)
+            geo_ok.append("OK" in result)
+            stop.wait(1)
+    worker = threading.Thread(target=feed, daemon=True)
+    worker.start()
+    try:
+        # Seed the provider before requesting a fix, so the emulator's default position cannot win.
+        time.sleep(2)
+        device.tap("내 프로필")
+        device.tap("집 보호 구역", scroll=True)
+        device.tap("지금 위치를 집으로 정하기", scroll=True)
+        device.permissions()
+        time.sleep(10)
+        tree = device.tree()
+        actual = device.find("집 근처에서는 쉬고 있어요", tree) is not None
+        if not actual:
+            device.tap("지금 위치를 집으로 정하기", scroll=True)
+            time.sleep(10)
+            actual = device.find("집 근처에서는 쉬고 있어요", device.tree()) is not None
+        packages = device.shell("dumpsys", "package", "dev.chayeon")
+        location_dump = device.shell("dumpsys", "location")
+        proof = {
+            "normalInstall": True,
+            "geoCommandAccepted": any(geo_ok),
+            "finePermissionGranted": "android.permission.ACCESS_FINE_LOCATION: granted=true" in packages,
+            "providerNames": sorted(set(re.findall(r"(?:^|\n)\s*(gps|network|fused|passive) provider", location_dump))),
+            "deviceHomeSet": actual,
+            "geoFeedStartedBeforeSet": True,
+        }
+        (device.output / "location-proof.json").write_text(json.dumps(proof, ensure_ascii=False, indent=2), encoding="utf-8")
+        if actual:
+            device.capture("home-zone-device-position", ["집 근처에서는 쉬고 있어요"])
+            console.gear("Drive")
+            assert_locked(device)
+            device.shell("input", "keyevent", "KEYCODE_SLEEP")
+            position[:] = ["127.03", "37.03"]
+            print("RUN platform home: screen off beyond the maximum exit delay", flush=True)
+            time.sleep(95)
+            device.shell("input", "keyevent", "KEYCODE_WAKEUP")
+            device.launch()
+            assert_locked(device)
+            console.gear("Park")
+            device.wait("집 보호 구역 밖이에요", timeout=8)
+            position[:] = ["127", "37"]
+            console.gear("Drive")
+            device.shell("input", "keyevent", "KEYCODE_SLEEP")
+            time.sleep(12)
+            device.shell("input", "keyevent", "KEYCODE_WAKEUP")
+            device.launch()
+            device.wait("쉬는 중", timeout=15)
+            assert_locked(device)
+            device.capture("home-zone-device-driving", ["쉬는 중"])
+            console.gear("Park")
+            device.wait("집 근처에서는 쉬고 있어요")
+            proof["outsideAndDrivingArrival"] = True
+            proof["screenOffExitAndArrival"] = True
+        else:
+            device.wait("위치를 정하지 못했어요", exact=False)
+            device.capture("home-zone-device-unavailable", ["위치를 정하지 못했어요"])
+            proof["limitation"] = "이 이미지에서 일반 설치와 위치 권한 허용 후 geo fix를 입력해도 사용할 수 있는 기기 위치를 받지 못했어요. 합성 위치와 호스트의 가짜 위치 테스트를 사용해요."
+        (device.output / "location-proof.json").write_text(json.dumps(proof, ensure_ascii=False, indent=2), encoding="utf-8")
+        print("PASS platform location probe: " + ("fresh device fix and driving transition" if actual else "unavailable on this image; synthetic path verified"), flush=True)
+    finally:
+        stop.set()
+        worker.join(timeout=5)
+        console.gear("Park")
+
+
+def home_record_count(device):
+    result = device.shell("run-as", "dev.chayeon", "--user", "10", "ls", "databases")
+    if "drive-signature.db" not in result:
+        return 0
+    import sqlite3
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix="chayeon-private-proof-") as folder:
+        path = Path(folder) / "private.db"
+        path.write_bytes(device.run("exec-out", "run-as", "dev.chayeon", "--user", "10", "cat", "databases/drive-signature.db", binary=True))
+        with sqlite3.connect(path) as db:
+            return db.execute("SELECT COUNT(*) FROM home_zone").fetchone()[0]
+
+
+def run(with_real_drive=False, skip_build=False, apk=None, serial=None):
+    device = Device(serial=serial, output="build/e2e/release" if apk else "build/e2e")
     if not skip_build and dev.gradle([":app:assembleDebug", "-Pchayeon.demo=true"]):
         return 1
     debug_proof = apk is None
@@ -371,6 +543,8 @@ def run(with_real_drive=False, skip_build=False, apk=None):
         (device.output / "run-metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
         enter_solo(device)
         first_title = create_signature(device, "다음 움직임을 알려 주는 사람")
+        if debug_proof:
+            prove_home_zone(device, console)
         device.card("별보는밤")
         device.wait("연결 요청 보내기")
         device.capture("07-candidate", ["별보는밤", "함께하면 잘 맞는 점", "시그니처 매듭", "합성 주행", "한 분은 편안하게 달리고, 한 분은 함께 타는 공기까지 신경 써요"])
@@ -479,6 +653,8 @@ def run(with_real_drive=False, skip_build=False, apk=None):
             raise AssertionError("다른 주행 시나리오가 같은 시그니처 칭호를 만들었어요")
         metadata["scenarioTitles"] = {"SIGNAL_MANNERS": first_title, "GENTLE": second_title}
         (device.output / "run-metadata.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+        if debug_proof:
+            prove_platform_home(device, console)
         print("PASS distinct fresh-install scenarios: " + first_title + " / " + second_title, flush=True)
         return 0
 
@@ -491,7 +667,7 @@ def finish_session(device, debug_proof):
     device.wait("합성 주행")
     device.capture("23-profile-restored", ["새벽드라이브", "합성 주행"])
     device.tap("스친 인연")
-    device.wait("스친 인연")
+    device.wait("멀어짐", exact=False)
     device.capture("24-records-restored", ["멀어짐"])
     device.tap("내 프로필")
     device.tap("기록과 계정 정리")
@@ -501,5 +677,7 @@ def finish_session(device, debug_proof):
     device.capture("25-signed-out", ["혼자 둘러보기(가상 상대)", "이 계정으로 시작"])
     if debug_proof and device.trip_summary()["rows"] != 0:
         raise AssertionError("로그아웃 뒤 차량 주행 지표가 남아 있어요")
+    if debug_proof and home_record_count(device) != 0:
+        raise AssertionError("로그아웃 뒤 집 기록이 남아 있어요")
     print("PASS clean install → signature → relationship → driving lock → after → block → restart → sign out", flush=True)
     return 0

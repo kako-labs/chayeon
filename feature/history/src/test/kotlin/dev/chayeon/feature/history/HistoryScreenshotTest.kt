@@ -54,6 +54,8 @@ class HistoryScreenshotTest {
     @Test fun profile_edit_unknown() = capture(HistoryScreen.PROFILE_EDIT, ScreenScenario.UNKNOWN)
     @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
     @Test fun profile_edit_narrow() = capture(HistoryScreen.PROFILE_EDIT, ScreenScenario.NARROW)
+    @Test fun consent_saving_location() = capture(HistoryScreen.CONSENT, ScreenScenario.POPULATED,
+        HistoryFixtures.state.copy(commands = mapOf("consent:LOCATION_USE" to CommandState(running = true))), "saving_location")
     @Test fun consent_populated() = capture(HistoryScreen.CONSENT, ScreenScenario.POPULATED)
     @Test fun consent_loading() = capture(HistoryScreen.CONSENT, ScreenScenario.LOADING)
     @Test fun consent_empty() = capture(HistoryScreen.CONSENT, ScreenScenario.EMPTY)

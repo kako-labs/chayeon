@@ -23,6 +23,7 @@ sealed interface SignatureExit {
     data object OpenMeet : SignatureExit
     data object OpenProfileEdit : SignatureExit
     data object OpenConsent : SignatureExit
+    data object OpenHomeZone : SignatureExit
     data object OpenBlocks : SignatureExit
     data object OpenCleanup : SignatureExit
     data object CreateSignature : SignatureExit

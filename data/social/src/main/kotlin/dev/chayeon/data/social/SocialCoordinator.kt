@@ -27,6 +27,7 @@ internal class SocialCoordinator(
     val monotonicMillis: () -> Long,
     drivingProvider: DrivingStateProvider? = null,
     private val cleanupStorage: CleanupStorage = MemoryCleanupStorage(),
+    private val prepareSession: suspend (Session, suspend (SetSyntheticPresenceRequest, suspend () -> Boolean) -> AppResult<CommandReceipt>) -> Unit = { _, _ -> },
 ) {
     val store = SnapshotStore(monotonicMillis)
     val session = MutableStateFlow<SessionState>(SessionState.Entering())
@@ -120,10 +121,14 @@ internal class SocialCoordinator(
         restored = true
     }
 
-    private fun activate(value: Session) {
+    private suspend fun activate(value: Session) {
         if (closed) return
         active = value
         val generation = store.begin(value.id)
+        prepareSession(value) { request, canSend ->
+            command(ApiRoutes.SET_SYNTHETIC_PRESENCE, request, SetSyntheticPresenceRequest.serializer(),
+                SetSyntheticPresenceResponse.serializer(), { it.result }, requiresAllowed = false, refresh = false, trackResult = false, canExecute = canSend)
+        }
         session.value = SessionState.Active(value)
         poll?.cancel()
         poll = scope.launch {
@@ -153,16 +158,18 @@ internal class SocialCoordinator(
         resultOf: (Response) -> AppResult<Value>,
         requiresAllowed: Boolean = true,
         refresh: Boolean = true,
+        trackResult: Boolean = true,
+        canExecute: suspend () -> Boolean = { true },
     ): AppResult<Value> {
         if (requiresAllowed && !allowed()) return AppResult.Failure(AppError.Restricted)
         val current = active ?: return AppResult.Failure(AppError.NotAuthorized)
         val generation = store.state.value.generation
-        val ticket = store.beginRequest(generation) ?: return AppResult.Failure(AppError.NotAuthorized)
+        val ticket = if (trackResult) store.beginRequest(generation) ?: return AppResult.Failure(AppError.NotAuthorized) else null
         val backend = backends.getValue(current.mode)
         var validatedResponse = false
         val result = try {
             val body = socialJson.encodeToString(requestSerializer, request)
-            val response = backend.execute(current, route, body) { !requiresAllowed || allowed() }
+            val response = backend.execute(current, route, body) { (!requiresAllowed || allowed()) && canExecute() }
             val decoded = resultOf(socialJson.decodeFromString(responseSerializer, response))
             validatedResponse = true
             decoded
@@ -178,10 +185,11 @@ internal class SocialCoordinator(
         if (store.state.value.generation != generation || active?.id != current.id) {
             return AppResult.Failure(AppError.NotAuthorized)
         }
+        if (!trackResult) return result
         if (result is AppResult.Failure && result.error in setOf(AppError.Network, AppError.NotAuthorized)) {
-            store.fail(ticket, result.error)
+            store.fail(ticket!!, result.error)
         } else {
-            if (validatedResponse) store.confirm(ticket)
+            if (validatedResponse) store.confirm(ticket!!)
             if (refresh) refresh(current, generation)
         }
         return result

@@ -51,7 +51,12 @@ class DemoConsoleViewModel(private val graph: AppGraph) : ViewModel() {
     }
     fun gear(value: Gear) = command { graph.vehicleConsole.setGear(SetGearRequest(meta(), value)) is AppResult.Success }
     fun presence(value: SyntheticPresence) = command {
-        graph.currentPolicy() == DrivingPolicy.ALLOWED && graph.discoveryRepository.setSyntheticPresence(SetSyntheticPresenceRequest(meta(), value)) is AppResult.Success
+        graph.currentPolicy() == DrivingPolicy.ALLOWED &&
+            graph.homeZoneCoordinator.setDesiredPresence(value, graph.currentPolicy) is AppResult.Success &&
+            confirmPresenceForUi(graph.homeZoneCoordinator) is AppResult.Success
+    }
+    fun homePosition(inside: Boolean) = command {
+        graph.currentPolicy() == DrivingPolicy.ALLOWED && graph.syntheticHomePosition(inside) is AppResult.Success
     }
     fun replay(scenario: DriveScenario) = command { runReplay(scenario) }
     private suspend fun runReplay(scenario: DriveScenario): Boolean {
@@ -105,7 +110,8 @@ private fun DriveScenario.demoLabel() = when (this) {
 @Composable
 fun DemoConsoleScreen(state: DemoUiState, chrome: ScreenChrome, realVehicle: Boolean, enabled: Boolean,
     onGear: (Gear) -> Unit, onReplay: (DriveScenario) -> Unit, onFill: (DriveScenario) -> Unit,
-    onPresence: (SyntheticPresence) -> Unit, onBack: () -> Unit, returnToConnection: Boolean = false, onCreate: () -> Unit = {}) {
+    onPresence: (SyntheticPresence) -> Unit, onBack: () -> Unit, returnToConnection: Boolean = false, onCreate: () -> Unit = {},
+    syntheticHomeSet: Boolean = false, onHomePosition: (Boolean) -> Unit = {}) {
     val allowed = state.driving.policy == DrivingPolicy.ALLOWED
     BackHandler { if (allowed && !state.busy) onBack() }
     ScreenScaffold(topBar = {
@@ -157,6 +163,11 @@ fun DemoConsoleScreen(state: DemoUiState, chrome: ScreenChrome, realVehicle: Boo
                             SyntheticPresence.STALE -> "위치를 확인할 수 없어요"
                             SyntheticPresence.OFFLINE -> "연결이 끊어져요"
                         }, { onPresence(presence) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = !state.busy)
+                    }
+                    if (syntheticHomeSet) {
+                        SectionTitle("집 보호 구역 · 합성 위치")
+                        JellyButton("집 근처로 오기", { onHomePosition(true) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = !state.busy)
+                        JellyButton("집에서 멀어지기", { onHomePosition(false) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = !state.busy)
                     }
                 }
             }

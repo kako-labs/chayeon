@@ -5,6 +5,13 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.*
 
 internal class FakeHistoryDeps : HistoryDeps {
+    val homeZone = MutableStateFlow(HomeZoneState())
+    override val homeZoneRepository = object : HomeZoneRepository {
+        override val state = homeZone
+        override suspend fun setFromCurrentPosition(radius: HomeZoneRadius, source: LocationSource) = result("home-set", Unit)
+        override suspend fun changeRadius(radius: HomeZoneRadius) = result("home-radius", Unit)
+        override suspend fun clear() = result("home-clear", Unit)
+    }
     val driving = MutableStateFlow(DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK))
     val sessionState = MutableStateFlow<SessionState>(SessionState.Active(HistoryFixtures.session))
     val personasState = MutableStateFlow<LoadState<List<Persona>>>(LoadState.Ready(HistoryFixtures.personas, 1))

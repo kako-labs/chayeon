@@ -1,9 +1,19 @@
 package dev.chayeon.data.social
 
 import dev.chayeon.core.model.*
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.*
+import io.ktor.http.*
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import java.io.IOException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -19,6 +29,102 @@ import org.junit.Test
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class SocialCoordinatorTest {
+    @Test fun failedOrHungBackgroundPresenceCannotHoldRestorationEnterOrSignOutAndCannotPublishUiErrors() = runTest {
+        for (hang in listOf(false, true)) {
+            val backend = FakeBackend().apply {
+                restoredSession = testSession()
+                handler = { route, _ ->
+                    if (route == ApiRoutes.SET_SYNTHETIC_PRESENCE) {
+                        if (hang) awaitCancellation() else throw IOException("Unavailable")
+                    } else receipt()
+                }
+            }
+            val jobs = mutableListOf<kotlinx.coroutines.Job>()
+            val coordinator = SocialCoordinator(mapOf(SessionMode.SOLO to backend), backgroundScope,
+                { AppResult.Success(Unit) }, { 10 }, allowedProvider(), prepareSession = { _, send ->
+                    jobs += backgroundScope.launch { send(SetSyntheticPresenceRequest(CommandMeta("presence"), SyntheticPresence.AWAY)) { true } }
+                })
+            // Private storage uses Dispatchers.IO, so bound actual elapsed time rather than virtual time.
+            withContext(Dispatchers.Default) {
+                withTimeout(2_000) { coordinator.session.first { it is SessionState.Active } }
+                withTimeout(2_000) { coordinator.store.state.first { it.data is LoadState.Ready } }
+                assertEquals(AppResult.Failure(AppError.AlreadyClosed), withTimeout(2_000) { coordinator.enter(enter()) })
+                assertTrue(withTimeout(2_000) { coordinator.signOut(SignOutRequest(CommandMeta("out"))) } is AppResult.Success)
+                assertTrue(coordinator.session.value is SessionState.SignedOut)
+                assertTrue(withTimeout(2_000) { coordinator.enter(enter()) } is AppResult.Success)
+            }
+            assertTrue(coordinator.session.value is SessionState.Active)
+            jobs.forEach { it.cancel() }
+            coordinator.close()
+        }
+    }
+
+    @Test fun connectionTransportRetriesRecheckHomeSuppressionButDeclineDoesNotUseTheGuard() = runTest {
+        for (accept in listOf(false, true)) {
+            val firstAttempt = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            val requests = mutableListOf<String>()
+            val session = testSession(SessionMode.SERVER_DEMO)
+            val backend = RemoteBackend("https://example.test", object : SessionStorage {
+                override fun read(): Session? = null
+                override fun write(session: Session) {}
+                override fun clear() {}
+            }, HttpClient(MockEngine(MockEngineConfig().apply {
+                dispatcher = StandardTestDispatcher(testScheduler)
+                addHandler { request ->
+                    val route = request.url.encodedPath
+                    val body = when (route) {
+                        ApiRoutes.ENTER_SESSION -> socialJson.encodeToString(EnterSessionResponse.serializer(), EnterSessionResponse(AppResult.Success(session)))
+                        ApiRoutes.SYNC -> socialJson.encodeToString(SyncResponse.serializer(), SyncResponse(AppResult.Success(SyncSnapshot(session.id, 1, 1_000, profile()))))
+                        else -> {
+                            requests += route
+                            if (requests.size == 1) { firstAttempt.complete(Unit); release.await(); throw IOException("Unavailable") }
+                            socialJson.encodeToString(RespondConnectionResponse.serializer(), RespondConnectionResponse(AppResult.Failure(AppError.Unknown)))
+                        }
+                    }
+                    respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+                }
+            })), retryDelayMillis = 1, secretStorage = MemoryClientSecretStorage())
+            val coordinator = SocialCoordinator(mapOf(SessionMode.SERVER_DEMO to backend), backgroundScope,
+                { AppResult.Success(Unit) }, { 10 }, allowedProvider())
+            coordinator.enter(EnterSessionRequest(CommandMeta("enter"), SessionMode.SERVER_DEMO, PersonaCode.ACCOUNT_A, "room"))
+            var outside = true
+            var checks = 0
+            val repository = SocialConnectionRepository(coordinator) { checks++; outside }
+            val sending = async {
+                if (accept) repository.respond(RespondConnectionRequest(CommandMeta("accept"), "request", RequestDecision.ACCEPT))
+                else repository.requestConnection(RequestConnectionRequest(CommandMeta("request"), "peer"))
+            }
+            firstAttempt.await()
+            outside = false; release.complete(Unit); advanceTimeBy(10); runCurrent()
+            assertEquals(AppResult.Failure(AppError.Restricted), sending.await())
+            assertEquals(1, requests.size)
+            assertTrue(checks >= 2)
+            val beforeDecline = checks
+            repository.respond(RespondConnectionRequest(CommandMeta("decline"), "request", RequestDecision.DECLINE))
+            assertEquals(beforeDecline, checks)
+            assertEquals(2, requests.size)
+            coordinator.close()
+        }
+    }
+
+    @Test fun internalPresenceRechecksPermissionAtTransportRetryWithoutChangingObservationState() = runTest {
+        val backend = FakeBackend()
+        var send: (suspend (SetSyntheticPresenceRequest, suspend () -> Boolean) -> AppResult<CommandReceipt>)? = null
+        val coordinator = SocialCoordinator(mapOf(SessionMode.SOLO to backend), backgroundScope,
+            { AppResult.Success(Unit) }, { 10 }, allowedProvider(), prepareSession = { _, callback -> send = callback })
+        coordinator.enter(enter()); runCurrent()
+        val before = coordinator.store.state.value
+        val gate = CompletableDeferred<Unit>()
+        backend.beforeExecute = { gate.await() }
+        var allowed = true
+        val command = async { send!!(SetSyntheticPresenceRequest(CommandMeta("renew"), SyntheticPresence.NEARBY)) { allowed } }
+        runCurrent(); allowed = false; gate.complete(Unit)
+        assertEquals(AppResult.Failure(AppError.Restricted), command.await())
+        assertTrue(backend.bodies.isEmpty())
+        assertEquals(before, coordinator.store.state.value)
+    }
+
     @Test fun `unknown and restricted policies reject commands using current provider rather than UI state`() = runTest {
         val backend = FakeBackend()
         val driving = MutableStateFlow(DrivingState(policy = DrivingPolicy.ALLOWED))
@@ -277,6 +383,8 @@ class SocialCoordinatorTest {
 
     @Test fun `cleanup marker write failure prevents remote lifecycle effects`() = runTest {
         val backend = FakeBackend()
+        val driving = MutableStateFlow(DrivingState(policy = DrivingPolicy.ALLOWED))
+        var presence: (suspend (SetSyntheticPresenceRequest, suspend () -> Boolean) -> AppResult<CommandReceipt>)? = null
         val storage = object : CleanupStorage {
             override fun read(): CleanupRecord? = null
             override fun write(record: CleanupRecord) { throw IOException("Unavailable") }
@@ -284,13 +392,17 @@ class SocialCoordinatorTest {
         }
         var hookCalls = 0
         val coordinator = SocialCoordinator(mapOf(SessionMode.SOLO to backend), backgroundScope,
-            { hookCalls++; AppResult.Success(Unit) }, { 10 }, allowedProvider(), storage)
+            { hookCalls++; AppResult.Success(Unit) }, { 10 }, provider(driving), storage,
+            prepareSession = { _, send -> presence = send })
         coordinator.enter(enter())
         assertTrue(coordinator.signOut(SignOutRequest(CommandMeta("out"))) is AppResult.Failure)
         assertTrue(coordinator.session.value is SessionState.Active)
         assertEquals(0, backend.bodies.size)
         assertEquals(0, backend.clearCalls)
         assertEquals(0, hookCalls)
+        driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED)
+        assertTrue(presence!!(SetSyntheticPresenceRequest(CommandMeta("protection"), SyntheticPresence.AWAY)) { true } is AppResult.Success)
+        assertEquals(listOf(ApiRoutes.SET_SYNTHETIC_PRESENCE), backend.routes)
     }
 
     @Test fun `restart with unknown remote outcome cleans local state without claiming deletion succeeded`() = runTest {
@@ -345,9 +457,10 @@ class SocialCoordinatorTest {
         var beforePollResponse: suspend () -> Unit = {}
         var beforeExecute: suspend () -> Unit = {}
         var restoreCalls = 0
+        var restoredSession: Session? = null
         val snapshot = MutableStateFlow<AppResult<SyncSnapshot>>(AppResult.Success(SyncSnapshot("session", 1, 1_000, profile())))
         var handler: suspend (String, String) -> String = { _, _ -> receipt() }
-        override suspend fun restoreSession(): AppResult<Session?> { restoreCalls++; return AppResult.Success(null) }
+        override suspend fun restoreSession(): AppResult<Session?> { restoreCalls++; return AppResult.Success(restoredSession) }
         override suspend fun enter(request: EnterSessionRequest): AppResult<Session> =
             AppResult.Success(testSession().copy(persona = request.persona, accountId = request.persona.name.lowercase()))
         override suspend fun execute(session: Session, route: String, body: String, canExecute: suspend () -> Boolean): String {

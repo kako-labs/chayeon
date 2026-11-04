@@ -115,7 +115,8 @@ fun ProfileSetupScreen(state: HistoryUiState, chrome: ScreenChrome, editing: Boo
 
 @Composable
 fun ConsentScreen(state: HistoryUiState, chrome: ScreenChrome, onConsent: (ConsentScope, Boolean) -> Unit,
-    onDiscovery: (Boolean) -> Unit, onVisibility: () -> Unit, onContinue: () -> Unit, onRetry: (String) -> Unit, onBack: () -> Unit) {
+    onDiscovery: (Boolean) -> Unit, onVisibility: () -> Unit, onContinue: () -> Unit, onRetry: (String) -> Unit, onBack: () -> Unit,
+    onHomeZone: () -> Unit = {}) {
     HistoryFrame(state, chrome, "차량 데이터·위치·공개 범위", "무엇을 읽고 보여줄지 직접 골라 주세요", onBack, step = 2,
         bottom = { OnboardingActions("선택한 설정으로 시작", state.requiredConsentsGranted && state.myProfile?.registration == RegistrationState.READY, onContinue, onBack) },
         primary = {
@@ -128,7 +129,11 @@ fun ConsentScreen(state: HistoryUiState, chrome: ScreenChrome, onConsent: (Conse
                         InterestRow(it.interests)
                     }
                     InfoRow(ChayeonIcon.LOCK, "상대에게 보이지 않아요", body = "정확한 위치와 이동 경로, 집과 목적지, 실명과 연락처, 차량번호와 차량 외형은 보여주지 않아요.")
-                    JellyButton("시그니처 공개 범위 고르기", onVisibility, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
+                        JellyButton("시그니처 공개 범위 고르기", onVisibility, Modifier.weight(1.2f), JellyVariant.SECONDARY)
+                        JellyButton("집 보호 구역 · 선택", onHomeZone, Modifier.weight(1f), JellyVariant.SECONDARY,
+                            enabled = ConsentScope.entries.none { state.command("consent:$it").running })
+                    }
                 } }
                 GlassCard(Modifier.fillMaxWidth().testTag("onboarding-left")) {
                     Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
@@ -168,7 +173,7 @@ fun ConsentScreen(state: HistoryUiState, chrome: ScreenChrome, onConsent: (Conse
 internal fun consentCopy(scope: ConsentScope): Pair<String, String> = when (scope) {
     ConsentScope.ADULT_ATTESTATION -> "성인이고, 직접 참여해요" to "시연용 자기 확인이에요. 실제 연령 인증이 아니에요."
     ConsentScope.VEHICLE_DATA -> "차량 데이터 사용에 동의해요" to "내 주행 습관을 시그니처로 만들어요. 원시 값은 차 안에만 있어요."
-    ConsentScope.LOCATION_USE -> "위치 사용에 동의해요" to "근처 여부를 판단할 때만 써요. 상대에게 위치를 전달하지 않아요. 합성 위치를 쓰면 화면에 표시해요."
+    ConsentScope.LOCATION_USE -> "위치 사용에 동의해요" to "발견과 집 보호 구역을 판단할 때 써요. 동의를 끄면 위치 읽기를 멈춰요. 합성 위치는 따로 표시해요."
     ConsentScope.PUBLIC_PROFILE -> "프로필 공개에 동의해요" to "발견을 켜면 닉네임, 가상 아바타, 공개 시그니처와 관심사가 보여요."
 }
 

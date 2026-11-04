@@ -45,7 +45,7 @@ class MeetScreenshotTest {
     }
 
     private fun home(name: String, state: HomeUiState = home) = capture("home_$name", state.driving.policy) { chrome ->
-        HomeScreen(state, chrome, {}, {}, {}, {}, {}, {}, {})
+        HomeScreen(state, if (state.homeZone.suppressed) previewChrome(policy = state.driving.policy, resting = true) else chrome, {}, {}, {}, {}, {}, {}, {})
     }
     private fun discovery(name: String, status: DiscoveryStatus) = home(name, home.copy(discovery = MeetFixtures.discovery.copy(status = status,
         candidates = if (status == DiscoveryStatus.AVAILABLE) MeetFixtures.discovery.candidates else emptyList())))
@@ -67,6 +67,10 @@ class MeetScreenshotTest {
         MeetFixtures.candidate.copy(id = "candidate-sea", profile = MeetFixtures.peer.copy(id = "peer-sea", nickname = "바다보러가요", avatar = AvatarId.SEA)),
         MeetFixtures.candidate.copy(id = "candidate-forest", profile = MeetFixtures.peer.copy(id = "peer-forest", nickname = "숲길산책", avatar = AvatarId.FOREST)),
     ))))
+    @Test fun homeZoneInside() = home("zone_inside", home.copy(homeZone = HomeZoneState(HomeZoneStatus.INSIDE, HomeZoneRadius.MEDIUM, LocationSource.DEVICE)))
+    @Test fun homeZoneUnknown() = home("zone_unknown", home.copy(homeZone = HomeZoneState(HomeZoneStatus.LOCATION_UNKNOWN, HomeZoneRadius.MEDIUM, LocationSource.DEVICE)))
+    @Test fun homeZonePermissionOff() = home("zone_permission_off", home.copy(homeZone = HomeZoneState(HomeZoneStatus.PERMISSION_OFF, HomeZoneRadius.MEDIUM, LocationSource.DEVICE)))
+    @Test fun homeZoneSynthetic() = home("zone_synthetic", home.copy(homeZone = HomeZoneState(HomeZoneStatus.INSIDE, HomeZoneRadius.MEDIUM, LocationSource.SYNTHETIC)))
     @Test fun homeOff() = home("off", home.copy(discovery = DiscoveryState()))
     @Test fun homeLoading() = discovery("loading", DiscoveryStatus.LOADING)
     @Test fun homeEmpty() = discovery("empty", DiscoveryStatus.EMPTY)
@@ -108,6 +112,7 @@ class MeetScreenshotTest {
 
     @Test fun requestSent() = request("sent_populated", sent)
     @Test fun requestIncoming() = request("incoming_populated", incoming)
+    @Test fun requestHomeSuppressed() = request("home_suppressed", incoming.copy(homeSuppressed = true, accept = MeetCommandState(error = AppError.PeerUnavailable)))
     @Test fun requestLoading() = request("loading", incoming.copy(request = null, loading = true))
     @Test fun requestEmpty() = request("empty", incoming.copy(request = null))
     @Test fun requestFailure() = request("failure", incoming.copy(request = null, observationError = AppError.Network))

@@ -65,6 +65,7 @@ fun MyProfileScreen(
                 SettingsRow(ChayeonIcon.KNOT, "내 시그니처", "주행 스타일과 차량 관리에 담긴 나를 알아봐요.", onSignature)
                 SettingsRow(ChayeonIcon.EYE, "시그니처 공개 범위", "상대에게 보일 특성을 직접 골라요.", onVisibility)
                 SettingsRow(ChayeonIcon.LOCK, "차량 데이터와 위치 사용", "어떤 정보를 읽고 사용하는지 확인해요.", { onExit(SignatureExit.OpenConsent) })
+                SettingsRow(ChayeonIcon.LOCK, "집 보호 구역", "집 근처에서는 잠시 발견을 쉬어요.", { onExit(SignatureExit.OpenHomeZone) })
                 SettingsRow(ChayeonIcon.PEOPLE, "차단과 신고", "차단한 사람을 확인하고 관리해요.", { onExit(SignatureExit.OpenBlocks) })
                 SettingsRow(ChayeonIcon.HISTORY, "기록과 계정 정리", "무엇이 지워지고 무엇이 남는지 확인해요.", { onExit(SignatureExit.OpenCleanup) })
                 GlassCard(Modifier.fillMaxWidth()) {

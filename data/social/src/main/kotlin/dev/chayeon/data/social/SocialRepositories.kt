@@ -69,10 +69,14 @@ internal class SocialDiscoveryRepository(private val coordinator: SocialCoordina
         ApiRoutes.UPDATE_LOCATION, request, UpdateLocationRequest.serializer(), UpdateLocationResponse.serializer(), { it.result },
         requiresAllowed = false)
     override suspend fun setSyntheticPresence(request: SetSyntheticPresenceRequest) = coordinator.command(
-        ApiRoutes.SET_SYNTHETIC_PRESENCE, request, SetSyntheticPresenceRequest.serializer(), SetSyntheticPresenceResponse.serializer(), { it.result })
+        ApiRoutes.SET_SYNTHETIC_PRESENCE, request, SetSyntheticPresenceRequest.serializer(), SetSyntheticPresenceResponse.serializer(), { it.result },
+        requiresAllowed = false)
 }
 
-internal class SocialConnectionRepository(private val coordinator: SocialCoordinator) : ConnectionRepository {
+internal class SocialConnectionRepository(
+    private val coordinator: SocialCoordinator,
+    private val canStartConnection: suspend () -> Boolean = { true },
+) : ConnectionRepository {
     override val requests = coordinator.observe { it.connectionRequests }
     // A driving screen still needs the active relationship identity to offer the permitted leave action.
     override val connection: Flow<LoadState<Connection?>> = coordinator.store.state.map { state ->
@@ -100,9 +104,11 @@ internal class SocialConnectionRepository(private val coordinator: SocialCoordin
             }
         }
     override suspend fun requestConnection(request: RequestConnectionRequest) = coordinator.command(
-        ApiRoutes.REQUEST_CONNECTION, request, RequestConnectionRequest.serializer(), RequestConnectionResponse.serializer(), { it.result })
+        ApiRoutes.REQUEST_CONNECTION, request, RequestConnectionRequest.serializer(), RequestConnectionResponse.serializer(), { it.result },
+        canExecute = canStartConnection)
     override suspend fun respond(request: RespondConnectionRequest) = coordinator.command(
-        ApiRoutes.RESPOND_CONNECTION, request, RespondConnectionRequest.serializer(), RespondConnectionResponse.serializer(), { it.result })
+        ApiRoutes.RESPOND_CONNECTION, request, RespondConnectionRequest.serializer(), RespondConnectionResponse.serializer(), { it.result },
+        canExecute = { request.decision != RequestDecision.ACCEPT || canStartConnection() })
     override suspend fun cancel(request: CancelConnectionRequest) = coordinator.command(
         ApiRoutes.CANCEL_CONNECTION, request, CancelConnectionRequest.serializer(), CancelConnectionResponse.serializer(), { it.result })
     override suspend fun leave(request: LeaveConnectionRequest) = coordinator.command(

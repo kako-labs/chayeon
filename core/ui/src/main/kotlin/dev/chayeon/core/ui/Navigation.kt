@@ -44,7 +44,8 @@ import dev.chayeon.core.model.DrivingPolicy
 import dev.chayeon.core.model.Gear
 
 @Composable
-fun GearStrip(gear: Gear, policy: DrivingPolicy, syntheticLocation: Boolean, modifier: Modifier = Modifier, onDemo: (() -> Unit)? = null) {
+fun GearStrip(gear: Gear, policy: DrivingPolicy, syntheticLocation: Boolean, modifier: Modifier = Modifier, onDemo: (() -> Unit)? = null,
+    resting: Boolean = false) {
     Row(modifier.fillMaxWidth().heightIn(min = ChayeonDimensions.GearStrip), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.AvatarGap)) {
         val gearLabel = when (gear) { Gear.PARK -> "P"; Gear.REVERSE -> "R"; Gear.NEUTRAL -> "N"; Gear.DRIVE -> "D"; Gear.UNKNOWN -> "—" }
         Box(Modifier.size(ChayeonDimensions.GearBadge).background(ChayeonColors.Glow.copy(alpha = .24f), RoundedCornerShape(ChayeonRadii.Small))
@@ -56,6 +57,7 @@ fun GearStrip(gear: Gear, policy: DrivingPolicy, syntheticLocation: Boolean, mod
             DrivingPolicy.RESTRICTED -> "주행 중"
             DrivingPolicy.UNKNOWN -> "주행 상태 확인 중"
         }, style = ChayeonType.Label, color = ChayeonColors.Secondary)
+        if (resting) StatusChip("쉬는 중", variant = StatusVariant.PLAIN)
         Spacer(Modifier.weight(1f))
         if (syntheticLocation) StatusChip("합성 위치", variant = StatusVariant.SYNTHETIC)
         if (onDemo != null && policy == DrivingPolicy.ALLOWED) Box(
@@ -101,7 +103,8 @@ enum class NavigationItem(val label: String, val icon: ChayeonIcon) {
 }
 
 @Composable
-fun BottomNav(selected: NavigationItem, discoveryOn: Boolean, onSelect: (NavigationItem) -> Unit, onDiscoveryToggle: () -> Unit, modifier: Modifier = Modifier) {
+fun BottomNav(selected: NavigationItem, discoveryOn: Boolean, onSelect: (NavigationItem) -> Unit, onDiscoveryToggle: () -> Unit, modifier: Modifier = Modifier,
+    resting: Boolean = false) {
     val interactive = LocalDrivingPolicy.current == DrivingPolicy.ALLOWED
     Row(modifier.fillMaxWidth().heightIn(min = ChayeonDimensions.Navigation).glassSurface(radius = ChayeonRadii.Banner), verticalAlignment = Alignment.CenterVertically) {
         NavigationItem.entries.forEachIndexed { index, item ->
@@ -120,7 +123,7 @@ fun BottomNav(selected: NavigationItem, discoveryOn: Boolean, onSelect: (Navigat
                         .toggleable(discoveryOn, enabled = interactive, role = Role.Switch, onValueChange = { onDiscoveryToggle() })
                         .semantics { contentDescription = if (discoveryOn) "발견 끄기" else "발견 켜기" }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Tiny, Alignment.CenterVertically)) {
                         ChayeonIcon(ChayeonIcon.THREAD, Modifier.size(ChayeonDimensions.NavigationIcon))
-                        ChayeonText(if (discoveryOn) "발견 중" else "꺼짐", style = ChayeonType.Label)
+                        ChayeonText(if (discoveryOn && resting) "쉬는 중" else if (discoveryOn) "발견 중" else "꺼짐", style = ChayeonType.Label)
                     }
                 }
             }

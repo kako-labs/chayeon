@@ -15,8 +15,11 @@ internal fun Room.enterSession(actor: String, r: EnterSessionRequest): Session {
             if (r.persona == PersonaCode.ACCOUNT_A) AvatarId.DAWN else AvatarId.SLOW,
             emptySet(), ProfileKind.VIRTUAL_PROFILE, null), RegistrationState.PROFILE_REQUIRED)
     }
-    put(old?.copy(session = session, active = true) ?: EngineAccount(actor, session, profile,
-        ParticipationSettings(ids.next(), v)))
+    put(old?.copy(session = session, active = true,
+        presenceLeaseDeadline = policy.presenceLeaseMillis?.takeIf {
+            old.syntheticPresence == SyntheticPresence.NEARBY && old.profile.publicProfile.kind != ProfileKind.DEMO_PEER
+        }?.let { now + it }) ?: EngineAccount(actor, session, profile,
+        ParticipationSettings(ids.next(), v), presenceLeaseDeadline = policy.presenceLeaseMillis?.let { now + it }))
     return session
 }
 
@@ -111,6 +114,7 @@ internal fun Room.updateLocation(actor: String, r: UpdateLocationRequest): Comma
     stamp()
     locations[actor] = p
     put(a.copy(locationSource = p.source, locationObservedAt = p.observedAtEpochMillis,
+        presenceLeaseDeadline = null,
         locationAvailability = if (now - p.observedAtEpochMillis <= policy.locationFreshnessMillis) LocationAvailability.FRESH else LocationAvailability.STALE))
     evaluateConnections()
     return CommandReceipt(r.meta.commandId, v)
@@ -119,17 +123,27 @@ internal fun Room.updateLocation(actor: String, r: UpdateLocationRequest): Comma
 internal fun Room.setSyntheticPresence(actor: String, r: SetSyntheticPresenceRequest): CommandReceipt {
     val a = account(actor)
     ensure(consent(a, ConsentScope.LOCATION_USE))
-    stamp()
-    locations.remove(actor)
-    put(a.copy(locationSource = LocationSource.SYNTHETIC, syntheticPresence = r.presence, locationObservedAt = null))
-    evaluateConnections()
+    applySyntheticPresence(a, r.presence)
     return CommandReceipt(r.meta.commandId, v)
+}
+
+/** Explicit departures and lease expiry share the same mutation and connection evaluation. */
+internal fun Room.applySyntheticPresence(account: EngineAccount, presence: SyntheticPresence) {
+    val renewal = policy.presenceLeaseMillis != null && presence == SyntheticPresence.NEARBY &&
+        account.locationSource == LocationSource.SYNTHETIC && account.syntheticPresence == presence
+    if (!renewal) stamp()
+    locations.remove(account.id)
+    put(account.copy(locationSource = LocationSource.SYNTHETIC, syntheticPresence = presence, locationObservedAt = null,
+        presenceLeaseDeadline = policy.presenceLeaseMillis?.takeIf {
+            presence == SyntheticPresence.NEARBY && account.profile.publicProfile.kind != ProfileKind.DEMO_PEER
+        }?.let { now + it }))
+    evaluateConnections()
 }
 
 internal fun Room.signOut(actor: String, r: SignOutRequest): CommandReceipt {
     val a = account(actor)
     stamp()
-    put(a.copy(active = false, discovery = DiscoveryMode.OFF, discoverySince = null))
+    put(a.copy(active = false, discovery = DiscoveryMode.OFF, discoverySince = null, presenceLeaseDeadline = null))
     locations.remove(actor)
     revoke(actor, null, ConnectionEndReason.SELF_LEFT, closeAfter = false)
     return CommandReceipt(r.meta.commandId, v)
@@ -139,7 +153,7 @@ internal fun Room.deleteAccount(actor: String, r: DeleteAccountRequest): Command
     val a = account(actor)
     stamp()
     revoke(actor, null, ConnectionEndReason.SELF_LEFT, accountDeleted = true)
-    put(a.copy(active = false, deleted = true, discovery = DiscoveryMode.OFF, discoverySince = null,
+    put(a.copy(active = false, deleted = true, discovery = DiscoveryMode.OFF, discoverySince = null, presenceLeaseDeadline = null,
         settings = a.settings.copy(version = v, consents = emptyList()),
         profile = a.profile.copy(version = v, registration = RegistrationState.PROFILE_REQUIRED,
             publicProfile = a.profile.publicProfile.copy(version = v, nickname = "가상 프로필", avatar = AvatarId.DAWN,

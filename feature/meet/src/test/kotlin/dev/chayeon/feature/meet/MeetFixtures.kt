@@ -36,6 +36,13 @@ internal object MeetFixtures {
 }
 
 internal class FakeMeetDeps : MeetDeps, DiscoveryRepository, ConnectionRepository, ProfileRepository, DrivingStateProvider, ServerTimeProvider {
+    val homeZone = MutableStateFlow(HomeZoneState())
+    override val homeZoneRepository = object : HomeZoneRepository {
+        override val state = homeZone
+        override suspend fun setFromCurrentPosition(radius: HomeZoneRadius, source: LocationSource) = AppResult.Success(Unit)
+        override suspend fun changeRadius(radius: HomeZoneRadius) = AppResult.Success(Unit)
+        override suspend fun clear() = AppResult.Success(Unit)
+    }
     override val discoveryRepository: DiscoveryRepository get() = this
     override val connectionRepository: ConnectionRepository get() = this
     override val profileRepository: ProfileRepository get() = this

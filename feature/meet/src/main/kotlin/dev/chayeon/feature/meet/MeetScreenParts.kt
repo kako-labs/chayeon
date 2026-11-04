@@ -150,6 +150,7 @@ internal fun MeetPrivacy() {
 @Composable
 internal fun MeetDiscoveryHero(state: HomeUiState, onToggle: (Boolean) -> Unit) {
     val enabled = state.discovery.mode == DiscoveryMode.ON
+    val resting = enabled && state.homeZone.suppressed
     val compact = state.profileLoaded && state.profile?.signature == null
     HeroPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues()) {
         BoxWithConstraints(Modifier.fillMaxWidth().heightIn(min = if (compact) ChayeonDimensions.Avatar else ChayeonDimensions.HeroKnot + ChayeonSpacing.Screen)) {
@@ -171,14 +172,23 @@ internal fun MeetDiscoveryHero(state: HomeUiState, onToggle: (Boolean) -> Unit) 
                     alignment = if (compact) Alignment.Center else Alignment.TopCenter)
             }
             Column(Modifier.padding(ChayeonSpacing.Large).fillMaxWidth(if (wide) .66f else 1f), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
-                StatusChip(if (enabled) "오늘의 인연" else "발견 꺼짐", variant = if (enabled) StatusVariant.ACTIVE else StatusVariant.PLAIN)
-                GradientText(if (!enabled) "지금은 아무에게도 보이지 않아요" else when (state.discovery.status) {
+                StatusChip(if (resting) "쉬는 중" else if (enabled) "오늘의 인연" else "발견 꺼짐", variant = if (enabled && !resting) StatusVariant.ACTIVE else StatusVariant.PLAIN)
+                GradientText(if (!enabled) "지금은 아무에게도 보이지 않아요" else if (resting) when (state.homeZone.status) {
+                    HomeZoneStatus.PERMISSION_OFF -> "위치 사용이 꺼져 있어 쉬고 있어요"
+                    HomeZoneStatus.LOCATION_UNKNOWN -> "위치를 확인할 때까지 쉬고 있어요"
+                    else -> "집 근처에서는 쉬고 있어요"
+                } else when (state.discovery.status) {
                     DiscoveryStatus.AVAILABLE -> "근처에서 ${state.discovery.candidates.size}명이 발견을 켰어요"
                     DiscoveryStatus.ALREADY_CONNECTED -> "지금 이어진 인연이 있어요"
                     else -> "새로운 인연을 천천히 만나봐요"
                 }, style = if (compact) ChayeonType.Section else ChayeonType.Title)
-                ChayeonText(if (enabled) "서로 수락하면 대화가 시작돼요" else "켜면 닉네임과 공개한 시그니처, 관심사가 보여요",
+                ChayeonText(if (resting) when (state.homeZone.status) {
+                    HomeZoneStatus.PERMISSION_OFF -> "위치 권한과 내 프로필의 위치 사용 동의를 확인해 주세요"
+                    HomeZoneStatus.LOCATION_UNKNOWN -> "위치 서비스를 켜고 잠시 기다려 주세요. 그동안 발견을 쉬어요"
+                    else -> "벗어나면 다시 찾을 수 있어요"
+                } else if (enabled) "서로 수락하면 대화가 시작돼요" else "켜면 닉네임과 공개한 시그니처, 관심사가 보여요",
                     style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
+                if (resting && state.homeZone.source == LocationSource.SYNTHETIC) StatusChip("합성 위치 · 가상 집", variant = StatusVariant.PLAIN)
                 GlassCard(Modifier.width(ChayeonDimensions.Knot), contentPadding = PaddingValues(horizontal = ChayeonSpacing.Compact, vertical = ChayeonSpacing.Tiny)) {
                     GelToggle(enabled, onToggle, if (state.toggle.inProgress) "바꾸고 있어요" else if (enabled) "발견 켜짐" else "발견 꺼짐",
                         Modifier.fillMaxWidth(), enabled = !state.toggle.inProgress)

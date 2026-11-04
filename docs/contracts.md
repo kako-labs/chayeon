@@ -221,3 +221,21 @@
 `ContractTest`는 전체 응답 직렬화 그래프에서 위치·원시 신호·개인 근거 타입을 배제하고, 명령에서 행위자·동의 주장 필드를 배제합니다. 공개 RECORDING 거부, UNSUPPORTED 숫자 거부, 야간 기본 비공개, UNKNOWN 초기 정책, 프리셋과 후속 텍스트 구분, 18개 상태, 엔티티 ID·버전, 전체 스냅샷 직렬화도 검사합니다. 명령의 원자성·토큰 권한·실제 기어 수신·버전 증가 구현은 각 담당 모듈의 테스트 범위입니다.
 
 `ServerTimeAnchorTest`는 기기 벽시계가 5분 빠르거나 느려도 120초 기한이 정확히 120초에서 시작하는지, 단조 시간 경과·기준점 없음·시계 재시작·정수 범위를 검증합니다.
+
+## 집 보호 구역의 기기 전용 계약
+
+`HomeZone.kt`의 `HomeZoneRadius(NEAR=300, MEDIUM=500, WIDE=1000)`, `HomeZoneStatus`, `HomeZoneState(status, radius, source)`, `HomeZoneRepository`는 직렬화하지 않아요. 좌표를 가진 공개 타입을 추가하지 않아요. `setFromCurrentPosition(radius, source)`, `changeRadius(radius)`, `clear()`는 주차 상태에서만 실행해요. `HomeZoneState.source`는 DEVICE와 SYNTHETIC을 구분하며 합성 집을 실제 집처럼 표시하지 않아요.
+
+NOT_SET와 신선한 위치로 확인한 OUTSIDE만 발견을 허용해요. INSIDE·LOCATION_UNKNOWN·PERMISSION_OFF는 보호 상태예요. 앱 조립은 HomeZoneRepository를 MeetDeps와 HistoryDeps에 주입하고, 선택한 현재 위치를 얻기 위한 권한 요청을 HistoryDeps.prepareHomeLocation에 연결해요. SignatureExit.OpenHomeZone은 HistoryDestination.HOME_ZONE으로 이동해요.
+
+새 DTO·경로·응답 필드·종료 이유를 만들지 않고 기존 `SetSyntheticPresenceRequest(AWAY)`만 보내요. 좌표와 반경은 서버에 도달하지 않아요. 상대의 전체 SyncSnapshot은 집 보호와 presence lease 만료 모두 같은 AWAY 경로로 생성돼요. 상대에게 앱 종료·차량 전원 종료·통신 단절과 같은 결과를 보여요. 다만 서버 운영자는 명시적 AWAY의 도착을 볼 수 있고, 이번 빌드에 실제 위치 기반 이탈이 없으므로 집 보호 때문이라고 추측할 수 있어요.
+
+`EnginePolicy.presenceLeaseMillis`는 기본 null이고 서버 기본 모듈에서 60초예요. 내부 계정의 기한은 응답에 포함하지 않아요. 계정 생성과 NEARBY가 기한을 정하고 다른 presence는 기한을 지워요. DemoCast는 제외해요. 이미 NEARBY인 갱신은 버전을 올리지 않아요. 서버 ticker가 만료를 AWAY로 바꾸고 기존 유예 뒤 DISTANCE로 끝내요. 앱이 죽은 뒤 발견 가능 상태는 최대 lease 길이만큼 남을 수 있어요.
+
+`HomeZoneCoordinator.prepareSession`은 계정의 로컬 집을 연결한 뒤 네트워크 응답 없이 반환해요. `endSession`도 진행 중 전송을 기다리지 않아요. 보호 중에는 후보를 숨기고 로컬 연결 요청·수락을 거절해요. 발견 ON만 presence 확인을 요구하며 직접 꺼 둔 발견은 켜지 않아요. 서버 모드에서 성공한 NEARBY는 새 키로 20초마다 갱신해요. heartbeat의 네트워크 실패는 UI 오류나 확인 실패를 만들지 않아요. 보호 전환·세션 종료는 진행 중 전송의 재시도도 무효화해요. 위치 동의 전 거절된 presence는 동의 후 새 멱등 키로 보내고 일반 네트워크 재시도는 같은 키를 유지해요. 로컬 정리는 `LocalHomeZoneRepository.clearLocalData()`까지 성공해야 완료해요. 차량 기록 동의 유무와 무관해요.
+
+위치 사용 동의는 계정과 동의 문서 버전에 맞춰 서비스 설정 흐름에서 확인해요. 미확인은 LOCATION_UNKNOWN, 철회는 PERMISSION_OFF로 보호하며 GPS 구독과 location 서비스 사용을 멈춰요. PERMISSION_OFF는 런타임 권한 거절과 앱의 위치 동의 철회를 모두 포함해요. 실제 위치로 집 정하기는 동의가 없으면 fix 대기 없이 거절하고, 합성 집 설정은 동의를 요구하지 않아요. 동의 화면은 각 선택을 바로 저장하며 저장 중 집 설정 진입을 막아요. 집 화면은 저장된 동의를 다시 확인해요.
+
+presence가 Restricted로 거절되면 heartbeat와 AWAY 자동 재시도를 멈춰요. 동의 복원 후 발견 ON은 최초 가입·홈·하단 오브·동의 화면 모두 HomeProtectedDiscoveryRepository.setDiscovery → confirmPresence를 통해 새 키로 presence를 확인해요. 보호 상태 변화만으로 거절된 전송을 재개하지 않아요. 직접 꺼 둔 발견도 자동으로 켜지 않아요.
+
+ContractTest는 기기 전용 타입과 집·구역·반경 필드가 요청·응답 직렬화 그래프에 들어오지 않는지 검사해요. PresenceLeaseTest는 실제 엔진의 lease 만료와 명시적 AWAY의 전체 상대 스냅샷·DISTANCE 시각을 비교해요. HomeZoneCoordinatorTest의 명시적 AWAY 비교는 조정기가 동일한 명령만 보낸다는 증거이며 실제 위치 기반 이탈의 증거는 아니에요. HomeZoneRemotePrivacyTest는 mock HTTP의 모든 요청 본문·헤더와 UpdateLocation 미호출을 확인해요.

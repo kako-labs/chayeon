@@ -14,12 +14,14 @@ class HomeViewModel(private val deps: MeetDeps) : ViewModel() {
         deps.discoveryRepository.discovery,
         deps.profileRepository.profile,
         deps.connectionRepository.requests,
-    ) { discovery, profile, requests ->
+        deps.homeZoneRepository.state,
+    ) { discovery, profile, requests, home ->
         HomeUiState(
-            discovery = discovery.copy(candidates = if (discovery.status == DiscoveryStatus.AVAILABLE && discovery.mode == DiscoveryMode.ON) discovery.candidates else emptyList()),
+            homeZone = home,
+            discovery = discovery.copy(candidates = if (!home.suppressed && discovery.status == DiscoveryStatus.AVAILABLE && discovery.mode == DiscoveryMode.ON) discovery.candidates else emptyList()),
             profile = profile.publicProfile(),
             profileLoaded = profile is LoadState.Ready,
-            pendingRequest = requests.readyValue()?.filter { it.status == ConnectionRequestStatus.PENDING }
+            pendingRequest = requests.readyValue()?.filter { !home.suppressed && it.status == ConnectionRequestStatus.PENDING }
                 ?.maxByOrNull { it.version },
         )
     }

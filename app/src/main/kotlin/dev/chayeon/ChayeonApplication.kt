@@ -23,15 +23,24 @@ class ChayeonApplication : Application(), VehicleGraphOwner {
     }
     private val sessionEnding = MutableStateFlow(false)
     private val publicationLock = Mutex()
+    val homeZoneCoordinator by lazy { HomeZoneCoordinator(vehicleGraph.homeZoneRepository,
+        { account -> vehicleGraph.homeZoneRepository.bindAccount(account) }, scope) }
     val socialGraph by lazy {
         val engine = DefaultSignatureEngine()
         SocialGraph(this, BuildConfig.SERVER_URL, object : SignatureRules {
             override fun title(traits: List<PublicTrait>) = engine.title(traits)
             override fun chemistry(first: PublicSignature, second: PublicSignature) = engine.chemistry(first, second)
         }, localCleanup = {
+            // Keep protection active if the cleanup marker cannot be written and the session survives.
+            homeZoneCoordinator.endSession()
             vehicleGraph.gateInput.update(null, false)
-            vehicleGraph.signatureRepository.clearLocalData()
-        }, drivingStateProvider = commandDrivingStateProvider)
+            vehicleGraph.updateLocationConsent(null, null)
+            vehicleGraph.clearHomeLocationRequest()
+            val home = vehicleGraph.homeZoneRepository.clearLocalData()
+            val signature = vehicleGraph.signatureRepository.clearLocalData()
+            if (home is AppResult.Failure) home else signature
+        }, drivingStateProvider = commandDrivingStateProvider, prepareSession = homeZoneCoordinator::prepareSession,
+            canStartConnection = { !vehicleGraph.homeZoneRepository.state.first().suppressed })
     }
     val graph by lazy {
         val sessions = object : SessionRepository by socialGraph.sessionRepository {
@@ -53,13 +62,15 @@ class ChayeonApplication : Application(), VehicleGraphOwner {
                 return publicationLock.withLock { socialGraph.sessionRepository.deleteAccount(request) }
             }
         }
-        AppGraph(sessions, socialGraph.profileRepository, socialGraph.discoveryRepository,
-            socialGraph.connectionRepository, socialGraph.encounterRepository, socialGraph.afterRepository,
+        AppGraph(sessions, socialGraph.profileRepository, HomeProtectedDiscoveryRepository(socialGraph.discoveryRepository, vehicleGraph.homeZoneRepository, homeZoneCoordinator),
+            HomeProtectedConnectionRepository(socialGraph.connectionRepository, vehicleGraph.homeZoneRepository), socialGraph.encounterRepository, socialGraph.afterRepository,
             socialGraph.safetyRepository, commandDrivingStateProvider, vehicleGraph.signatureRepository,
-            vehicleGraph.vehicleConsole, socialGraph.serverTimeProvider, BuildConfig.SERVER_URL).apply {
+            vehicleGraph.vehicleConsole, socialGraph.serverTimeProvider, BuildConfig.SERVER_URL,
+            vehicleGraph.homeZoneRepository, homeZoneCoordinator).apply {
                 currentPolicy = { vehicleGraph.drivingStateProvider.current().policy }
                 isRealVehicle = vehicleGraph.gateway.isRealVehicle
                 demoEnabled = BuildConfig.DEMO_CONTROLS_ENABLED
+                syntheticHomePosition = { vehicleGraph.homeZoneRepository.setSyntheticPosition(it) }
             }
     }
     val publisher by lazy { SignaturePublisher(graph, sessionEnding, publicationLock, scope,
@@ -77,10 +88,23 @@ class ChayeonApplication : Application(), VehicleGraphOwner {
                     it.scope == ConsentScope.VEHICLE_DATA && it.status == ConsentStatus.GRANTED &&
                         it.documentVersion == active?.policy?.consentDocumentVersion
                 } == true
-                active?.accountId to consent
-            }.collect { (account, consent) -> vehicleGraph.gateInput.update(account, consent) }
+                val locationConsent = (settings as? LoadState.Ready)?.value?.takeIf { active != null }?.consents?.any {
+                    it.scope == ConsentScope.LOCATION_USE && it.status == ConsentStatus.GRANTED &&
+                        it.documentVersion == active?.policy?.consentDocumentVersion
+                }
+                Triple(active?.accountId, consent, locationConsent)
+            }.collect { (account, consent, locationConsent) ->
+                vehicleGraph.gateInput.update(account, consent)
+                vehicleGraph.updateLocationConsent(account, locationConsent)
+            }
         }
         publisher.start()
         events.start()
+        scope.launch {
+            combine(graph.sessionRepository.session, graph.discoveryRepository.discovery, graph.connectionRepository.connection) { session, discovery, connection ->
+                session is SessionState.Active && (discovery.mode == DiscoveryMode.ON || discovery.status == DiscoveryStatus.NETWORK_FAILURE || connection !is LoadState.Ready ||
+                    (connection as? LoadState.Ready)?.value?.status?.let { it != ConnectionStatus.ENDED } == true)
+            }.distinctUntilChanged().collect(vehicleGraph::setPresenceNeeded)
+        }
     }
 }

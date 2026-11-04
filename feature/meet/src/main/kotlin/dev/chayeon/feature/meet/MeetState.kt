@@ -12,6 +12,7 @@ data class HomeUiState(
     val pendingRequest: ConnectionRequest? = null,
     val toggle: MeetCommandState = MeetCommandState(),
     val refresh: MeetCommandState = MeetCommandState(),
+    val homeZone: HomeZoneState = HomeZoneState(),
 )
 
 data class CandidateUiState(
@@ -33,6 +34,7 @@ data class RequestUiState(
     val accept: MeetCommandState = MeetCommandState(),
     val decline: MeetCommandState = MeetCommandState(),
     val cancel: MeetCommandState = MeetCommandState(),
+    val homeSuppressed: Boolean = false,
 )
 
 data class GreetingUi(

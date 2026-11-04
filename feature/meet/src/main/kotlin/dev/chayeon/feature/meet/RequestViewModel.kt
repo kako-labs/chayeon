@@ -38,6 +38,8 @@ class RequestViewModel(private val deps: MeetDeps, initialRequestId: String? = n
         content, deps.drivingStateProvider.drivingState, accept.state, decline.state, cancel.state,
     ) { state, driving, accepting, declining, cancelling ->
         state.copy(driving = driving, accept = accepting, decline = declining, cancel = cancelling)
+    }.combine(deps.homeZoneRepository.state) { state, home ->
+        state.copy(homeSuppressed = home.suppressed)
     }.stateIn(viewModelScope, meetSharing, RequestUiState())
 
     private suspend fun currentRequest(): ConnectionRequest? {
@@ -53,7 +55,7 @@ class RequestViewModel(private val deps: MeetDeps, initialRequestId: String? = n
         if (accept.state.value.inProgress || decline.state.value.inProgress || cancel.state.value.inProgress) return
         val command = if (decision == RequestDecision.ACCEPT) accept else decline
         command.launch(viewModelScope,
-            prepare = { currentRequest()?.let { RespondConnectionRequest(freshMeta(it.version), it.id, decision) } },
+            prepare = { currentRequest()?.let { RespondConnectionRequest(freshMeta(), it.id, decision) } },
             permitted = { deps.allowsInteraction() },
             execute = { payload ->
                 val current = currentRequest()
@@ -61,6 +63,7 @@ class RequestViewModel(private val deps: MeetDeps, initialRequestId: String? = n
                     current?.id != payload.requestId || current.status != ConnectionRequestStatus.PENDING -> AppResult.Failure(AppError.AlreadyClosed)
                     current.direction != RequestDirection.INCOMING -> AppResult.Failure(AppError.NotAuthorized)
                     !deps.allowsInteraction() -> AppResult.Failure(AppError.Restricted)
+                    decision == RequestDecision.ACCEPT && deps.homeZoneRepository.state.first().suppressed -> AppResult.Failure(AppError.PeerUnavailable)
                     else -> deps.connectionRepository.respond(payload)
                 }
             },

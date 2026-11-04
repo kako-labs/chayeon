@@ -62,12 +62,13 @@ class ConnectedViewModel(private val deps: MeetDeps) : ViewModel() {
             sendingPresets = currentAttempts.filter { it.delivery == DeliveryState.SENDING }.map { it.request.code }.toSet(),
         )
     }
-    val uiState: StateFlow<ConnectedUiState> = combine(content, deps.drivingStateProvider.drivingState, leave.state) { state, driving, leaving ->
+    val uiState: StateFlow<ConnectedUiState> = combine(content, deps.drivingStateProvider.drivingState, leave.state, deps.homeZoneRepository.state) { state, driving, leaving, home ->
         if (driving.policy == DrivingPolicy.ALLOWED) {
             revealedConnectionId = state.connection?.id
             state.copy(driving = driving, leave = leaving)
         } else {
-            val awaitingPark = state.connection?.let { it.id != revealedConnectionId } == true
+            if (home.suppressed) revealedConnectionId = null
+            val awaitingPark = home.suppressed || state.connection?.let { it.id != revealedConnectionId } == true
             state.copy(driving = driving, leave = leaving, awaitingPark = awaitingPark,
                 connection = state.connection.takeUnless { awaitingPark },
                 ownProfile = state.ownProfile.takeUnless { awaitingPark }, greetings = emptyList())

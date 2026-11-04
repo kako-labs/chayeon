@@ -55,6 +55,7 @@ data class EngineAccount(
     val syntheticPresence: SyntheticPresence = SyntheticPresence.NEARBY,
     val locationAvailability: LocationAvailability = LocationAvailability.FRESH,
     val locationObservedAt: Long? = null,
+    val presenceLeaseDeadline: Long? = null,
 )
 
 @Serializable

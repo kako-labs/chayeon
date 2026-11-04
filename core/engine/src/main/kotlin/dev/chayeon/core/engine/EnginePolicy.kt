@@ -19,9 +19,11 @@ data class EnginePolicy(
     val maximumCommandIdLength: Int = 128,
     val maximumCachedCommands: Int = 512,
     val consentDocumentVersion: String = "2026-11-03",
+    val presenceLeaseMillis: Long? = null,
 ) {
     init {
         require(requestTtlMillis > 0 && afterTtlMillis > 0)
+        require(presenceLeaseMillis == null || presenceLeaseMillis > 0)
         require(requestCooldownMillis >= 0 && afterCooldownMillis >= 0)
         require(enterRadiusMeters > 0 && exitRadiusMeters > enterRadiusMeters)
         require(exitGraceMillis > 0 && statusUnknownGraceMillis > 0 && locationFreshnessMillis > 0)

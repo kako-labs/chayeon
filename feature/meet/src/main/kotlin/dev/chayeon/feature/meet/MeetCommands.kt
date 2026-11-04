@@ -23,7 +23,7 @@ internal fun LoadState<MyProfile?>.publicProfile(): PublicProfile? =
 
 internal fun <T> LoadState<T>.readyValue(): T? = (this as? LoadState.Ready)?.value
 
-/** A failed attempt retains its entire payload, including optimistic revision and idempotency key. */
+/** Only uncertain delivery retains a payload and its idempotency key. */
 internal class MeetCommand<T> {
     private val mutableState = MutableStateFlow(MeetCommandState())
     val state: StateFlow<MeetCommandState> = mutableState.asStateFlow()
@@ -42,6 +42,7 @@ internal class MeetCommand<T> {
         scope.launch {
             try {
                 if (!permitted()) {
+                    retryPayload = null
                     mutableState.value = MeetCommandState(error = AppError.Restricted)
                     return@launch
                 }
@@ -49,11 +50,13 @@ internal class MeetCommand<T> {
                 if (retained != null && !isSameTarget(retained)) retryPayload = null
                 val payload = retryPayload ?: prepare()
                 if (payload == null) {
+                    retryPayload = null
                     mutableState.value = MeetCommandState(error = AppError.AlreadyClosed)
                     return@launch
                 }
                 retryPayload = payload
                 if (!permitted()) {
+                    retryPayload = null
                     mutableState.value = MeetCommandState(error = AppError.Restricted)
                     return@launch
                 }
@@ -63,7 +66,10 @@ internal class MeetCommand<T> {
                         mutableState.value = MeetCommandState()
                         onSuccess(result.value)
                     }
-                    is AppResult.Failure -> mutableState.value = MeetCommandState(error = result.error)
+                    is AppResult.Failure -> {
+                        if (result.error !in setOf(AppError.Network, AppError.Unknown)) retryPayload = null
+                        mutableState.value = MeetCommandState(error = result.error)
+                    }
                 }
             } catch (cancelled: CancellationException) {
                 mutableState.value = MeetCommandState()

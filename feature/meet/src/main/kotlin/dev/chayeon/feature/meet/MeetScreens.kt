@@ -61,6 +61,9 @@ fun HomeScreen(
                 val experience = state.discovery.status.experienceState
                 when {
                     state.discovery.mode == DiscoveryMode.OFF -> MeetDiscoveryFacts()
+                    state.homeZone.suppressed -> GlassCard(Modifier.fillMaxWidth()) {
+                        InfoRow(ChayeonIcon.LOCK, "발견을 잠시 쉬고 있어요", body = "집 보호 구역 설정은 내 프로필에서 확인할 수 있어요")
+                    }
                     experience != null -> StateCard(experience, Modifier.fillMaxWidth(), onAction = when (state.discovery.status) {
                         DiscoveryStatus.LOCATION_PERMISSION_OFF -> onLocationSettings
                         DiscoveryStatus.LOCATION_STALE, DiscoveryStatus.NETWORK_FAILURE -> if (state.refresh.inProgress) null else onRefresh
@@ -423,7 +426,8 @@ private fun MeetPendingRequest(
         topBar = { MeetHeader(chrome, if (incoming) "받은 연결 요청" else "보낸 연결 요청", "서로 수락해야 연결돼요", onBack) },
         bottomBar = {
             Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
-                MeetError(state.accept.error)
+                if (incoming && state.homeSuppressed) TopBanner("집 근처에서 쉬는 동안에는 수락할 수 없어요")
+                else MeetError(state.accept.error)
                 MeetError(state.decline.error)
                 MeetError(state.cancel.error)
                 if (incoming) {
@@ -432,7 +436,7 @@ private fun MeetPendingRequest(
                         JellyButton(if (state.decline.inProgress) "거절하고 있어요" else "거절", onDecline,
                             Modifier.weight(1f).heightIn(min = ChayeonDimensions.ToggleWidth), JellyVariant.SECONDARY, enabled = !busy)
                         JellyButton(if (state.accept.inProgress) "연결을 확인하고 있어요" else "수락하고 연결", onAccept,
-                            Modifier.weight(2f).heightIn(min = ChayeonDimensions.ToggleWidth), enabled = !busy)
+                            Modifier.weight(2f).heightIn(min = ChayeonDimensions.ToggleWidth), enabled = !busy && !state.homeSuppressed)
                     }
                 } else MeetTwoColumns(
                     first = { JellyButton(if (state.cancel.inProgress) "취소하고 있어요" else "요청 취소", onCancel, Modifier.fillMaxWidth(), JellyVariant.DANGER, enabled = !state.cancel.inProgress) },

@@ -7,6 +7,7 @@ import dev.chayeon.core.model.ProfileRepository
 import dev.chayeon.core.model.ServerTimeProvider
 
 interface MeetDeps {
+    val homeZoneRepository: dev.chayeon.core.model.HomeZoneRepository
     val discoveryRepository: DiscoveryRepository
     val connectionRepository: ConnectionRepository
     val profileRepository: ProfileRepository

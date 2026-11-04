@@ -18,6 +18,8 @@ class SocialGraph(
     rules: SignatureRules,
     localCleanup: suspend () -> AppResult<Unit>,
     drivingStateProvider: DrivingStateProvider? = null,
+    prepareSession: suspend (Session, suspend (SetSyntheticPresenceRequest, suspend () -> Boolean) -> AppResult<CommandReceipt>) -> Unit = { _, _ -> },
+    canStartConnection: suspend () -> Boolean = { true },
 ) : AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val backends = buildMap<SessionMode, SocialBackend> {
@@ -32,12 +34,12 @@ class SocialGraph(
         val dormantSessionCleanup = localResult { PrivateSessionStorage(context.applicationContext, "remote-session.json").clear() }
         val deviceCleanup = localCleanup()
         if (dormantSessionCleanup is AppResult.Failure) dormantSessionCleanup else deviceCleanup
-    }, SystemClock::elapsedRealtime, drivingStateProvider, PrivateCleanupStorage(context.applicationContext))
+    }, SystemClock::elapsedRealtime, drivingStateProvider, PrivateCleanupStorage(context.applicationContext), prepareSession)
 
     val sessionRepository: SessionRepository = SocialSessionRepository(coordinator, backends.keys)
     val profileRepository: ProfileRepository = SocialProfileRepository(coordinator)
     val discoveryRepository: DiscoveryRepository = SocialDiscoveryRepository(coordinator)
-    val connectionRepository: ConnectionRepository = SocialConnectionRepository(coordinator)
+    val connectionRepository: ConnectionRepository = SocialConnectionRepository(coordinator, canStartConnection)
     val encounterRepository: EncounterRepository = SocialEncounterRepository(coordinator)
     val afterRepository: AfterRepository = SocialAfterRepository(coordinator)
     val safetyRepository: SafetyRepository = SocialSafetyRepository(coordinator)
