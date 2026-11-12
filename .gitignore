@@ -5,6 +5,11 @@
 **/build/
 .idea/
 *.iml
+.vscode/
+**/bin/
+.classpath
+.project
+.settings/
 local.properties
 *.jks
 *.keystore
