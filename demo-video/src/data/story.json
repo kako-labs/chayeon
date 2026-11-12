@@ -1,0 +1,431 @@
+{
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "frames": 12494,
+  "received": 21321,
+  "marks": {
+    "parking": 2.023,
+    "signature-wait": 7.8994,
+    "signature-cut-start": 12.9087,
+    "signature-ready": 40.7919,
+    "discovery": 55.7097,
+    "peer-profile": 65.6255,
+    "greeting": 73.6263,
+    "road": 92.698,
+    "road-zero": 108.7014,
+    "road-park": 116.7181,
+    "panel-cut-start": 125.7016,
+    "distance": 131.2258,
+    "encounter": 148.8854,
+    "after": 152.8866,
+    "home-drive": 178.7756,
+    "drive-cut-start": 183.8073,
+    "drive-cut-end": 384.7927,
+    "recap": 389.0052,
+    "home": 395.0066,
+    "resting": 411.2906,
+    "end": 416.2921
+  },
+  "taps": [
+    {
+      "sec": 5.0269,
+      "x": 2087,
+      "y": 758,
+      "text": "시그니처 만들러 가기"
+    },
+    {
+      "sec": 7.4616,
+      "x": 1694,
+      "y": 649,
+      "text": "다음 움직임을 알려 주는 사람"
+    },
+    {
+      "sec": 48.8132,
+      "x": 1365,
+      "y": 1192,
+      "text": "상대에게 어떻게 보일지 고르기"
+    },
+    {
+      "sec": 51.255,
+      "x": 1286,
+      "y": 354,
+      "text": "시그니처 공개"
+    },
+    {
+      "sec": 57.7473,
+      "x": 1066,
+      "y": 1221,
+      "text": "오늘의 인연"
+    },
+    {
+      "sec": 63.6165,
+      "x": 1150,
+      "y": 636,
+      "text": "별보는밤 프로필 보기"
+    },
+    {
+      "sec": 75.7737,
+      "x": 2022,
+      "y": 1116,
+      "text": "연결 요청 보내기"
+    },
+    {
+      "sec": 87.2077,
+      "x": 1913,
+      "y": 901,
+      "text": "안녕하세요"
+    },
+    {
+      "sec": 127.7581,
+      "x": 2465,
+      "y": 148,
+      "text": "시연 제어"
+    },
+    {
+      "sec": 130.239,
+      "x": 2102,
+      "y": 548,
+      "text": "서로 멀어져요"
+    },
+    {
+      "sec": 146.4461,
+      "x": 1968,
+      "y": 1226,
+      "text": "기록 보기"
+    },
+    {
+      "sec": 154.8973,
+      "x": 2105,
+      "y": 1104,
+      "text": "애프터 신청"
+    },
+    {
+      "sec": 157.3314,
+      "x": 1901,
+      "y": 1240,
+      "text": "애프터 신청 보내기"
+    },
+    {
+      "sec": 166.4646,
+      "x": 1901,
+      "y": 1240,
+      "text": "이어진 인연 보기"
+    },
+    {
+      "sec": 170.9339,
+      "x": 1015,
+      "y": 535,
+      "text": "안녕하세요"
+    },
+    {
+      "sec": 397.0122,
+      "x": 923,
+      "y": 240,
+      "text": "뒤로"
+    },
+    {
+      "sec": 399.4787,
+      "x": 2321,
+      "y": 1221,
+      "text": "내 프로필"
+    },
+    {
+      "sec": 401.9226,
+      "x": 2102,
+      "y": 747,
+      "text": "집 보호 구역"
+    },
+    {
+      "sec": 404.422,
+      "x": 2102,
+      "y": 923,
+      "text": "집 보호 시작하기"
+    },
+    {
+      "sec": 408.8588,
+      "x": 1066,
+      "y": 1221,
+      "text": "오늘의 인연"
+    }
+  ],
+  "console": [
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 0,
+      "accelerator": 0,
+      "brake": 0,
+      "steering": 0,
+      "sec": -1.8682
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Park",
+      "sec": -1.865
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 0,
+      "accelerator": 0,
+      "brake": 0,
+      "steering": 0,
+      "sec": 93.7032
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Drive",
+      "sec": 93.7089
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 10,
+      "accelerator": 15,
+      "brake": 0,
+      "steering": 0,
+      "sec": 94.7134
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Drive",
+      "sec": 94.7182
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 20,
+      "accelerator": 15,
+      "brake": 0,
+      "steering": 0,
+      "sec": 95.7278
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Drive",
+      "sec": 95.7313
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 30,
+      "accelerator": 15,
+      "brake": 0,
+      "steering": 0,
+      "sec": 96.7427
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Drive",
+      "sec": 96.7461
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 40,
+      "accelerator": 15,
+      "brake": 0,
+      "steering": 0,
+      "sec": 97.7537
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Drive",
+      "sec": 97.7575
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 0,
+      "accelerator": 0,
+      "brake": 0,
+      "steering": 0,
+      "sec": 108.7022
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Drive",
+      "sec": 108.7068
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 0,
+      "accelerator": 0,
+      "brake": 0,
+      "steering": 0,
+      "sec": 116.7193
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Park",
+      "sec": 116.7242
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 0,
+      "accelerator": 0,
+      "brake": 0,
+      "steering": 0,
+      "sec": 178.7769
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Drive",
+      "sec": 178.7834
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 40,
+      "accelerator": 15,
+      "brake": 0,
+      "steering": 0,
+      "sec": 179.7908
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Drive",
+      "sec": 179.7946
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 0,
+      "accelerator": 0,
+      "brake": 0,
+      "steering": 0,
+      "sec": 384.7955
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Drive",
+      "sec": 384.7989
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 0,
+      "accelerator": 0,
+      "brake": 0,
+      "steering": 0,
+      "sec": 385.8115
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Park",
+      "sec": 385.8147
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 0,
+      "accelerator": 0,
+      "brake": 0,
+      "steering": 0,
+      "sec": 416.5494
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Park",
+      "sec": 416.5535
+    }
+  ],
+  "clocks": [
+    {
+      "t": 1794501738615.676,
+      "kind": "clock",
+      "emulatorMinusHostMs": -3128.70654296875,
+      "samples": [
+        {
+          "offsetMs": -3128.70654296875,
+          "roundTripMs": 21.445068359375
+        },
+        {
+          "offsetMs": -3128.31640625,
+          "roundTripMs": 21.764892578125
+        },
+        {
+          "offsetMs": -3128.7138671875,
+          "roundTripMs": 21.017822265625
+        },
+        {
+          "offsetMs": -3126.62353515625,
+          "roundTripMs": 24.787109375
+        },
+        {
+          "offsetMs": -3128.81640625,
+          "roundTripMs": 21.591064453125
+        },
+        {
+          "offsetMs": -3129.17138671875,
+          "roundTripMs": 21.109130859375
+        },
+        {
+          "offsetMs": -3127.69287109375,
+          "roundTripMs": 21.924072265625
+        }
+      ]
+    },
+    {
+      "t": 1794502155381.656,
+      "kind": "clock",
+      "emulatorMinusHostMs": -3130.72265625,
+      "samples": [
+        {
+          "offsetMs": -3130.44970703125,
+          "roundTripMs": 28.906982421875
+        },
+        {
+          "offsetMs": -3128.3740234375,
+          "roundTripMs": 28.921875
+        },
+        {
+          "offsetMs": -3129.135498046875,
+          "roundTripMs": 26.5927734375
+        },
+        {
+          "offsetMs": -3131.886474609375,
+          "roundTripMs": 24.89892578125
+        },
+        {
+          "offsetMs": -3130.72265625,
+          "roundTripMs": 22.762939453125
+        },
+        {
+          "offsetMs": -3131.98095703125,
+          "roundTripMs": 21.744140625
+        },
+        {
+          "offsetMs": -3131.7431640625,
+          "roundTripMs": 21.765869140625
+        }
+      ]
+    }
+  ],
+  "release": [
+    {
+      "t": 1794501738461.399,
+      "kind": "release",
+      "sha256": "51101238ff3cda094817842fd05f1a3eaf376e1636815712f77cdd778fa5a879",
+      "installedApkMatches": true,
+      "serial": "emulator-5570",
+      "user": 10
+    }
+  ]
+}

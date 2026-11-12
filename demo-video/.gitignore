@@ -1,0 +1,5 @@
+node_modules/
+public/rec/
+out/
+__pycache__/
+.venv/
