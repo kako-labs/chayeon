@@ -56,7 +56,8 @@ class DemoConsoleViewModel(private val graph: AppGraph) : ViewModel() {
             confirmPresenceForUi(graph.homeZoneCoordinator) is AppResult.Success
     }
     fun homePosition(inside: Boolean) = command {
-        graph.currentPolicy() == DrivingPolicy.ALLOWED && graph.syntheticHomePosition(inside) is AppResult.Success
+        if (graph.currentPolicy() != DrivingPolicy.ALLOWED || graph.syntheticHomePosition(inside) !is AppResult.Success) return@command false
+        inside || graph.homeZoneCoordinator.setDesiredPresence(SyntheticPresence.NEARBY, graph.currentPolicy) is AppResult.Success
     }
     fun replay(scenario: DriveScenario) = command { runReplay(scenario) }
     private suspend fun runReplay(scenario: DriveScenario): Boolean {
@@ -114,7 +115,7 @@ fun DemoConsoleScreen(state: DemoUiState, chrome: ScreenChrome, realVehicle: Boo
     syntheticHomeSet: Boolean = false, onHomePosition: (Boolean) -> Unit = {}) {
     val allowed = state.driving.policy == DrivingPolicy.ALLOWED
     BackHandler { if (allowed && !state.busy) onBack() }
-    ScreenScaffold(topBar = {
+    ScreenScaffold(showSourceLabels = chrome.showSourceLabels, topBar = {
         chrome.topBar()
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
             BackButton(onBack, enabled = allowed && !state.busy)
@@ -133,7 +134,7 @@ fun DemoConsoleScreen(state: DemoUiState, chrome: ScreenChrome, realVehicle: Boo
                 JellyButton("돌아가기", onBack)
             } else {
                 GlassCard(Modifier.fillMaxWidth()) {
-                    SectionTitle("합성 주행", subtitle = "주행을 더하거나 제공되지 않는 특성을 살펴봐요")
+                    SectionTitle(if (LocalSourceLabels.current) "합성 주행" else "주행 추가", subtitle = "주행을 더하거나 제공되지 않는 특성을 살펴봐요")
                     JellyButton("시그니처 만들기", onCreate, Modifier.fillMaxWidth(), enabled = !state.busy)
                     state.message?.let { ChayeonText(it, style = ChayeonType.Secondary) }
                 }
@@ -155,7 +156,7 @@ fun DemoConsoleScreen(state: DemoUiState, chrome: ScreenChrome, realVehicle: Boo
         DemoColumn {
             GlassCard(Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-                    SectionTitle("합성 위치", subtitle = "가상 상대와의 이탈·복귀를 살펴봐요")
+                    SectionTitle(if (LocalSourceLabels.current) "합성 위치" else "만남 상태", subtitle = "멀어졌다 다시 만나는 상황을 살펴봐요")
                     SyntheticPresence.entries.forEach { presence ->
                         JellyButton(when (presence) {
                             SyntheticPresence.NEARBY -> "가까이 있어요"
@@ -165,7 +166,7 @@ fun DemoConsoleScreen(state: DemoUiState, chrome: ScreenChrome, realVehicle: Boo
                         }, { onPresence(presence) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = !state.busy)
                     }
                     if (syntheticHomeSet) {
-                        SectionTitle("집 보호 구역 · 합성 위치")
+                        SectionTitle(if (LocalSourceLabels.current) "집 보호 구역 · 합성 위치" else "집 보호 구역")
                         JellyButton("집 근처로 오기", { onHomePosition(true) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = !state.busy)
                         JellyButton("집에서 멀어지기", { onHomePosition(false) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = !state.busy)
                     }
@@ -174,7 +175,7 @@ fun DemoConsoleScreen(state: DemoUiState, chrome: ScreenChrome, realVehicle: Boo
             if (!realVehicle) GlassCard(Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
                     SectionTitle("기어 제어")
-                    ChayeonText("가상 차량에서만 기어를 바꿀 수 있어요. 주행 중에는 시연 조작도 잠겨요.", style = ChayeonType.Secondary)
+                    ChayeonText(if (LocalSourceLabels.current) "가상 차량에서만 기어를 바꿀 수 있어요. 주행 중에는 시연 조작도 잠겨요." else "주행 중에는 조작이 잠겨요. 주차하면 다시 이어갈 수 있어요.", style = ChayeonType.Secondary)
                     if (!realVehicle) Gear.entries.filter { it != Gear.UNKNOWN }.chunked(2).forEach { row ->
                         Row(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
                             row.forEach { gear ->

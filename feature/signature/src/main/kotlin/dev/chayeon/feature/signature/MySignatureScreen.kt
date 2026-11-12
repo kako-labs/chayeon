@@ -99,7 +99,7 @@ fun MySignatureScreen(
 @Composable
 private fun TraitSummary(trait: TraitId, evidence: TraitEvidence?, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val status = when {
-        evidence?.availability == TraitAvailability.UNSUPPORTED -> evidence.unsupportedLabel
+        evidence?.availability == TraitAvailability.UNSUPPORTED -> evidence.unsupportedLabel(LocalSourceLabels.current)
         evidence == null || evidence.level == TraitLevel.RECORDING -> "기록 중"
         else -> evidence.level.label
     }

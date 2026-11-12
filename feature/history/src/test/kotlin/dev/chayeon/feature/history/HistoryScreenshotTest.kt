@@ -23,12 +23,25 @@ class HistoryScreenshotTest {
     @get:Rule val compose = createComposeRule()
     private val store = ViewModelStore()
     @After fun close() { store.clear() }
-    private fun capture(screen: HistoryScreen, scenario: ScreenScenario, override: HistoryUiState? = null, suffix: String? = null) {
+    private fun capture(screen: HistoryScreen, scenario: ScreenScenario, override: HistoryUiState? = null, suffix: String? = null, showSourceLabels: Boolean = false) {
         val state = override ?: screenState(screen, scenario)
         compose.setContent {
-            ChayeonTheme(state.driving.policy, animatorScaleOverride = 0f) { RenderHistoryScreen(screen, state) }
+            ChayeonTheme(state.driving.policy, animatorScaleOverride = 0f) { RenderHistoryScreen(screen, state, showSourceLabels = showSourceLabels) }
         }
         compose.onNodeWithTag("screen").captureRoboImage("src/test/screenshots/${screen.name.lowercase()}_${suffix ?: scenario.name.lowercase()}.png")
+    }
+    @Test fun serverEncounterLabels() = capture(HistoryScreen.ENCOUNTER_DETAIL, ScreenScenario.POPULATED, suffix = "server", showSourceLabels = true)
+    @Test fun serverHistoryLabels() = capture(HistoryScreen.ENCOUNTERS, ScreenScenario.POPULATED, suffix = "server", showSourceLabels = true)
+    @Test fun serverAfterLabels() = capture(HistoryScreen.AFTER_CONNECTED, ScreenScenario.POPULATED, suffix = "server", showSourceLabels = true)
+    @Test fun encounter_tour_shared_care() {
+        val engine = dev.chayeon.core.signature.DefaultSignatureEngine()
+        val mine = HistoryFixtures.mine.copy(signature = HistoryFixtures.signature.copy(traits = listOf(
+            PublicTrait(TraitId.GENTLE_RIDE, TraitLevel.STEADY), PublicTrait(TraitId.CABIN_CARE, TraitLevel.STEADY))))
+        val peer = HistoryFixtures.peer.copy(nickname = "별보는밤", avatar = AvatarId.STAR, signature = HistoryFixtures.signature.copy(
+            title = "밤길을 좋아하는 드라이버", traits = listOf(PublicTrait(TraitId.NIGHT_DRIVE, TraitLevel.SIGNATURE), PublicTrait(TraitId.CABIN_CARE, TraitLevel.STEADY))))
+        val encounter = HistoryFixtures.encounter.copy(peer = peer, chemistry = engine.chemistry(mine.signature!!, peer.signature!!))
+        capture(HistoryScreen.ENCOUNTER_DETAIL, ScreenScenario.POPULATED, HistoryFixtures.state.copy(
+            profile = LoadState.Ready(HistoryFixtures.profile.copy(publicProfile = mine), 1), encounter = LoadState.Ready(encounter, 1)), "tour_shared_care")
     }
     @Test fun first_run_populated() = capture(HistoryScreen.FIRST_RUN, ScreenScenario.POPULATED)
     @Test fun first_run_loading() = capture(HistoryScreen.FIRST_RUN, ScreenScenario.LOADING)
@@ -172,7 +185,7 @@ class HistoryScreenshotTest {
         store.put("confirmation", model)
         compose.setContent {
             val state by model.uiState.collectAsState()
-            ChayeonTheme(state.driving.policy, 0f) { RenderHistoryScreen(screen, state) }
+            ChayeonTheme(state.driving.policy, 0f) { RenderHistoryScreen(screen, state, showSourceLabels = false) }
         }
         compose.runOnIdle {
             when (model) {

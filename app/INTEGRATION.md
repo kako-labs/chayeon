@@ -4,7 +4,7 @@
 
 `ChayeonApplication`이 `VehicleGraph`, `SocialGraph`, `SignaturePublisher`, `AppEvents`를 생성해요. `MainActivity`는 권한과 전경 상태를 전달하고, `ChayeonApp`은 등록 상태·주행 정책·발견 상태를 수집해 화면을 연결해요. 운영 그래프에 Empty 저장소는 없어요. 기존 Empty 구현은 테스트 대역으로만 참조하며 R8 릴리스에서 제거돼요.
 
-`SignatureRules`는 앱과 기존 서버 모두 `DefaultSignatureEngine`을 사용해요. 게시 재시도는 같은 명령을 유지하고 계정 종료와 잠금을 공유해요. 로컬 계정 연결 전에는 빈 시그니처를 게시하지 않아요. 기록 게이트는 현재 세션과 차량 데이터 동의로 열고, 로그아웃·삭제 때 먼저 닫아요.
+`SignatureRules`는 앱과 기존 서버 모두 `DefaultSignatureEngine`을 사용해요. 게시 재시도는 같은 명령을 유지하고 계정 종료와 잠금을 공유해요. 로컬 계정 연결 전에는 빈 시그니처를 게시하지 않아요. 기록·위치 게이트는 현재 세션에서 확인한 동의로 열어요. 같은 세션의 불러오기·통신 오류 중에는 마지막 동의를 유지하고, 새 동의 응답에 철회를 반영해요. 세션 종료·계정 전환에는 값을 지우며 로그아웃·삭제 때 두 게이트를 먼저 닫아요.
 
 추가 연결 작업은 없어요. 외부 호스트에서 그래프를 직접 구성한다면 아래 연결이 필요해요.
 
@@ -43,44 +43,17 @@
 
 ## 검증
 
-모듈 `clean` 이후 `python3 scripts/dev.py verify`가 성공했어요. 재시작과 권한 거부·복원 회귀 테스트를 추가한 뒤에도 전체 검증이 성공했으며 테스트 623개, 실패 0개예요. 구조 검사, Kotlin 컴파일, strict lint, Roborazzi 검증과 debug 빌드를 포함해요. 앱 테스트 10개는 등록 상태 라우팅, 실시간 chrome, 시연 상태, 주차 후 요약, 게시 재시도·종료·계정 준비, 알림과 종료된 관계의 배너 정리를 다뤄요.
+실행한 검증 명령, 테스트 수와 스크린샷 기준 이미지 수는 [README의 검증 표](../README.md#검증)를 기준으로 확인해요. `verify`는 구조 검사, Kotlin 컴파일, 단위·서버 테스트, lint, Roborazzi 비교와 debug 빌드를 포함해요.
 
-초기 실패는 낡은 시그니처 테스트 기대값, 테스트 스케줄러 진행 누락, E2E의 없는 화면 문구 및 `run-as` 인자 순서였어요. 각각 수정하고 관련 검증을 다시 실행했어요.
+`scripts/e2e.py`는 가상 상대의 애프터 수락과 내 메시지 전송뿐 아니라 `별보는밤`의 자동 답장도 기다리고 확인해요. 답장은 `core/engine/Transitions.kt`의 예약 이벤트에서 처리해요. 기기에서 다시 실행한 결과는 README 검증 기록과 구분해 확인해야 해요.
 
-릴리스 APK는 7,367,872 bytes예요. 실제 DEX 클래스 정의 6,040개를 검사했으며 테스트·probe 클래스는 없었어요. APK v2 서명 검증, debuggable 비활성화, 특별한 주행 상태 권한 제거와 cleartext 차단도 통과했어요. 결과는 `build/release-audit.json`에 있어요.
-
-최종 릴리스 APK를 정상 설치한 E2E도 종료 코드 0으로 끝났어요. Android 14(API 34), 사용자 10에서 권한 허용부터 210초 플랫폼 주행, 재시작, 로그아웃까지 실행했어요. 실행 시작 때 저장한 APK SHA-256이 전달할 APK와 일치해요. 애프터 가상 상대의 자동 답장은 아래 제한대로 단언에서 제외돼 있어요.
-
-| 실행 명령 | 결과 |
-| --- | --- |
-| `python3 scripts/dev.py verify` | 모듈 clean 후 623개 테스트, lint, Roborazzi, 구조 검사와 빌드 통과 |
-| `python3 scripts/dev.py e2e --server` | 실제 HTTP 두 계정 경로와 내용 없는 메시지 알림 통과 |
-| `python3 scripts/dev.py release` | R8 설치용 APK 생성과 서명·클래스 검사 통과 |
-| `python3 scripts/dev.py e2e --with-real-drive --skip-build --apk apk/chayeon-release.apk` | 구현된 모든 UI 단언 통과, 애프터 상대 답장은 제외 |
-| `python3 scripts/audit_apk.py` | 실제 APK 재검사 통과 |
-| `python3 -m py_compile scripts/dev.py scripts/e2e.py scripts/server_e2e.py scripts/audit_apk.py` | 통과 |
-| `git diff --check` | 통과 |
-
-clean 검증에 실행한 정확한 묶음은 다음과 같아요.
-
-```sh
-python3 - <<'PY'
-import subprocess
-from scripts import dev
-result=dev.gradle(['clean'])
-if result == 0:
-    result=subprocess.call(['python3','scripts/dev.py','verify'])
-raise SystemExit(result)
-PY
-```
-
-`build/e2e/verification-summary.json`은 테스트 개수와 APK 일치를 기록해요. `verification.log`, `release/build.log`, `release/run.log`, `server/run.log`에 실제 명령 출력을 보관했어요. 최종 릴리스 화면은 `build/e2e/release/`, HTTP 화면은 `build/e2e/server/`에 있어요. 차량 클라이언트 연결 해제 증거는 debug 설치의 `build/e2e/14-car-disconnected.png`이며 릴리스에 그 검증 수신기를 넣지 않았어요.
+에뮬레이터 증거는 `build/e2e/`, 릴리스 화면은 `build/e2e/release/`, HTTP 화면은 `build/e2e/server/`에 저장돼요. 차량 클라이언트 연결 해제 검증 수신기는 debug 빌드에만 있어요.
 
 ## 범위 밖 변경
 
 공유 계약 `core/model`과 서버는 변경하지 않았어요. 새 외부 의존성도 없어요.
 
-- `data/social/.../SocialGraph.kt`: 주행 중에도 기록 동의와 내용 없는 알림 신호를 제공하는 두 서비스용 Flow를 추가했어요. 소유 경로 제한에 대한 승인을 요청한 상태예요.
+- `data/social/.../SocialGraph.kt`: 주행 중에도 기록 동의와 내용 없는 알림 신호를 제공하는 두 서비스용 Flow를 추가했어요.
 - `feature/history/.../OnboardingViewModels.kt`: 서버와 같은 방 코드 검증을 추가했어요. `HistoryViewModelTest.kt`에서 잘못된 문자·짧은 코드를 검사해요.
 - `feature/history/.../SafetyViewModels.kt`: 복구 비밀값, 상대의 닫힌 관계와 상대 메시지에 관한 정리 문구를 바로잡았어요. `feature/history/src/test/screenshots/`의 `cleanup_confirm_delete_account.png`, `cleanup_confirm_sign_out.png`, `cleanup_empty.png`, `cleanup_failure.png`, `cleanup_loading.png`, `cleanup_populated.png`를 갱신했어요.
 - `feature/meet/.../MeetViewModel.kt`, `MeetNavigationTest.kt`, `MeetViewModelTest.kt`: 수신 요청이 후보 탐색을 강제로 끊지 않게 하고 앱 배너로 열도록 했어요. 재시작 시 이미 끝난 연결이 홈을 다시 가로채지 않도록 고치고 회귀 테스트를 추가했어요.
@@ -88,6 +61,6 @@ PY
 
 ## 남은 제한
 
-가상 상대는 애프터를 수락하지만 애프터 답장을 보내는 엔진 이벤트가 없어요. 현재 E2E의 애프터 단계는 내 메시지 전송을 검증하며 상대 답장까지 검증했다고 주장하지 않아요. `core/engine/Transitions.kt`의 `Room.scheduled()`에 작은 이벤트를 추가하려면 소유 경로 제한에 대한 승인이 필요해요. 아직 수정하지 않았어요.
-
 실차 신호 품질, 실제 차량 서비스 프로세스의 강제 종료·복구, 장시간 백그라운드 유지, App Market 승인은 검증하지 않았어요. 기록 프로세스가 종료되면 메모리의 미완료 주행은 복원하지 않아요.
+
+SOLO 화면의 출처 문구는 첫 모드 선택과 내 시그니처의 특성 상세 한 줄로 모았어요. 위 기기 기록의 `합성 주행`·`차량 주행` 캡션은 당시 화면 문구예요. 현재 동선과 문구는 README `3분 둘러보기`를 따라요.

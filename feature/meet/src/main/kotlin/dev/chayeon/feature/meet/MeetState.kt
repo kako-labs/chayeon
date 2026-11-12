@@ -13,6 +13,7 @@ data class HomeUiState(
     val toggle: MeetCommandState = MeetCommandState(),
     val refresh: MeetCommandState = MeetCommandState(),
     val homeZone: HomeZoneState = HomeZoneState(),
+    val demoPresence: SyntheticPresence? = null,
 )
 
 data class CandidateUiState(

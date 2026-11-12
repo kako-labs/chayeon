@@ -19,6 +19,26 @@ class MeetViewModelTest {
     private fun <T : ViewModel> ViewModelStore.keep(model: T): T = model.also { put(model.javaClass.name, it) }
     private fun TestScope.observe(flow: StateFlow<*>) = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { flow.collect() }
 
+    @Test fun `driving retains only the own public profile already seen while parked`() = scenario { deps, store ->
+        deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3)
+        val model = store.keep(ConnectedViewModel(deps)); observe(model.uiState); runCurrent()
+        for (policy in listOf(DrivingPolicy.RESTRICTED, DrivingPolicy.UNKNOWN)) {
+            deps.profile.value = LoadState.Failed(AppError.Restricted)
+            runCurrent()
+            deps.drivingState.value = DrivingState(policy = policy)
+            runCurrent()
+            assertEquals(MeetFixtures.own, model.uiState.value.ownProfile)
+            assertEquals(MeetFixtures.connection, model.uiState.value.connection)
+            assertTrue(model.uiState.value.greetings.isEmpty())
+            model.sendGreeting(PresetCode.HELLO); runCurrent()
+            assertTrue(deps.greetingCommands.isEmpty())
+        }
+        deps.drivingState.value = MeetFixtures.parked
+        deps.profile.value = LoadState.Ready(MyProfile("self", 2, MeetFixtures.own.copy(nickname = "새이름"), RegistrationState.READY), 2)
+        runCurrent()
+        assertEquals("새이름", model.uiState.value.ownProfile?.nickname)
+    }
+
     @Test fun definitiveAcceptRejectionGetsANewKeyAndNetworkRetryNeverCarriesAStaleVersion() = scenario { deps, store ->
         deps.requests.value = LoadState.Ready(listOf(MeetFixtures.request), 2)
         val model = store.keep(RequestViewModel(deps)); observe(model.uiState); runCurrent()

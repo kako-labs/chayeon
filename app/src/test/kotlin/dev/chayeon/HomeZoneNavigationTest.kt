@@ -36,10 +36,10 @@ class HomeZoneNavigationTest {
     private fun console(name: String) {
         compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
             DemoConsoleScreen(DemoUiState(DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK)),
-                previewChrome(resting = true), true, true, {}, {}, {}, {}, {}, syntheticHomeSet = true)
+                previewChrome(resting = true, showSourceLabels = false), true, true, {}, {}, {}, {}, {}, syntheticHomeSet = true)
         } }
         compose.onNodeWithText("집에서 멀어지기").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("집 보호 구역 · 합성 위치").assertIsDisplayed()
+        compose.onNodeWithText("집 보호 구역").assertIsDisplayed()
         compose.onRoot().captureRoboImage("src/test/screenshots/$name.png")
     }
 
@@ -61,7 +61,7 @@ class HomeZoneNavigationTest {
             compose.onNodeWithText("쉬는 중").assertIsDisplayed()
             compose.onNodeWithText("집 근처에서는 쉬고 있어요").assertDoesNotExist()
             compose.onNodeWithText("집 보호 구역").assertDoesNotExist()
-            compose.onNodeWithText("시연 제어").assertDoesNotExist()
+            compose.onNodeWithContentDescription("시연 제어").assertDoesNotExist()
             compose.onRoot().captureRoboImage("src/test/screenshots/home-zone-${policy.name.lowercase()}.png")
         }
     }

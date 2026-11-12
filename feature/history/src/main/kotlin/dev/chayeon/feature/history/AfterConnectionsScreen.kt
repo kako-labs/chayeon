@@ -33,7 +33,7 @@ fun AfterConnectionsScreen(state: HistoryUiState, chrome: ScreenChrome, onSelect
             ContentColumn {
                 Loaded(state.requests, "기다리는 신청이 없어요") { requests ->
                     requests.filter { it.direction == RequestDirection.INCOMING && it.status == AfterRequestStatus.PENDING }.forEach {
-                        SettingsRow(ChayeonIcon.KNOT, "${it.peer.nickname} 님의 애프터", it.peer.kind.label, { onIncoming(it.encounterId) })
+                        SettingsRow(ChayeonIcon.KNOT, "${it.peer.nickname} 님의 애프터", if (LocalSourceLabels.current) it.peer.kind.label else "다시 인사를 건넸어요", { onIncoming(it.encounterId) })
                     }
                 }
                 Loaded(state.relationships, "아직 이어진 인연이 없어요") { relationships ->
@@ -50,7 +50,7 @@ fun AfterConnectionsScreen(state: HistoryUiState, chrome: ScreenChrome, onSelect
                                     ChayeonText(if (selected && connection.status == AfterConnectionStatus.CONNECTED) "대화 중인 인연"
                                         else if (connection.status == AfterConnectionStatus.CONNECTED) "서로 이어졌어요" else "관계가 끝났어요",
                                         style = ChayeonType.Secondary, color = ChayeonColors.Pink)
-                                    ChayeonText(connection.peer.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+                                    if (LocalSourceLabels.current) ChayeonText(connection.peer.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
                                 }
                                 if (!selected) ChayeonIcon(ChayeonIcon.FORWARD, Modifier.size(ChayeonDimensions.UtilityIcon))
                             }
@@ -81,9 +81,10 @@ fun AfterConnectionsScreen(state: HistoryUiState, chrome: ScreenChrome, onSelect
                 HeroPanel(contentPadding = PaddingValues(horizontal = ChayeonSpacing.Large, vertical = ChayeonSpacing.Medium)) {
                     Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
                         GradientText(if (relationship.status == AfterConnectionStatus.CONNECTED) "${relationship.peer.nickname} 님과 이어졌어요" else "관계를 마쳤어요", style = ChayeonType.Title)
-                        ChayeonText(listOfNotNull(relationship.peer.kind.label, relationship.peer.signature?.let {
-                            "${it.title} · ${it.source.label}"
-                        }).joinToString(" · "), style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
+                        val introduction = listOfNotNull(relationship.peer.kind.label.takeIf { LocalSourceLabels.current }, relationship.peer.signature?.let {
+                            if (LocalSourceLabels.current) "${it.title} · ${it.source.label}" else it.title
+                        }).joinToString(" · ")
+                        if (introduction.isNotEmpty()) ChayeonText(introduction, style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
                             state.myProfile?.publicProfile?.let { AvatarDish(MochiAvatar.from(it.avatar), Modifier.size(ChayeonSpacing.Touch)) }
                             key(relationship.id, relationship.status) {

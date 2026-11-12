@@ -88,9 +88,12 @@ internal val TraitEvidence.unsupportedLabel: String get() = if (source == DataSo
 internal val TraitEvidence.isPublishable: Boolean get() = availability == TraitAvailability.AVAILABLE &&
     level != TraitLevel.RECORDING && validTripCount >= 3
 
-internal fun TraitEvidence.levelExplanation(): String {
+internal fun TraitEvidence.unsupportedLabel(showSourceLabels: Boolean): String =
+    if (!showSourceLabels && source == DataSource.SYNTHETIC) "이번 주행에는 없는 특성이에요" else unsupportedLabel
+
+internal fun TraitEvidence.levelExplanation(showSourceLabels: Boolean = true): String {
     if (availability == TraitAvailability.UNSUPPORTED) {
-        return "$unsupportedLabel. 이 특성은 계산하지 않고, 상대에게도 보이지 않아요."
+        return "${unsupportedLabel(showSourceLabels)}. 이 특성은 계산하지 않고, 상대에게도 보이지 않아요."
     }
     if (availability == TraitAvailability.INSUFFICIENT_EVIDENCE || level == TraitLevel.RECORDING) {
         return if (validTripCount < 3) {

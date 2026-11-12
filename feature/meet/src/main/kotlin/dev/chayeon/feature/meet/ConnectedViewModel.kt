@@ -19,6 +19,7 @@ class ConnectedViewModel(private val deps: MeetDeps) : ViewModel() {
 
     private var lastActiveConnectionId: String? = null
     private var revealedConnectionId: String? = null
+    private var revealedOwnProfile: PublicProfile? = null
     private val connections = deps.connectionRepository.connection.onEach { observation ->
         if (observation is LoadState.Ready) {
             lastActiveConnectionId = observation.value?.takeIf { it.status != ConnectionStatus.ENDED }?.id
@@ -64,6 +65,7 @@ class ConnectedViewModel(private val deps: MeetDeps) : ViewModel() {
     }
     val uiState: StateFlow<ConnectedUiState> = combine(content, deps.drivingStateProvider.drivingState, leave.state, deps.homeZoneRepository.state) { state, driving, leaving, home ->
         if (driving.policy == DrivingPolicy.ALLOWED) {
+            revealedOwnProfile = state.ownProfile ?: revealedOwnProfile.takeIf { state.connection?.id == revealedConnectionId }
             revealedConnectionId = state.connection?.id
             state.copy(driving = driving, leave = leaving)
         } else {
@@ -71,7 +73,7 @@ class ConnectedViewModel(private val deps: MeetDeps) : ViewModel() {
             val awaitingPark = home.suppressed || state.connection?.let { it.id != revealedConnectionId } == true
             state.copy(driving = driving, leave = leaving, awaitingPark = awaitingPark,
                 connection = state.connection.takeUnless { awaitingPark },
-                ownProfile = state.ownProfile.takeUnless { awaitingPark }, greetings = emptyList())
+                ownProfile = revealedOwnProfile.takeUnless { awaitingPark }, greetings = emptyList())
         }
     }.stateIn(viewModelScope, meetSharing, ConnectedUiState())
 

@@ -55,7 +55,8 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
 
     fun guarded(action: () -> Unit) { if (graph.currentPolicy() == DrivingPolicy.ALLOWED) action() }
     fun open(destination: String) { guarded { navController.navigate(destination) { launchSingleTop = true } } }
-    val chrome = ScreenChrome(topBar = {
+    val showSourceLabels = (session as? SessionState.Active)?.session?.mode == SessionMode.SERVER_DEMO
+    val chrome = ScreenChrome(showSourceLabels = showSourceLabels, topBar = {
         Column {
             BoxWithConstraints(Modifier.fillMaxWidth().height(ChayeonDimensions.Banner), contentAlignment = Alignment.Center) {
                 GearStrip(driving.gear, driving.policy, discovery.locationSource == LocationSource.SYNTHETIC,
@@ -105,7 +106,7 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
                 }
             }, resting = homeZone.suppressed)
     }, onViewing = { request, relationship -> events?.viewing(request, relationship) ?: {} })
-    ChayeonTheme(policy = driving.policy) {
+    ChayeonTheme(policy = driving.policy, showSourceLabels = showSourceLabels) {
         NavHost(navController, startDestination = HistoryDestination.FIRST_RUN) {
             historyGraph(graph.historyDeps, chrome, navController) { exit ->
                 when (exit) {
@@ -120,6 +121,7 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
                 when (exit) {
                     is MeetExit.OpenEncounter -> open(HistoryDestination.encounter(exit.encounterId))
                     is MeetExit.OpenSafety -> open(HistoryDestination.safety(exit.peerProfileId))
+                    MeetExit.OpenDemo -> if (graph.demoEnabled) open(DEMO_ROUTE)
                     MeetExit.CreateSignature -> open(if (graph.demoEnabled) CREATE_SIGNATURE_ROUTE else SignatureDestination.MY_SIGNATURE)
                     MeetExit.OpenMySignature -> open(SignatureDestination.MY_SIGNATURE)
                 }

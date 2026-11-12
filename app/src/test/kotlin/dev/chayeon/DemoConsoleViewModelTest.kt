@@ -21,6 +21,51 @@ class DemoConsoleViewModelTest {
     @Before fun setup() { Dispatchers.setMain(dispatcher) }
     @After fun teardown() { models.clear(); Dispatchers.resetMain() }
 
+    @Test fun leavingSyntheticHomeRestoresNearbyAfterTourSeparation() = runTest(dispatcher) {
+        val fixture = TestGraph().apply { ready() }
+        val sent = mutableListOf<SyntheticPresence>()
+        fixture.homeCoordinator.prepareSession(fixture.active) { request, _ ->
+            sent += request.presence
+            AppResult.Success(CommandReceipt(request.meta.commandId, 1))
+        }
+        fixture.homeCoordinator.setDesiredPresence(SyntheticPresence.AWAY, fixture.graph.currentPolicy)
+        fixture.homeZone.value = HomeZoneState(HomeZoneStatus.INSIDE, HomeZoneRadius.MEDIUM, LocationSource.SYNTHETIC)
+        fixture.graph.syntheticHomePosition = { inside ->
+            fixture.homeZone.value = fixture.homeZone.value.copy(status = if (inside) HomeZoneStatus.INSIDE else HomeZoneStatus.INSIDE)
+            AppResult.Success(Unit)
+        }
+        val model = DemoConsoleViewModel(fixture.graph).also { models.put("home", it) }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { model.uiState.collect {} }
+        runCurrent()
+        model.homePosition(false); runCurrent()
+        assertEquals(SyntheticPresence.NEARBY, fixture.homeCoordinator.desiredPresence.value)
+        assertEquals(SyntheticPresence.AWAY, sent.last())
+        fixture.homeZone.value = fixture.homeZone.value.copy(status = HomeZoneStatus.OUTSIDE)
+        runCurrent()
+        assertEquals(SyntheticPresence.NEARBY, sent.last())
+        model.homePosition(true); runCurrent()
+        assertEquals(SyntheticPresence.AWAY, sent.last())
+        assertEquals(SyntheticPresence.NEARBY, fixture.homeCoordinator.desiredPresence.value)
+        fixture.homeCoordinator.endSession()
+    }
+
+    @Test fun failedOrRestrictedHomeMoveNeverRestoresPresence() = runTest(dispatcher) {
+        val fixture = TestGraph().apply { ready() }
+        fixture.homeCoordinator.prepareSession(fixture.active) { request, _ -> AppResult.Success(CommandReceipt(request.meta.commandId, 1)) }
+        fixture.homeCoordinator.setDesiredPresence(SyntheticPresence.AWAY, fixture.graph.currentPolicy)
+        var moves = 0
+        fixture.graph.syntheticHomePosition = { moves++; AppResult.Failure(AppError.Restricted) }
+        val model = DemoConsoleViewModel(fixture.graph).also { models.put("home-failure", it) }
+        model.homePosition(false); runCurrent()
+        assertEquals(1, moves)
+        assertEquals(SyntheticPresence.AWAY, fixture.homeCoordinator.desiredPresence.value)
+        fixture.driving.value = DrivingState()
+        model.homePosition(false); runCurrent()
+        assertEquals(1, moves)
+        assertEquals(SyntheticPresence.AWAY, fixture.homeCoordinator.desiredPresence.value)
+        fixture.homeCoordinator.endSession()
+    }
+
     @Test fun eachChoiceFillsThreeDrivesReportsProgressAndLeavesOnlyLastUnseen() = runTest(dispatcher) {
         for (scenario in signatureScenarios) {
             val consoleState = MutableStateFlow(ConsoleState(available = true))

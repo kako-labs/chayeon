@@ -56,23 +56,23 @@ fun FirstRunScreen(state: HistoryUiState, chrome: ScreenChrome, onMode: (Session
                     verticalArrangement = OnboardingPanelArrangement) {
                     SectionTitle("어떻게 만나볼까요?")
                     if (SessionMode.SOLO in state.modes) GelRadioRow("혼자 둘러보기(가상 상대)", state.selectedMode == SessionMode.SOLO,
-                        { onMode(SessionMode.SOLO) }, description = "이 차 안에서 시연용 가상 상대를 만나요", enabled = !state.command("enter").running)
+                        { onMode(SessionMode.SOLO) }, description = "가상 상대와 편하게 만나봐요", enabled = !state.command("enter").running)
                     if (SessionMode.SERVER_DEMO in state.modes) {
                         GelRadioRow("두 대로 연결(서버)", state.selectedMode == SessionMode.SERVER_DEMO,
                             { onMode(SessionMode.SERVER_DEMO) }, description = "같은 방 코드로 서로 다른 계정을 골라요", enabled = !state.command("enter").running)
                         if (state.selectedMode == SessionMode.SERVER_DEMO) GelTextField(state.roomCode, onRoom, "방 코드", maxLength = 32, error = state.draftError, enabled = !state.command("enter").running)
                     }
-                    SectionTitle("시연 계정을 골라 주세요")
+                    SectionTitle("계정을 골라 주세요")
                     Loaded(state.personas, "준비된 계정이 없어요") { personas ->
                         personas.forEach { persona ->
                             Row(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
                                 AvatarDish(MochiAvatar.from(persona.avatar), Modifier.size(ChayeonDimensions.PeerSmall))
                                 GelRadioRow(persona.nickname, state.selectedPersona == persona.code, { onPersona(persona.code) }, Modifier.weight(1f),
-                                    description = "가상 프로필 · 계정 ${if (persona.code == PersonaCode.ACCOUNT_A) "A" else "B"}", enabled = !state.command("enter").running)
+                                    description = "계정 ${if (persona.code == PersonaCode.ACCOUNT_A) "A" else "B"}", enabled = !state.command("enter").running)
                             }
                         }
                     }
-                    ChayeonText("가상 프로필만 사용해요. 실제 가입과 연령 확인은 아직 제공하지 않아요.", style = ChayeonType.Secondary)
+                    if (state.selectedMode == SessionMode.SERVER_DEMO) ChayeonText("가상 프로필로 참여해요. 실제 가입과 연령 인증은 제공하지 않아요.", style = ChayeonType.Secondary)
                     if (state.session is SessionState.Failed) ChayeonText(state.session.error.copy(), style = ChayeonType.Secondary)
                     CommandFeedback(state.command("enter"), { onRetry("enter") })
                 }
@@ -150,7 +150,7 @@ fun ConsentScreen(state: HistoryUiState, chrome: ScreenChrome, onConsent: (Conse
                     ConsentScope.entries.forEach { scope ->
                         val record = settings.consents.firstOrNull { it.scope == scope }
                         val granted = record?.status == ConsentStatus.GRANTED && record.documentVersion == state.policy?.consentDocumentVersion
-                        val copy = consentCopy(scope)
+                        val copy = consentCopy(scope, LocalSourceLabels.current)
                         Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
                             GelCheckbox(copy.first, granted, { onConsent(scope, it) }, description = copy.second,
                                 enabled = !state.command("consent:$scope").running && state.policy != null)
@@ -170,10 +170,10 @@ fun ConsentScreen(state: HistoryUiState, chrome: ScreenChrome, onConsent: (Conse
         })
 }
 
-internal fun consentCopy(scope: ConsentScope): Pair<String, String> = when (scope) {
-    ConsentScope.ADULT_ATTESTATION -> "성인이고, 직접 참여해요" to "시연용 자기 확인이에요. 실제 연령 인증이 아니에요."
+internal fun consentCopy(scope: ConsentScope, showSourceLabels: Boolean = true): Pair<String, String> = when (scope) {
+    ConsentScope.ADULT_ATTESTATION -> "성인이고, 직접 참여해요" to if (showSourceLabels) "시연용 자기 확인이에요. 실제 연령 인증이 아니에요." else "성인임을 직접 확인하고 참여해요."
     ConsentScope.VEHICLE_DATA -> "차량 데이터 사용에 동의해요" to "내 주행 습관을 시그니처로 만들어요. 원시 값은 차 안에만 있어요."
-    ConsentScope.LOCATION_USE -> "위치 사용에 동의해요" to "발견과 집 보호 구역을 판단할 때 써요. 동의를 끄면 위치 읽기를 멈춰요. 합성 위치는 따로 표시해요."
+    ConsentScope.LOCATION_USE -> "위치 사용에 동의해요" to "발견과 집 보호 구역을 판단할 때 써요. 동의를 끄면 위치 읽기를 멈춰요."
     ConsentScope.PUBLIC_PROFILE -> "프로필 공개에 동의해요" to "발견을 켜면 닉네임, 가상 아바타, 공개 시그니처와 관심사가 보여요."
 }
 

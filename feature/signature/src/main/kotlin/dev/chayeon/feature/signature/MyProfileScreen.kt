@@ -43,7 +43,7 @@ fun MyProfileScreen(
                                             if (signature.value.isRecording && state.consoleAvailable) {
                                                 ChayeonText("주행 3번이 모이면 주차 후 나에게 먼저 보여 드려요. 공개는 내가 골라요.",
                                                     style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
-                                                JellyButton("합성 주행으로 먼저 만나보기", { onExit(SignatureExit.CreateSignature) }, Modifier.fillMaxWidth())
+                                                JellyButton(if (LocalSourceLabels.current) "합성 주행으로 먼저 만나보기" else "시그니처 만들기", { onExit(SignatureExit.CreateSignature) }, Modifier.fillMaxWidth())
                                             } else JellyButton("내 시그니처 보기", onSignature, Modifier.fillMaxWidth())
                                         }
                                     }
@@ -72,7 +72,7 @@ fun MyProfileScreen(
                     InfoRow(ChayeonIcon.LOCK, "차량 정보는 보이지 않아요",
                         body = "상대에게는 공개한 시그니처와 관심사만 보여요. 개인 주행 수치는 이 차 안에 남아요.")
                 }
-                ChayeonText("시연용 로그인과 연령 확인이에요. 실제 인증은 아직 제공하지 않아요.",
+                if (LocalSourceLabels.current) ChayeonText("시연용 로그인과 연령 확인이에요. 실제 인증은 아직 제공하지 않아요.",
                     style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
             }
         },

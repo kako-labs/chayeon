@@ -27,7 +27,7 @@ class FirstSignatureMomentTest {
     private fun show(scale: Float, visibility: () -> Unit = {}, signature: () -> Unit = {}) {
         compose.setContent {
             ChayeonTheme(DrivingPolicy.ALLOWED, scale) {
-                TripRecapScreen(TripRecapUiState(f.driving, f.ready(recap)), previewChrome(), {}, {}, signature, {}, visibility)
+                TripRecapScreen(TripRecapUiState(f.driving, f.ready(recap)), previewChrome(showSourceLabels = false), {}, {}, signature, {}, visibility)
             }
         }
     }
@@ -38,7 +38,7 @@ class FirstSignatureMomentTest {
         compose.mainClock.advanceTimeByFrame()
         compose.mainClock.advanceTimeBy(600)
         compose.onNodeWithText("이 주행이 매듭이 됐어요").assertDoesNotExist()
-        compose.onNodeWithText("합성 주행").assertIsDisplayed()
+        compose.onNodeWithText("합성 주행").assertDoesNotExist()
         compose.onNodeWithTag("signature-screen").captureRoboImage("src/test/screenshots/moment_reveal_600ms.png")
         compose.mainClock.advanceTimeBy(800)
         compose.onNodeWithText("이 주행이 매듭이 됐어요").assertIsDisplayed()
@@ -75,7 +75,7 @@ class FirstSignatureMomentTest {
     @Test fun firstRealDriveUsesTheSameMomentAndLabelsItsSource() {
         compose.setContent {
             ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
-                TripRecapScreen(TripRecapUiState(f.driving, f.ready(recap.copy(source = DataSource.VEHICLE))), previewChrome(), {}, {}, {}, {})
+                TripRecapScreen(TripRecapUiState(f.driving, f.ready(recap.copy(source = DataSource.VEHICLE))), previewChrome(showSourceLabels = true), {}, {}, {}, {})
             }
         }
         compose.onNodeWithText("차량 주행").assertIsDisplayed()
@@ -88,7 +88,7 @@ class FirstSignatureMomentTest {
         compose.mainClock.autoAdvance = false
         compose.setContent {
             ChayeonTheme(DrivingPolicy.ALLOWED, scale.value) {
-                TripRecapScreen(TripRecapUiState(f.driving, f.ready(recap)), previewChrome(), {}, {}, {}, {})
+                TripRecapScreen(TripRecapUiState(f.driving, f.ready(recap)), previewChrome(showSourceLabels = false), {}, {}, {}, {})
             }
         }
         compose.mainClock.advanceTimeBy(400)
@@ -147,7 +147,7 @@ class FirstSignatureMomentTest {
     @Test fun failedFirstMomentActionKeepsRetryAndExclusionReachable() {
         compose.setContent {
             ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
-                TripRecapScreen(TripRecapUiState(f.driving, f.ready(recap), error = AppError.Network), previewChrome(), {}, {}, {}, {})
+                TripRecapScreen(TripRecapUiState(f.driving, f.ready(recap), error = AppError.Network), previewChrome(showSourceLabels = false), {}, {}, {}, {})
             }
         }
         compose.onNodeWithText("다시 시도").assertIsDisplayed()

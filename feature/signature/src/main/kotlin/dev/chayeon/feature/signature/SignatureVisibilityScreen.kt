@@ -52,7 +52,7 @@ fun SignatureVisibilityScreen(
                                                 enabled = !state.savingVisibility && !state.publishing && evidence?.isPublishable == true)
                                             when {
                                                 evidence?.availability == TraitAvailability.UNSUPPORTED ->
-                                                    ChayeonText(evidence.unsupportedLabel, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+                                                    ChayeonText(evidence.unsupportedLabel(LocalSourceLabels.current), style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
                                                 evidence == null || evidence.level == TraitLevel.RECORDING ->
                                                     ChayeonText("기록 중이에요. 근거가 모이기 전에는 공개하지 않아요.", style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
                                             }

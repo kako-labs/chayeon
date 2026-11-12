@@ -15,9 +15,11 @@ class HomeViewModel(private val deps: MeetDeps) : ViewModel() {
         deps.profileRepository.profile,
         deps.connectionRepository.requests,
         deps.homeZoneRepository.state,
-    ) { discovery, profile, requests, home ->
+        deps.demoPresence,
+    ) { discovery, profile, requests, home, presence ->
         HomeUiState(
             homeZone = home,
+            demoPresence = presence,
             discovery = discovery.copy(candidates = if (!home.suppressed && discovery.status == DiscoveryStatus.AVAILABLE && discovery.mode == DiscoveryMode.ON) discovery.candidates else emptyList()),
             profile = profile.publicProfile(),
             profileLoaded = profile is LoadState.Ready,

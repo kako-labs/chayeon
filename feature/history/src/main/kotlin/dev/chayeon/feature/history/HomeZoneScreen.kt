@@ -91,7 +91,7 @@ fun HomeZoneScreen(state: HomeZoneUiState, chrome: ScreenChrome, onSet: (Locatio
             ContentColumn {
                 GlassCard(Modifier.fillMaxWidth()) { ContentColumn {
                     SectionTitle("지금 상태")
-                    if (state.home.source == LocationSource.SYNTHETIC) StatusChip("합성 위치 · 가상 집", variant = StatusVariant.PLAIN)
+                    if (LocalSourceLabels.current && state.home.source == LocationSource.SYNTHETIC) StatusChip("합성 위치 · 가상 집", variant = StatusVariant.PLAIN)
                     ChayeonText(when (state.home.status) {
                         HomeZoneStatus.NOT_SET -> "아직 집을 정하지 않았어요"
                         HomeZoneStatus.OUTSIDE -> "집 보호 구역 밖이에요"
@@ -103,7 +103,7 @@ fun HomeZoneScreen(state: HomeZoneUiState, chrome: ScreenChrome, onSet: (Locatio
                         HomeZoneStatus.NOT_SET -> "집에서 주차한 뒤 지금 위치를 정해 주세요"
                         HomeZoneStatus.OUTSIDE -> "직접 켜 둔 발견 상태로 돌아가요"
                         HomeZoneStatus.INSIDE -> "벗어나면 다시 찾을 수 있어요"
-                        HomeZoneStatus.LOCATION_UNKNOWN -> if (state.home.source == LocationSource.SYNTHETIC) "시연 제어에서 합성 위치를 골라 주세요. 그동안 발견을 쉬어요" else "위치 서비스를 켜고 잠시 기다려 주세요. 그동안 발견을 쉬어요"
+                        HomeZoneStatus.LOCATION_UNKNOWN -> if (state.home.source == LocationSource.SYNTHETIC) "시연 제어에서 ‘집에서 멀어지기’를 눌러 주세요. 그동안 발견을 쉬어요" else "위치 서비스를 켜고 잠시 기다려 주세요. 그동안 발견을 쉬어요"
                         HomeZoneStatus.PERMISSION_OFF -> "위치 권한과 차량 데이터·위치·공개 범위의 위치 사용 동의를 확인해 주세요. 그동안 발견을 쉬어요"
                     }, style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
                 } }
@@ -121,8 +121,8 @@ fun HomeZoneScreen(state: HomeZoneUiState, chrome: ScreenChrome, onSet: (Locatio
                         if (state.locationConsentGranted == null) "위치 사용 동의를 확인하고 있어요" else "위치 사용에 동의하면 집을 정할 수 있어요",
                         style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
                     if (state.syntheticEnabled) {
-                        ChayeonText("실제 위치가 없을 때만 가상 집을 정할 수 있어요", style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
-                        JellyButton("합성 위치로 집 정하기", { onSet(LocationSource.SYNTHETIC) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = idle)
+                        ChayeonText(if (LocalSourceLabels.current) "실제 위치가 없을 때만 가상 집을 정할 수 있어요" else "집을 정하고 보호 상태를 살펴봐요", style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+                        JellyButton(if (LocalSourceLabels.current) "합성 위치로 집 정하기" else "집 보호 시작하기", { onSet(LocationSource.SYNTHETIC) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = idle)
                     }
                     if (state.error) TopBanner("위치를 정하지 못했어요. 권한과 위치 서비스를 확인한 뒤 다시 시도해 주세요")
                     if (state.home.radius != null) JellyButton("집 지우기", onAskClear, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = idle)

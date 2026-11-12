@@ -35,12 +35,14 @@ fun HomeScreen(
     onMySignature: () -> Unit,
     onLocationSettings: () -> Unit,
     onCreateSignature: () -> Unit = onMySignature,
+    onDemo: () -> Unit = {},
 ) {
     if (state.driving.policy != DrivingPolicy.ALLOWED) {
         DrivingScreen(state.driving, chrome)
         return
     }
     ScreenScaffold(
+        showSourceLabels = chrome.showSourceLabels,
         modifier = Modifier.testTag("meet-screen"),
         topBar = {
             Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
@@ -63,6 +65,13 @@ fun HomeScreen(
                     state.discovery.mode == DiscoveryMode.OFF -> MeetDiscoveryFacts()
                     state.homeZone.suppressed -> GlassCard(Modifier.fillMaxWidth()) {
                         InfoRow(ChayeonIcon.LOCK, "발견을 잠시 쉬고 있어요", body = "집 보호 구역 설정은 내 프로필에서 확인할 수 있어요")
+                    }
+                    state.demoPresence == SyntheticPresence.AWAY && state.discovery.status == DiscoveryStatus.EMPTY -> GlassCard(Modifier.fillMaxWidth()) {
+                        MeetPane {
+                            InfoRow(ChayeonIcon.PEOPLE, if (LocalSourceLabels.current) "합성 위치가 멀어진 상태예요" else "지금은 서로 멀어진 상태예요",
+                                body = "시연 제어에서 가까이 있어요를 누르면 다시 만날 수 있어요")
+                            JellyButton("시연 제어 열기", onDemo, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
+                        }
                     }
                     experience != null -> StateCard(experience, Modifier.fillMaxWidth(), onAction = when (state.discovery.status) {
                         DiscoveryStatus.LOCATION_PERMISSION_OFF -> onLocationSettings
@@ -123,6 +132,7 @@ fun RequestScreen(
         return
     }
     ScreenScaffold(
+        showSourceLabels = chrome.showSourceLabels,
         modifier = Modifier.testTag("meet-screen"),
         topBar = { MeetHeader(chrome, if (incoming) "받은 연결 요청" else "보낸 연결 요청", "서로 수락해야 연결돼요", onBack) },
         bottomBar = {
@@ -174,6 +184,7 @@ fun ConnectedScreen(
     val connection = state.connection
     val canSend = connection?.status == ConnectionStatus.CONNECTED && !state.leave.inProgress && state.observationError == null
     ScreenScaffold(
+        showSourceLabels = chrome.showSourceLabels,
         modifier = Modifier.testTag("meet-screen"),
         topBar = chrome.topBar,
         bottomBar = {
@@ -241,6 +252,7 @@ fun EndedScreen(
     val ended = connection?.status == ConnectionStatus.ENDED
     val endReason = connection?.endReason
     ScreenScaffold(
+        showSourceLabels = chrome.showSourceLabels,
         modifier = Modifier.testTag("meet-screen"),
         topBar = chrome.topBar,
         bottomBar = {
@@ -371,6 +383,7 @@ private fun MeetConnectedDriving(state: ConnectedUiState, chrome: ScreenChrome, 
     val connection = state.connection
     CompositionLocalProvider(LocalDecorativeMotion provides false) {
         ScreenScaffold(
+            showSourceLabels = chrome.showSourceLabels,
             modifier = Modifier.testTag("meet-screen"),
             topBar = chrome.topBar,
             bottomBar = {
@@ -382,11 +395,11 @@ private fun MeetConnectedDriving(state: ConnectedUiState, chrome: ScreenChrome, 
             },
             primary = {
                 MeetPane(centered = true) {
-                    TopBanner(if (state.driving.policy == DrivingPolicy.UNKNOWN) "주행 상태를 확인하고 있어요" else "주차하면 인사를 볼 수 있어요", icon = ChayeonIcon.LOCK)
+                    TopBanner(if (state.driving.policy == DrivingPolicy.UNKNOWN) "주행 상태를 확인하고 있어요" else "주행 중이에요", icon = ChayeonIcon.LOCK)
                     if (connection != null) MeetRelationStage(state.ownProfile, connection.peer,
                         if (connection.status == ConnectionStatus.ENDED) ThreadStage.ENDED else ThreadStage.CONNECTED,
                         if (connection.status == ConnectionStatus.ENDED) "연결을 마쳤어요" else if (connection.status == ConnectionStatus.CHECKING) "연결 상태를 확인하고 있어요" else "${connection.peer.nickname} 님과 이어져 있어요",
-                        "주차하면 이어서 볼 수 있어요", animate = false,
+                        "", animate = false,
                         modifier = Modifier.heightIn(min = ChayeonDimensions.ChemistryKnot), largeAvatars = true)
                     GlassCard(Modifier.fillMaxWidth()) {
                         InfoRow(ChayeonIcon.LOCK, "주행 중에는 인사를 주고받을 수 없어요", body =
@@ -422,6 +435,7 @@ private fun MeetPendingRequest(
     val incoming = request.direction == RequestDirection.INCOMING
     val busy = state.accept.inProgress || state.decline.inProgress || state.cancel.inProgress
     ScreenScaffold(
+        showSourceLabels = chrome.showSourceLabels,
         modifier = Modifier.testTag("meet-screen"),
         topBar = { MeetHeader(chrome, if (incoming) "받은 연결 요청" else "보낸 연결 요청", "서로 수락해야 연결돼요", onBack) },
         bottomBar = {

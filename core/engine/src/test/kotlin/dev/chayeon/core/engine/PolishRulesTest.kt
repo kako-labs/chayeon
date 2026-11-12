@@ -7,6 +7,18 @@ import org.junit.Test
 import kotlin.test.*
 
 class PolishRulesTest {
+    @Test fun `tour partners lead discovery and remain connected through the driving step`() {
+        assertEquals(listOf("demo-star", "demo-jazz", "demo-slow", "demo-sea", "demo-forest"), DemoCast.peers.map { it.id })
+        val f = Fixture(demo = true); f.join("a")
+        assertEquals(listOf("별보는밤", "재즈한잔"), f.snap("a").discovery.candidates.take(2).map { it.profile.nickname })
+        f.engine.requestConnection("a", RequestConnectionRequest(f.meta(), "profile-demo-star")).ok()
+        f.advance(4_000)
+        f.advance(90_000)
+        assertEquals(ConnectionStatus.CONNECTED, f.snap("a").connections.single().status)
+        assertEquals(listOf(DemoResponse.ACCEPT, DemoResponse.ACCEPT, DemoResponse.ACCEPT, DemoResponse.DECLINE, DemoResponse.IGNORE), DemoCast.peers.map { it.response })
+        assertEquals(4, DemoCast.peers.single { it.id == "demo-slow" }.presenceScript.size)
+    }
+
     @Test fun `persona default nicknames never collide with the demo cast`() {
         val f = Fixture()
         val names = PersonaCode.entries.map { persona ->

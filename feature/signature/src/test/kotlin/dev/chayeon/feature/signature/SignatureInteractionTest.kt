@@ -28,6 +28,16 @@ class SignatureInteractionTest {
 
     @After fun clearModels() { compose.runOnIdle { models.clear() } }
 
+    @Test fun soloEvidenceKeepsOneQuietSourceLine() {
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+            TraitDetailScreen(TraitDetailUiState(f.driving, f.evidence.trait, f.ready(f.evidence)),
+                previewChrome(showSourceLabels = false), {}, {})
+        } }
+        compose.onAllNodes(hasText("합성 주행", substring = true)).assertCountEquals(1)
+        compose.onNodeWithText("시그니처 근거: 합성 주행").assertIsDisplayed()
+        compose.onNodeWithText("합성 위치").assertDoesNotExist()
+    }
+
     @Test fun unavailableTraitsShowOffWithoutLosingTheirStoredPreference() {
         val signature = mutableStateOf(f.signature.copy(visibility = VisibilitySettings(publishSignature = true)))
         compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {

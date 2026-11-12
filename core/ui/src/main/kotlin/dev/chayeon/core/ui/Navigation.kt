@@ -26,6 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -59,12 +60,13 @@ fun GearStrip(gear: Gear, policy: DrivingPolicy, syntheticLocation: Boolean, mod
         }, style = ChayeonType.Label, color = ChayeonColors.Secondary)
         if (resting) StatusChip("쉬는 중", variant = StatusVariant.PLAIN)
         Spacer(Modifier.weight(1f))
-        if (syntheticLocation) StatusChip("합성 위치", variant = StatusVariant.SYNTHETIC)
+        if (LocalSourceLabels.current && syntheticLocation) StatusChip("합성 위치", variant = StatusVariant.SYNTHETIC)
         if (onDemo != null && policy == DrivingPolicy.ALLOWED) Box(
             Modifier.heightIn(min = ChayeonSpacing.Touch).widthIn(min = ChayeonSpacing.Touch)
-                .testTag("demo-control-chip").clickable(role = Role.Button, onClick = onDemo),
+                .testTag("demo-control-chip").semantics { contentDescription = "시연 제어" }
+                .clickable(role = Role.Button, onClick = onDemo),
             contentAlignment = Alignment.Center,
-        ) { StatusChip("시연 제어", variant = StatusVariant.SYNTHETIC) }
+        ) { ChayeonIcon(ChayeonIcon.PACE, Modifier.size(ChayeonDimensions.UtilityIcon), ChayeonColors.Secondary) }
     }
 }
 
@@ -146,6 +148,7 @@ fun BottomNav(selected: NavigationItem, discoveryOn: Boolean, onSelect: (Navigat
 class ScreenChrome(
     val topBar: @Composable () -> Unit,
     val bottomBar: @Composable (NavigationItem) -> Unit,
+    val showSourceLabels: Boolean = true,
     val onViewing: (requestId: String?, relationshipId: String?) -> (() -> Unit) = { _, _ -> {} },
 )
 
@@ -156,25 +159,28 @@ fun ScreenScaffold(
     bottomBar: @Composable () -> Unit = {},
     primary: @Composable () -> Unit,
     secondary: (@Composable () -> Unit)? = null,
+    showSourceLabels: Boolean = LocalSourceLabels.current,
 ) {
-    ChayeonBackground(modifier.fillMaxSize()) {
-        BoxWithConstraints(Modifier.fillMaxSize()) {
-            val narrow = maxWidth < ChayeonSpacing.NarrowBreakpoint
-            Column(Modifier.fillMaxSize().padding(horizontal = ChayeonSpacing.Screen, vertical = ChayeonSpacing.ChipHorizontal), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
-                topBar()
-                if (narrow) {
-                    val scroll = rememberScrollState()
-                    Column(Modifier.weight(1f).fillMaxWidth().scrollEdgeFade(scroll).verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
-                        primary()
-                        secondary?.invoke()
+    CompositionLocalProvider(LocalSourceLabels provides showSourceLabels) {
+        ChayeonBackground(modifier.fillMaxSize()) {
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val narrow = maxWidth < ChayeonSpacing.NarrowBreakpoint
+                Column(Modifier.fillMaxSize().padding(horizontal = ChayeonSpacing.Screen, vertical = ChayeonSpacing.ChipHorizontal), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+                    topBar()
+                    if (narrow) {
+                        val scroll = rememberScrollState()
+                        Column(Modifier.weight(1f).fillMaxWidth().scrollEdgeFade(scroll).verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+                            primary()
+                            secondary?.invoke()
+                        }
+                    } else {
+                        Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+                            Box(Modifier.weight(1f).fillMaxSize()) { primary() }
+                            if (secondary != null) Box(Modifier.weight(1f).fillMaxSize()) { secondary() }
+                        }
                     }
-                } else {
-                    Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
-                        Box(Modifier.weight(1f).fillMaxSize()) { primary() }
-                        if (secondary != null) Box(Modifier.weight(1f).fillMaxSize()) { secondary() }
-                    }
+                    bottomBar()
                 }
-                bottomBar()
             }
         }
     }

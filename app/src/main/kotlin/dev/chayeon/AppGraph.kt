@@ -35,6 +35,9 @@ class AppGraph(
     val serverModeAvailable: Boolean get() = serverUrl.isNotBlank()
 
     val meetDeps: MeetDeps = object : MeetDeps {
+        override val demoPresence = kotlinx.coroutines.flow.combine(sessionRepository.session, homeZoneCoordinator.desiredPresence) { session, presence ->
+            presence.takeIf { demoEnabled && session is dev.chayeon.core.model.SessionState.Active }
+        }
         override val discoveryRepository = this@AppGraph.discoveryRepository
         override val connectionRepository = this@AppGraph.connectionRepository
         override val profileRepository = this@AppGraph.profileRepository

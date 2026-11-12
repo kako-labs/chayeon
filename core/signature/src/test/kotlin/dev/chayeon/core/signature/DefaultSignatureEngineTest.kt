@@ -103,6 +103,30 @@ class DefaultSignatureEngineTest {
         combinations.forEach { println(it); assertTrue(it.length in 8..30); assertFalse(it.contains("  ")) }
     }
 
+    @Test fun `shared cabin care is never described as a difference`() {
+        val mine = public(listOf(TraitId.GENTLE_RIDE, TraitId.CABIN_CARE).map { PublicTrait(it, TraitLevel.STEADY) })
+        val peer = public(listOf(TraitId.NIGHT_DRIVE, TraitId.CABIN_CARE).map { PublicTrait(it, TraitLevel.STEADY) })
+        val expected = Chemistry(listOf(ChemistryLine(ChemistryKind.SHARED, TraitId.CABIN_CARE, TraitId.CABIN_CARE,
+            "둘 다 함께 타는 공기까지 신경 써요")))
+        assertEquals(expected, engine.chemistry(mine, peer))
+        assertEquals(expected, engine.chemistry(peer, mine))
+    }
+
+    @Test fun `exclusive gentle ride and cabin care are complementary`() {
+        val mine = public(listOf(PublicTrait(TraitId.GENTLE_RIDE, TraitLevel.STEADY)))
+        val peer = public(listOf(PublicTrait(TraitId.CABIN_CARE, TraitLevel.STEADY)))
+        val line = engine.chemistry(mine, peer).lines.single()
+        assertEquals(ChemistryKind.COMPLEMENTARY, line.kind)
+        assertEquals("한 분은 편안하게 달리고, 한 분은 함께 타는 공기까지 신경 써요", line.text)
+    }
+
+    @Test fun `exclusive complementary pair is identical when mirrored`() {
+        val mine = public(listOf(PublicTrait(TraitId.CABIN_CARE, TraitLevel.STEADY)))
+        val peer = public(listOf(PublicTrait(TraitId.GENTLE_RIDE, TraitLevel.STEADY)))
+        assertEquals(ChemistryKind.COMPLEMENTARY, engine.chemistry(mine, peer).lines.single().kind)
+        assertEquals(engine.chemistry(peer, mine), engine.chemistry(mine, peer))
+    }
+
     @Test fun `chemistry is public only symmetric deterministic and limited to three lines`() {
         val all = public(TraitId.entries.map { PublicTrait(it, TraitLevel.VISIBLE) })
         assertEquals(3, engine.chemistry(all, all).lines.size)

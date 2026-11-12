@@ -22,6 +22,7 @@ class ChayeonApplication : Application(), VehicleGraphOwner {
         }.distinctUntilChanged()
     }
     private val sessionEnding = MutableStateFlow(false)
+    private val sessionConsent = SessionConsent()
     private val publicationLock = Mutex()
     val homeZoneCoordinator by lazy { HomeZoneCoordinator(vehicleGraph.homeZoneRepository,
         { account -> vehicleGraph.homeZoneRepository.bindAccount(account) }, scope) }
@@ -52,13 +53,17 @@ class ChayeonApplication : Application(), VehicleGraphOwner {
             override suspend fun signOut(request: SignOutRequest): AppResult<CommandReceipt> {
                 if (vehicleGraph.drivingStateProvider.current().policy != DrivingPolicy.ALLOWED) return AppResult.Failure(AppError.Restricted)
                 sessionEnding.value = true
+                sessionConsent.clear()
                 vehicleGraph.gateInput.update(null, false)
+                vehicleGraph.updateLocationConsent(null, null)
                 return publicationLock.withLock { socialGraph.sessionRepository.signOut(request) }
             }
             override suspend fun deleteAccount(request: DeleteAccountRequest): AppResult<CommandReceipt> {
                 if (vehicleGraph.drivingStateProvider.current().policy != DrivingPolicy.ALLOWED) return AppResult.Failure(AppError.Restricted)
                 sessionEnding.value = true
+                sessionConsent.clear()
                 vehicleGraph.gateInput.update(null, false)
+                vehicleGraph.updateLocationConsent(null, null)
                 return publicationLock.withLock { socialGraph.sessionRepository.deleteAccount(request) }
             }
         }
@@ -83,17 +88,8 @@ class ChayeonApplication : Application(), VehicleGraphOwner {
         vehicleGraph.start()
         scope.launch {
             combine(graph.sessionRepository.session, socialGraph.recordingSettings, sessionEnding) { session, settings, ending ->
-                val active = (session as? SessionState.Active)?.session?.takeUnless { ending }
-                val consent = (settings as? LoadState.Ready)?.value?.consents?.any {
-                    it.scope == ConsentScope.VEHICLE_DATA && it.status == ConsentStatus.GRANTED &&
-                        it.documentVersion == active?.policy?.consentDocumentVersion
-                } == true
-                val locationConsent = (settings as? LoadState.Ready)?.value?.takeIf { active != null }?.consents?.any {
-                    it.scope == ConsentScope.LOCATION_USE && it.status == ConsentStatus.GRANTED &&
-                        it.documentVersion == active?.policy?.consentDocumentVersion
-                }
-                Triple(active?.accountId, consent, locationConsent)
-            }.collect { (account, consent, locationConsent) ->
+                sessionConsent.update(session, settings, ending)
+            }.distinctUntilChanged().collect { (account, consent, locationConsent) ->
                 vehicleGraph.gateInput.update(account, consent)
                 vehicleGraph.updateLocationConsent(account, locationConsent)
             }

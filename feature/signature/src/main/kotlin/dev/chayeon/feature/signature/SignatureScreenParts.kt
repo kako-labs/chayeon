@@ -28,6 +28,7 @@ internal fun SignatureFrame(
 ) {
     val allowed = policy == DrivingPolicy.ALLOWED && LocalDrivingPolicy.current == DrivingPolicy.ALLOWED
     ScreenScaffold(
+        showSourceLabels = chrome.showSourceLabels,
         modifier = Modifier.testTag("signature-screen"),
         topBar = {
             chrome.topBar()
@@ -103,7 +104,7 @@ internal fun SignatureRecording(consoleAvailable: Boolean, onDemo: () -> Unit) {
     SignatureMessage(
         "시그니처를 만드는 중이에요",
         "주행 3번이 모이면 주차 후 나에게 먼저 보여 드려요. 공개는 내가 골라요.",
-        action = if (consoleAvailable) "합성 주행으로 먼저 만나보기" else null,
+        action = if (consoleAvailable) if (LocalSourceLabels.current) "합성 주행으로 먼저 만나보기" else "시그니처 만들기" else null,
         onAction = onDemo,
     )
     if (consoleAvailable) ChayeonText("세 가지 주행 중 나를 닮은 모습을 골라 볼 수 있어요.",
@@ -124,5 +125,5 @@ internal val MySignature.isRecording: Boolean
 
 @Composable
 internal fun SignatureSource(source: DataSource?) {
-    if (source != null) StatusChip(source.label, variant = StatusVariant.SYNTHETIC)
+    if (LocalSourceLabels.current && source != null) StatusChip(source.label, variant = StatusVariant.SYNTHETIC)
 }

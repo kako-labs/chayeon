@@ -193,12 +193,14 @@ object ChayeonType {
 }
 
 val LocalDrivingPolicy = staticCompositionLocalOf { DrivingPolicy.UNKNOWN }
+val LocalSourceLabels = staticCompositionLocalOf { true }
 val LocalDecorativeMotion = staticCompositionLocalOf { false }
 
 @Composable
 fun ChayeonTheme(
     policy: DrivingPolicy = DrivingPolicy.UNKNOWN,
     animatorScaleOverride: Float? = null,
+    showSourceLabels: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val resolver = LocalContext.current.contentResolver
@@ -216,6 +218,7 @@ fun ChayeonTheme(
     }
     CompositionLocalProvider(
         LocalDrivingPolicy provides policy,
+        LocalSourceLabels provides showSourceLabels,
         LocalDecorativeMotion provides (policy == DrivingPolicy.ALLOWED && (animatorScaleOverride ?: scale) > 0f),
         content = content,
     )

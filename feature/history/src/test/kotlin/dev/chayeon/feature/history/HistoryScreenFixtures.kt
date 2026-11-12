@@ -36,8 +36,8 @@ internal fun screenState(screen: HistoryScreen, scenario: ScreenScenario): Histo
 }
 
 @Composable
-internal fun RenderHistoryScreen(screen: HistoryScreen, state: HistoryUiState) {
-    val chrome = previewChrome(policy = state.driving.policy, gear = state.driving.gear)
+internal fun RenderHistoryScreen(screen: HistoryScreen, state: HistoryUiState, showSourceLabels: Boolean = true) {
+    val chrome = previewChrome(policy = state.driving.policy, gear = state.driving.gear, showSourceLabels = showSourceLabels)
     when (screen) {
         HistoryScreen.FIRST_RUN -> FirstRunScreen(state, chrome, {}, {}, {}, {}, {})
         HistoryScreen.PROFILE_SETUP, HistoryScreen.PROFILE_EDIT -> ProfileSetupScreen(state, chrome, screen == HistoryScreen.PROFILE_EDIT, {}, {}, {}, {})

@@ -7,6 +7,8 @@ import dev.chayeon.core.model.ProfileRepository
 import dev.chayeon.core.model.ServerTimeProvider
 
 interface MeetDeps {
+    val demoPresence: kotlinx.coroutines.flow.Flow<dev.chayeon.core.model.SyntheticPresence?>
+        get() = kotlinx.coroutines.flow.flowOf(null)
     val homeZoneRepository: dev.chayeon.core.model.HomeZoneRepository
     val discoveryRepository: DiscoveryRepository
     val connectionRepository: ConnectionRepository

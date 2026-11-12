@@ -24,6 +24,12 @@ data class DemoPresenceStep(val afterConnectionMillis: Long, val presence: Synth
 /** Timing and behavior are data, shared unchanged by both hosts. */
 object DemoCast {
     val peers = listOf(
+        DemoPeer("demo-star", "별보는밤", AvatarId.STAR, setOf(InterestId.NIGHT_VIEW, InterestId.FILM_PHOTOGRAPHY),
+            listOf(PublicTrait(TraitId.NIGHT_DRIVE, TraitLevel.SIGNATURE), PublicTrait(TraitId.CABIN_CARE, TraitLevel.STEADY)),
+            DemoResponse.ACCEPT, acceptsAfter = true, afterReplies = listOf("다시 이야기하게 되어 반가워요. 야경 보는 걸 좋아하세요?", "저는 조용히 별을 보는 시간이 좋아요", "서로 좋아하는 풍경을 하나씩 나눠 봐요")),
+        DemoPeer("demo-jazz", "재즈한잔", AvatarId.JAZZ, setOf(InterestId.JAZZ, InterestId.DRIVE_MUSIC),
+            listOf(PublicTrait(TraitId.CABIN_CARE, TraitLevel.SIGNATURE), PublicTrait(TraitId.SIGNAL_MANNERS, TraitLevel.STEADY), PublicTrait(TraitId.STEADY_PACE, TraitLevel.STEADY), PublicTrait(TraitId.GENTLE_RIDE, TraitLevel.VISIBLE)),
+            DemoResponse.ACCEPT, incomingDelayMillis = 7_000),
         DemoPeer("demo-slow", "느린오후", AvatarId.SLOW, setOf(InterestId.COFFEE, InterestId.JAZZ),
             listOf(PublicTrait(TraitId.GENTLE_RIDE, TraitLevel.STEADY), PublicTrait(TraitId.EARLY_BRAKE, TraitLevel.SIGNATURE), PublicTrait(TraitId.BELT_FIRST, TraitLevel.VISIBLE)),
             DemoResponse.ACCEPT, acceptsAfter = true, afterReplies = listOf("다시 만나서 반가워요. 오늘은 어떤 음악을 들었어요?", "저는 잔잔한 음악과 커피를 좋아해요", "다음에도 편안하게 이야기 나눠요"), presenceScript = listOf(
@@ -38,11 +44,5 @@ object DemoCast {
         DemoPeer("demo-forest", "숲길산책", AvatarId.FOREST, setOf(InterestId.HIKING, InterestId.CAMPING),
             listOf(PublicTrait(TraitId.ENERGY_PLANNER, TraitLevel.SIGNATURE)),
             DemoResponse.IGNORE),
-        DemoPeer("demo-jazz", "재즈한잔", AvatarId.JAZZ, setOf(InterestId.JAZZ, InterestId.DRIVE_MUSIC),
-            listOf(PublicTrait(TraitId.CABIN_CARE, TraitLevel.SIGNATURE), PublicTrait(TraitId.SIGNAL_MANNERS, TraitLevel.STEADY), PublicTrait(TraitId.STEADY_PACE, TraitLevel.STEADY), PublicTrait(TraitId.GENTLE_RIDE, TraitLevel.VISIBLE)),
-            DemoResponse.ACCEPT, incomingDelayMillis = 7_000),
-        DemoPeer("demo-star", "별보는밤", AvatarId.STAR, setOf(InterestId.NIGHT_VIEW, InterestId.FILM_PHOTOGRAPHY),
-            listOf(PublicTrait(TraitId.NIGHT_DRIVE, TraitLevel.SIGNATURE), PublicTrait(TraitId.CABIN_CARE, TraitLevel.STEADY)),
-            DemoResponse.ACCEPT, acceptsAfter = true, afterReplies = listOf("다시 이야기하게 되어 반가워요. 야경 보는 걸 좋아하세요?", "저는 조용히 별을 보는 시간이 좋아요", "서로 좋아하는 풍경을 하나씩 나눠 봐요")),
     )
 }

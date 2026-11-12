@@ -34,7 +34,7 @@ class SignatureScreenshotTest {
         }
         compose.setContent {
             ChayeonTheme(policy, animatorScaleOverride = 0f) {
-                val chrome = previewChrome(policy = policy, gear = driving.gear)
+                val chrome = previewChrome(policy = policy, gear = driving.gear, showSourceLabels = variant == "server")
                 when (screen) {
                     "profile" -> MyProfileScreen(MyProfileUiState(driving,
                         when (variant) {
@@ -113,6 +113,11 @@ class SignatureScreenshotTest {
     @Test fun recap_unknown() = capture("recap", "unknown")
     @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
     @Test fun recap_narrow() = capture("recap", "narrow")
+    @Test fun profile_server() = capture("profile", "server")
+    @Test fun signature_server() = capture("signature", "server")
+    @Test fun trait_server() = capture("trait", "server")
+    @Test fun visibility_server() = capture("visibility", "server")
+    @Test fun recap_server() = capture("recap", "server")
     @Test fun profile_recording() = capture("profile", "recording")
     @Test fun signature_recording() = capture("signature", "recording")
     @Test fun trait_unsupported() = capture("trait", "unsupported")

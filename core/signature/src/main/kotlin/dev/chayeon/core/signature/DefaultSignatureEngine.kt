@@ -82,7 +82,7 @@ class DefaultSignatureEngine : SignatureEngine {
             Triple(TraitId.EARLY_BRAKE, TraitId.STEADY_PACE, "한 분은 미리 멈추고, 한 분은 흐름을 지켜요"),
             Triple(TraitId.GENTLE_RIDE, TraitId.CABIN_CARE, "한 분은 편안하게 달리고, 한 분은 함께 타는 공기까지 신경 써요"),
             Triple(TraitId.LONG_ROAD, TraitId.ENERGY_PLANNER, "한 분은 먼 길을 즐기고, 한 분은 기다리지 않도록 미리 채워 둬요"),
-        ).filter { (x, y) -> (x in a && y in b) || (y in a && x in b) }.map { (x, y, text) ->
+        ).filter { (x, y) -> (x in a && y !in a && y in b && x !in b) || (y in a && x !in a && x in b && y !in b) }.map { (x, y, text) ->
             ChemistryLine(ChemistryKind.COMPLEMENTARY, x, y, text)
         }
         fun category(trait: TraitId) = when (trait) {

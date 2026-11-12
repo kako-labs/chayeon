@@ -25,14 +25,14 @@ class NavigationSmokeTest {
     @get:Rule val compose = createComposeRule()
 
     @Test fun creationScreenOnlyShowsChoicesAndProgressWithCareFirst() {
-        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f, showSourceLabels = false) {
             SignatureCreationScreen(DemoUiState(DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK)), {}, {})
         } }
         val care = compose.onNodeWithTag("fill-CARE").assertIsDisplayed().getUnclippedBoundsInRoot()
         val gentle = compose.onNodeWithTag("fill-GENTLE").assertIsDisplayed().getUnclippedBoundsInRoot()
         org.junit.Assert.assertTrue(care.bottom < gentle.top)
         compose.onNodeWithTag("fill-SIGNAL_MANNERS").assertIsDisplayed()
-        compose.onNodeWithText("합성 주행").assertIsDisplayed()
+        compose.onNodeWithText("합성 주행").assertDoesNotExist()
         compose.onNodeWithText("기어 제어").assertDoesNotExist()
         compose.onNodeWithText("합성 위치").assertDoesNotExist()
         compose.onNodeWithText("시연 제어").assertDoesNotExist()
@@ -42,7 +42,7 @@ class NavigationSmokeTest {
     @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
     @Test fun narrowCreationAndLockedStates() {
         var policy by androidx.compose.runtime.mutableStateOf(DrivingPolicy.ALLOWED)
-        compose.setContent { ChayeonTheme(policy, 0f) { SignatureCreationScreen(DemoUiState(DrivingState(policy = policy)), {}, {}) } }
+        compose.setContent { ChayeonTheme(policy, 0f, showSourceLabels = false) { SignatureCreationScreen(DemoUiState(DrivingState(policy = policy)), {}, {}) } }
         compose.onNodeWithTag("fill-CARE").assertIsDisplayed()
         compose.onRoot().captureRoboImage("src/test/screenshots/signature-creation-narrow.png")
         for (blocked in listOf(DrivingPolicy.RESTRICTED, DrivingPolicy.UNKNOWN)) {
@@ -126,7 +126,7 @@ class NavigationSmokeTest {
         fixture = TestGraph(console).apply { ready() }
         compose.setContent { ChayeonApp(fixture.graph) }
         compose.onNodeWithText("내 프로필").performClick()
-        compose.onNodeWithText("합성 주행으로 먼저 만나보기").performClick()
+        compose.onNodeWithText("시그니처 만들기").performClick()
         compose.onNodeWithText("편안하게 달리는 사람").performClick()
         compose.waitUntil { count == 3 }
         compose.onNodeWithText("이 주행이 매듭이 됐어요").assertIsDisplayed()
@@ -179,12 +179,12 @@ class NavigationSmokeTest {
 
     @Test fun consoleProgressAndNarrowControlsStayReachable() {
         compose.setContent {
-            ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+            ChayeonTheme(DrivingPolicy.ALLOWED, 0f, showSourceLabels = false) {
                 SignatureCreationScreen(DemoUiState(DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK),
                     ConsoleState(available = true), busy = true, fillProgress = 2), {}, {})
             }
         }
-        compose.onNodeWithText("합성 주행 2/3").assertIsDisplayed()
+        compose.onNodeWithText("주행 2/3").assertIsDisplayed()
         compose.onNodeWithTag("fill-GENTLE").assertIsNotEnabled()
         compose.onRoot().captureRoboImage("src/test/screenshots/demo-progress.png")
     }
@@ -192,9 +192,9 @@ class NavigationSmokeTest {
     @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
     @Test fun narrowConsoleIncludesPresenceAndBack() {
         compose.setContent {
-            ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+            ChayeonTheme(DrivingPolicy.ALLOWED, 0f, showSourceLabels = false) {
                 DemoConsoleScreen(DemoUiState(DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK)),
-                    previewChrome(), false, true, {}, {}, {}, {}, {})
+                    previewChrome(showSourceLabels = false), false, true, {}, {}, {}, {}, {})
             }
         }
         compose.onNodeWithContentDescription("뒤로").assertIsDisplayed()

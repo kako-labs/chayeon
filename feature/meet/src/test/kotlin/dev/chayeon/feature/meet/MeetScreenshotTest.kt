@@ -35,17 +35,17 @@ class MeetScreenshotTest {
     private fun driving(policy: DrivingPolicy) = MeetFixtures.parked.copy(policy = policy,
         gear = if (policy == DrivingPolicy.RESTRICTED) Gear.DRIVE else Gear.UNKNOWN)
 
-    private fun capture(name: String, policy: DrivingPolicy = DrivingPolicy.ALLOWED, scrollTo: String? = null,
+    private fun capture(name: String, policy: DrivingPolicy = DrivingPolicy.ALLOWED, scrollTo: String? = null, showSourceLabels: Boolean = false,
         content: @Composable (ScreenChrome) -> Unit) {
         compose.setContent {
-            ChayeonTheme(policy, animatorScaleOverride = 0f) { content(previewChrome(gear = when (policy) { DrivingPolicy.ALLOWED -> Gear.PARK; DrivingPolicy.RESTRICTED -> Gear.DRIVE; DrivingPolicy.UNKNOWN -> Gear.UNKNOWN }, policy = policy)) }
+            ChayeonTheme(policy, animatorScaleOverride = 0f) { content(previewChrome(showSourceLabels = showSourceLabels, gear = when (policy) { DrivingPolicy.ALLOWED -> Gear.PARK; DrivingPolicy.RESTRICTED -> Gear.DRIVE; DrivingPolicy.UNKNOWN -> Gear.UNKNOWN }, policy = policy)) }
         }
         if (scrollTo != null) compose.onNodeWithText(scrollTo).performScrollTo()
         compose.onNodeWithTag("meet-screen").captureRoboImage("src/test/screenshots/$name.png")
     }
 
     private fun home(name: String, state: HomeUiState = home) = capture("home_$name", state.driving.policy) { chrome ->
-        HomeScreen(state, if (state.homeZone.suppressed) previewChrome(policy = state.driving.policy, resting = true) else chrome, {}, {}, {}, {}, {}, {}, {})
+        HomeScreen(state, if (state.homeZone.suppressed) previewChrome(policy = state.driving.policy, resting = true, showSourceLabels = false) else chrome, {}, {}, {}, {}, {}, {}, {})
     }
     private fun discovery(name: String, status: DiscoveryStatus) = home(name, home.copy(discovery = MeetFixtures.discovery.copy(status = status,
         candidates = if (status == DiscoveryStatus.AVAILABLE) MeetFixtures.discovery.candidates else emptyList())))
@@ -67,6 +67,25 @@ class MeetScreenshotTest {
         MeetFixtures.candidate.copy(id = "candidate-sea", profile = MeetFixtures.peer.copy(id = "peer-sea", nickname = "바다보러가요", avatar = AvatarId.SEA)),
         MeetFixtures.candidate.copy(id = "candidate-forest", profile = MeetFixtures.peer.copy(id = "peer-forest", nickname = "숲길산책", avatar = AvatarId.FOREST)),
     ))))
+    @Test fun serverMixedPeersRetainLabels() = capture("home_server_mixed", showSourceLabels = true) { chrome ->
+        HomeScreen(home.copy(discovery = MeetFixtures.discovery.copy(candidates = listOf(MeetFixtures.candidate,
+            MeetFixtures.candidate.copy(id = "participant", profile = MeetFixtures.own)))), chrome, {}, {}, {}, {}, {}, {}, {})
+    }
+    @Test fun serverCandidateRetainsLabels() = capture("candidate_server", showSourceLabels = true) {
+        CandidateScreen(candidate, it, {}, {}, {})
+    }
+    @Test fun serverConnectedRetainsLabels() = capture("connected_server", showSourceLabels = true) {
+        ConnectedScreen(connected, it, {}, {}, {}, {})
+    }
+    @Test fun homeMixedPeers() = home("mixed_peers", home.copy(discovery = MeetFixtures.discovery.copy(candidates = listOf(
+        MeetFixtures.candidate,
+        MeetFixtures.candidate.copy(id = "participant", profile = MeetFixtures.own),
+    ))))
+    @Test fun homeDemoAway() = home("demo_away", home.copy(demoPresence = SyntheticPresence.AWAY,
+        discovery = MeetFixtures.discovery.copy(status = DiscoveryStatus.EMPTY, candidates = emptyList())))
+    @Test @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
+    fun homeDemoAwayNarrow() = home("demo_away_narrow", home.copy(demoPresence = SyntheticPresence.AWAY,
+        discovery = MeetFixtures.discovery.copy(status = DiscoveryStatus.EMPTY, candidates = emptyList())))
     @Test fun homeZoneInside() = home("zone_inside", home.copy(homeZone = HomeZoneState(HomeZoneStatus.INSIDE, HomeZoneRadius.MEDIUM, LocationSource.DEVICE)))
     @Test fun homeZoneUnknown() = home("zone_unknown", home.copy(homeZone = HomeZoneState(HomeZoneStatus.LOCATION_UNKNOWN, HomeZoneRadius.MEDIUM, LocationSource.DEVICE)))
     @Test fun homeZonePermissionOff() = home("zone_permission_off", home.copy(homeZone = HomeZoneState(HomeZoneStatus.PERMISSION_OFF, HomeZoneRadius.MEDIUM, LocationSource.DEVICE)))
@@ -93,6 +112,9 @@ class MeetScreenshotTest {
     @Test @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
     fun homeNarrow() = home("narrow")
 
+    @Test fun candidateTourSharedCare() = candidate("tour_shared_care", candidate.copy(candidate = MeetFixtures.tourCandidate, ownProfile = MeetFixtures.tourOwn))
+    @Test @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
+    fun candidateTourSharedCareNarrow() = candidate("tour_shared_care_narrow", candidate.copy(candidate = MeetFixtures.tourCandidate, ownProfile = MeetFixtures.tourOwn), scrollTo = "둘 다 함께 타는 공기까지 신경 써요")
     @Test fun candidatePopulated() = candidate("populated")
     @Test fun candidateNoSignature() = candidate("no_signature", candidate.copy(candidate = MeetFixtures.candidate.copy(profile = MeetFixtures.peer.copy(signature = null))))
     @Test fun candidateNoOwnSignature() = candidate("no_own_signature", candidate.copy(ownProfile = MeetFixtures.own.copy(signature = null)))

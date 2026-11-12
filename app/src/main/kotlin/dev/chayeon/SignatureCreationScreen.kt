@@ -26,7 +26,7 @@ fun SignatureCreationScreen(state: DemoUiState, onChoose: (DriveScenario) -> Uni
             val scroll = rememberScrollState()
             Column(Modifier.fillMaxWidth().then(if (constraints.hasBoundedHeight) Modifier.scrollEdgeFade(scroll).verticalScroll(scroll) else Modifier),
                 verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
-                StatusChip("합성 주행", variant = StatusVariant.SYNTHETIC)
+                if (LocalSourceLabels.current) StatusChip("합성 주행", variant = StatusVariant.SYNTHETIC)
                 SectionTitle("어떤 주행이 나를 닮았나요?", subtitle = "한 가지를 고르면 주행과 차량 관리가 나의 매듭이 돼요")
                 signatureScenarios.forEach { choice ->
                     GlassCard(Modifier.fillMaxWidth().testTag("fill-${choice.name}").clickable(
@@ -45,8 +45,9 @@ fun SignatureCreationScreen(state: DemoUiState, onChoose: (DriveScenario) -> Uni
                         }
                     }
                 }
-                ChayeonText(if (state.busy && state.fillProgress != null) "합성 주행 ${state.fillProgress}/3"
-                    else "합성 주행 3번을 모아요. 완성된 시그니처는 나에게 먼저 보여요.",
+                val source = if (LocalSourceLabels.current) "합성 주행" else "주행"
+                ChayeonText(if (state.busy && state.fillProgress != null) "$source ${state.fillProgress}/3"
+                    else "$source 3번을 모아요. 완성된 시그니처는 나에게 먼저 보여요.",
                     Modifier.testTag("demo-progress").semantics { liveRegion = LiveRegionMode.Polite },
                     ChayeonType.Section, ChayeonColors.Pink)
                 state.message?.let { ChayeonText(it, color = ChayeonColors.Secondary) }

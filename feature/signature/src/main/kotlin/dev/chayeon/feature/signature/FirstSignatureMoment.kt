@@ -68,7 +68,7 @@ internal fun FirstSignatureMoment(
         if (!allowed) awaitPointerEventScope {
             while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
         }
-    }, topBar = chrome.topBar, primary = {
+    }, showSourceLabels = chrome.showSourceLabels, topBar = chrome.topBar, primary = {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val wide = maxWidth >= ChayeonSpacing.NarrowBreakpoint && constraints.hasBoundedHeight
             val scroll = rememberScrollState()
@@ -83,7 +83,7 @@ internal fun FirstSignatureMoment(
                     Box(Modifier.fillMaxWidth().background(Brush.radialGradient(
                         listOf(ChayeonColors.Wine.copy(alpha = .65f), ChayeonColors.Transparent))), contentAlignment = Alignment.Center) {
                         SignatureKnot(recap.currentKnot, Modifier.size(ChayeonDimensions.ChemistryKnot).testTag("recap-knot"),
-                            reveal = allowed, contentDescription = if (recap.source == DataSource.SYNTHETIC) "합성 주행으로 만든 첫 붉은 시그니처 매듭" else "내 주행으로 만든 첫 붉은 시그니처 매듭")
+                            reveal = allowed, contentDescription = if (LocalSourceLabels.current && recap.source == DataSource.SYNTHETIC) "합성 주행으로 만든 첫 붉은 시그니처 매듭" else "내 주행으로 만든 첫 붉은 시그니처 매듭")
                     }
                 }
                 val story: @Composable () -> Unit = {

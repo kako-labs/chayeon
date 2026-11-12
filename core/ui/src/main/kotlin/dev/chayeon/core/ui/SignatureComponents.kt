@@ -80,7 +80,7 @@ fun SignatureHero(seed: KnotSeed, title: String, source: DataSource, modifier: M
     HeroPanel(modifier) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-            StatusChip(source.label, variant = StatusVariant.SYNTHETIC)
+            if (LocalSourceLabels.current) StatusChip(source.label, variant = StatusVariant.SYNTHETIC)
             SignatureKnot(seed, Modifier.size(ChayeonDimensions.HeroKnot), contentDescription = "$title, 붉은 시그니처 매듭")
             GradientText(title, style = ChayeonType.Title)
         }
@@ -94,7 +94,7 @@ fun SignatureMini(signature: PublicSignature, modifier: Modifier = Modifier) {
             contentDescription = "${signature.title}, 붉은 시그니처 매듭")
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
             ChayeonText(signature.title, style = ChayeonType.Body)
-            ChayeonText(signature.source.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+            if (LocalSourceLabels.current) ChayeonText(signature.source.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
         }
     }
 }
@@ -117,7 +117,7 @@ fun ChemistryCard(
     GlassCard(modifier) {
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
             SectionTitle("함께하면 잘 맞는 점")
-            StatusChip(if (firstSource == secondSource) firstSource.label else "${firstSource.label} · ${secondSource.label}", variant = StatusVariant.SYNTHETIC)
+            if (LocalSourceLabels.current) StatusChip(if (firstSource == secondSource) firstSource.label else "${firstSource.label} · ${secondSource.label}", variant = StatusVariant.SYNTHETIC)
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 SignatureKnot(firstSeed, interlockedWith = secondSeed)
             }

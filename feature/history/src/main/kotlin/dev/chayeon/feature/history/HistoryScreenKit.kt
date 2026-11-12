@@ -47,6 +47,7 @@ internal fun HistoryFrame(
 ) {
     BackHandler(enabled = state.driving.policy != DrivingPolicy.ALLOWED) {}
     ScreenScaffold(
+        showSourceLabels = chrome.showSourceLabels,
         modifier = Modifier.testTag("screen"),
         topBar = {
             chrome.topBar()
@@ -59,7 +60,7 @@ internal fun HistoryFrame(
                         if (title == "차연") AppHeader(Modifier.widthIn(max = ChayeonDimensions.ChemistryKnot)) else Column {
                             GradientText(title, style = ChayeonType.Title)
                             ChayeonText(subtitle, style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
-                            if (headerPeer != null) ChayeonText(headerPeer.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+                            if (LocalSourceLabels.current && headerPeer != null) ChayeonText(headerPeer.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
                         }
                     }
                     if (step != null) StepIndicator(step)

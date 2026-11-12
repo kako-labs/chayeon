@@ -4,6 +4,8 @@ import dev.chayeon.core.model.*
 import java.util.UUID
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -31,11 +33,12 @@ class HomeZoneCoordinator(
     }
     private val mutex = Mutex()
     private var binding: Binding? = null
-    private var desired = SyntheticPresence.NEARBY
+    private val desired = MutableStateFlow(SyntheticPresence.NEARBY)
+    val desiredPresence = desired.asStateFlow()
 
     init { scope.launch { home.state.collect { mutex.withLock { reconcile() } } } }
 
-    private suspend fun target() = if (home.state.first().suppressed) SyntheticPresence.AWAY else desired
+    private suspend fun target() = if (home.state.first().suppressed) SyntheticPresence.AWAY else desired.value
 
     private fun schedule(current: Binding, delayMillis: Long, heartbeat: Boolean) {
         if (current.timer != null) return
@@ -131,7 +134,7 @@ class HomeZoneCoordinator(
         send: suspend (SetSyntheticPresenceRequest, suspend () -> Boolean) -> AppResult<CommandReceipt>) = mutex.withLock {
         binding?.cancel()
         binding = null
-        desired = SyntheticPresence.NEARBY
+        desired.value = SyntheticPresence.NEARBY
         bindAccount(session.accountId)
         binding = Binding(session.mode == SessionMode.SERVER_DEMO, send)
         reconcile()
@@ -140,7 +143,7 @@ class HomeZoneCoordinator(
     suspend fun setDesiredPresence(value: SyntheticPresence, currentPolicy: () -> DrivingPolicy): AppResult<Unit> = mutex.withLock {
         if (currentPolicy() != DrivingPolicy.ALLOWED) return@withLock AppResult.Failure(AppError.Restricted)
         if (binding == null) return@withLock AppResult.Failure(AppError.NotAuthorized)
-        desired = value
+        desired.value = value
         reconcile()
         AppResult.Success(Unit)
     }
@@ -148,7 +151,7 @@ class HomeZoneCoordinator(
     suspend fun endSession() = mutex.withLock {
         binding?.cancel()
         binding = null
-        desired = SyntheticPresence.NEARBY
+        desired.value = SyntheticPresence.NEARBY
     }
 
     /** A current answer only: never join an in-flight send, including a hung heartbeat. */

@@ -27,11 +27,11 @@ fun TraitDetailScreen(
                         GradientText(state.trait.presentation.name, style = ChayeonType.Title)
                         val evidence = state.evidence.readyValue()
                         if (evidence != null) {
-                            SignatureSource(evidence.source)
+                            ChayeonText("시그니처 근거: ${evidence.source.label}", style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
                             if (evidence.availability == TraitAvailability.UNSUPPORTED) {
-                                ChayeonText(evidence.unsupportedLabel, color = ChayeonColors.Secondary)
+                                ChayeonText(evidence.unsupportedLabel(LocalSourceLabels.current), color = ChayeonColors.Secondary)
                             } else TraitBadge(state.trait, evidence.level, size = TraitBadgeSize.DETAIL)
-                            ChayeonText(evidence.levelExplanation(), color = ChayeonColors.Secondary)
+                            ChayeonText(evidence.levelExplanation(LocalSourceLabels.current), color = ChayeonColors.Secondary)
                         }
                         InfoRow(ChayeonIcon.LOCK, "평가가 아닌 나의 기록이에요",
                             body = "수치는 상대에게 보이지 않아요. 이 기록에 맞춰 운전할 필요는 없어요.")
@@ -49,7 +49,7 @@ fun TraitDetailScreen(
                         if (evidence == null) {
                             SignatureMessage("아직 기록이 없어요", "기록할 수 있는 신호가 모이면 여기에서 확인할 수 있어요.")
                         } else if (evidence.availability == TraitAvailability.UNSUPPORTED) {
-                            SignatureMessage(evidence.unsupportedLabel, "이 특성에 필요한 신호를 읽을 수 없어요. 다른 특성의 기록은 계속 볼 수 있어요.", state.trait.presentation.icon)
+                            SignatureMessage(evidence.unsupportedLabel(LocalSourceLabels.current), "이 특성에 필요한 신호를 읽을 수 없어요. 다른 특성의 기록은 계속 볼 수 있어요.", state.trait.presentation.icon)
                         } else {
                             GlassCard(Modifier.fillMaxWidth()) {
                                 SectionTitle("기록한 기간", subtitle = evidencePeriod(evidence.window))

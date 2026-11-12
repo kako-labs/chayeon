@@ -24,13 +24,15 @@ class HomeZoneScreenshotTest {
         val state = HomeZoneUiState(driving = DrivingState(policy = policy, gear = if (policy == DrivingPolicy.ALLOWED) Gear.PARK else Gear.DRIVE),
             home = home, syntheticEnabled = true, locationConsentGranted = consent, operation = if (busy) "set" else null, error = failure, confirmingClear = confirm)
         compose.setContent { ChayeonTheme(policy, animatorScaleOverride = 0f) {
-            HomeZoneScreen(state, previewChrome(policy = policy, resting = home.suppressed), {}, {}, {}, {}, {}, {})
+            HomeZoneScreen(state, previewChrome(policy = policy, resting = home.suppressed, showSourceLabels = false), {}, {}, {}, {}, {}, {})
         } }
+        if (status == HomeZoneStatus.LOCATION_UNKNOWN && source == LocationSource.SYNTHETIC)
+            compose.onNodeWithText("시연 제어에서 ‘집에서 멀어지기’를 눌러 주세요. 그동안 발견을 쉬어요").assertIsDisplayed()
         if (consent != true) {
             compose.onNodeWithText("지금 위치를 집으로 정하기").assertIsNotEnabled()
-            compose.onNodeWithText("합성 위치로 집 정하기").assertIsEnabled()
+            compose.onNodeWithText("집 보호 시작하기").assertIsEnabled()
         }
-        if (name == "narrow") compose.onNodeWithText("합성 위치로 집 정하기").performScrollTo()
+        if (name == "narrow") compose.onNodeWithText("집 보호 시작하기").performScrollTo()
         if (confirm) compose.onNode(isDialog()).captureRoboImage("src/test/screenshots/home_zone_$name.png")
         else compose.onNodeWithTag("screen").captureRoboImage("src/test/screenshots/home_zone_$name.png")
     }

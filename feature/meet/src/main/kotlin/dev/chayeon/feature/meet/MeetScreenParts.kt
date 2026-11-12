@@ -178,7 +178,7 @@ internal fun MeetDiscoveryHero(state: HomeUiState, onToggle: (Boolean) -> Unit) 
                     HomeZoneStatus.LOCATION_UNKNOWN -> "위치를 확인할 때까지 쉬고 있어요"
                     else -> "집 근처에서는 쉬고 있어요"
                 } else when (state.discovery.status) {
-                    DiscoveryStatus.AVAILABLE -> "근처에서 ${state.discovery.candidates.size}명이 발견을 켰어요"
+                    DiscoveryStatus.AVAILABLE -> discoveryHeadline(state.discovery.candidates)
                     DiscoveryStatus.ALREADY_CONNECTED -> "지금 이어진 인연이 있어요"
                     else -> "새로운 인연을 천천히 만나봐요"
                 }, style = if (compact) ChayeonType.Section else ChayeonType.Title)
@@ -188,7 +188,7 @@ internal fun MeetDiscoveryHero(state: HomeUiState, onToggle: (Boolean) -> Unit) 
                     else -> "벗어나면 다시 찾을 수 있어요"
                 } else if (enabled) "서로 수락하면 대화가 시작돼요" else "켜면 닉네임과 공개한 시그니처, 관심사가 보여요",
                     style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
-                if (resting && state.homeZone.source == LocationSource.SYNTHETIC) StatusChip("합성 위치 · 가상 집", variant = StatusVariant.PLAIN)
+                if (LocalSourceLabels.current && resting && state.homeZone.source == LocationSource.SYNTHETIC) StatusChip("합성 위치 · 가상 집", variant = StatusVariant.PLAIN)
                 GlassCard(Modifier.width(ChayeonDimensions.Knot), contentPadding = PaddingValues(horizontal = ChayeonSpacing.Compact, vertical = ChayeonSpacing.Tiny)) {
                     GelToggle(enabled, onToggle, if (state.toggle.inProgress) "바꾸고 있어요" else if (enabled) "발견 켜짐" else "발견 꺼짐",
                         Modifier.fillMaxWidth(), enabled = !state.toggle.inProgress)
@@ -207,7 +207,7 @@ internal fun MeetRelationStage(own: PublicProfile?, peer: PublicProfile, stage: 
         Column(Modifier.fillMaxWidth().align(Alignment.Center), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium),
             horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start) {
             GradientText(title, style = if (centered) ChayeonType.Hero.copy(textAlign = TextAlign.Center) else ChayeonType.Title)
-            ChayeonText(subtitle, style = if (centered) ChayeonType.Secondary.copy(textAlign = TextAlign.Center) else ChayeonType.Secondary, color = ChayeonColors.Secondary)
+            if (subtitle.isNotEmpty()) ChayeonText(subtitle, style = if (centered) ChayeonType.Secondary.copy(textAlign = TextAlign.Center) else ChayeonType.Secondary, color = ChayeonColors.Secondary)
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 if (maxWidth >= ChayeonSpacing.NarrowBreakpoint) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
@@ -237,7 +237,7 @@ private fun MeetRelationAvatar(profile: PublicProfile?, fallback: String, large:
         if (profile != null) AvatarDish(MochiAvatar.from(profile.avatar), Modifier.size(if (large) ChayeonDimensions.PeerLarge else ChayeonDimensions.Avatar))
         else IconOrb(ChayeonIcon.PROFILE, Modifier.size(ChayeonDimensions.Avatar), OrbVariant.GLASS)
         ChayeonText(profile?.nickname ?: fallback, style = ChayeonType.Section)
-        if (profile != null) ChayeonText(profile.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+        if (LocalSourceLabels.current && profile != null) ChayeonText(profile.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
     }
 }
 
@@ -286,7 +286,7 @@ internal fun MeetHomeCandidate(candidate: Candidate, onClick: () -> Unit, modifi
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Tiny)) {
                     ChayeonText(peer.nickname, style = ChayeonType.Section)
                     ChayeonText(signature?.title ?: "시그니처를 만드는 중이에요", style = ChayeonType.Label)
-                    ChayeonText(peer.kind.label + (signature?.let { " · ${it.source.label}" } ?: ""),
+                    if (LocalSourceLabels.current) ChayeonText(peer.kind.label + (signature?.let { " · ${it.source.label}" } ?: ""),
                         style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
                 }
             }
@@ -300,3 +300,6 @@ internal fun MeetHomeCandidate(candidate: Candidate, onClick: () -> Unit, modifi
         }
     }
 }
+
+internal fun discoveryHeadline(candidates: List<Candidate>): String =
+    "근처에서 ${candidates.size}명이 발견을 켰어요"

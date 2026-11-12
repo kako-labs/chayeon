@@ -55,14 +55,14 @@ fun PeerHeader(profile: PublicProfile, modifier: Modifier = Modifier, size: Peer
             verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
             AvatarDish(MochiAvatar.from(profile.avatar), Modifier.size(ChayeonDimensions.PeerLarge))
             ChayeonText(profile.nickname, style = ChayeonType.Title)
-            StatusChip(profile.kind.label, variant = StatusVariant.SYNTHETIC)
+            if (LocalSourceLabels.current) StatusChip(profile.kind.label, variant = StatusVariant.SYNTHETIC)
         }
     } else {
         Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.AvatarGap)) {
             AvatarDish(MochiAvatar.from(profile.avatar), Modifier.size(ChayeonDimensions.PeerSmall))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Tiny)) {
                 ChayeonText(profile.nickname, style = ChayeonType.Section)
-                ChayeonText(profile.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+                if (LocalSourceLabels.current) ChayeonText(profile.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
             }
         }
     }
@@ -92,7 +92,7 @@ fun AppHeader(modifier: Modifier = Modifier, title: String = "차연", subtitle:
                 AvatarDish(MochiAvatar.from(profile.avatar), Modifier.size(ChayeonDimensions.ProfileAvatar), decorative = true)
                 Column {
                     ChayeonText(profile.nickname, style = ChayeonType.Label)
-                    ChayeonText(profile.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+                    if (LocalSourceLabels.current) ChayeonText(profile.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
                 }
                 ChayeonIcon(ChayeonIcon.FORWARD, Modifier.size(ChayeonDimensions.SmallIcon), contentDescription = "내 프로필 보기")
             }
@@ -176,7 +176,9 @@ fun previewChrome(
     discoveryOn: Boolean = true,
     syntheticLocation: Boolean = true,
     resting: Boolean = false,
+    showSourceLabels: Boolean = true,
 ): ScreenChrome = ScreenChrome(
+    showSourceLabels = showSourceLabels,
     topBar = { GearStrip(gear, policy, syntheticLocation) },
     bottomBar = { selected -> BottomNav(selected, discoveryOn, {}, {}, resting = resting) },
 )

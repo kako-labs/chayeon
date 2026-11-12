@@ -28,6 +28,20 @@ class MeetInteractionTest {
 
     @After fun clearModels() { compose.runOnIdle { store.clear() } }
 
+    @Test fun demoAwayExplainsEmptyListAndOpensConsole() {
+        var opened = false
+        compose.setContent {
+            ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+                HomeScreen(HomeUiState(driving = MeetFixtures.parked, profile = MeetFixtures.own, profileLoaded = true,
+                    discovery = MeetFixtures.discovery.copy(status = DiscoveryStatus.EMPTY, candidates = emptyList()), demoPresence = SyntheticPresence.AWAY),
+                    previewChrome(), {}, {}, {}, {}, {}, {}, {}, onDemo = { opened = true })
+            }
+        }
+        compose.onNodeWithText("합성 위치가 멀어진 상태예요").assertIsDisplayed()
+        compose.onNodeWithText("시연 제어 열기").performClick()
+        assertTrue(opened)
+    }
+
     private fun showHome(model: HomeViewModel) {
         compose.setContent {
             val state by model.uiState.collectAsState()

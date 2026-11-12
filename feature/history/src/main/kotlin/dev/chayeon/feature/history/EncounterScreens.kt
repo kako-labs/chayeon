@@ -19,8 +19,8 @@ fun EncountersScreen(state: HistoryUiState, chrome: ScreenChrome, onEncounter: (
                                 AvatarDish(MochiAvatar.from(encounter.peer.avatar), Modifier.size(ChayeonDimensions.PeerSmall))
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
                                     ChayeonText(encounter.peer.nickname, style = ChayeonType.Section)
-                                    ChayeonText(encounter.peer.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
-                                    encounter.peer.signature?.let { ChayeonText("${it.title} · ${it.source.label}", style = ChayeonType.Secondary) }
+                                    if (LocalSourceLabels.current) ChayeonText(encounter.peer.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+                                    encounter.peer.signature?.let { ChayeonText(if (LocalSourceLabels.current) "${it.title} · ${it.source.label}" else it.title, style = ChayeonType.Secondary) }
                                     ChayeonText("${encounterTime(encounter.startedAtEpochMillis)} · ${encounterDuration(encounter)} · ${encounter.endReason.presentation(encounter.peer.nickname).label}", style = ChayeonType.Secondary)
                                     JellyButton(encounter.afterEligibility.label, { onEncounter(encounter.id) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
                                 }
@@ -205,7 +205,7 @@ private fun AfterAvatar(profile: PublicProfile, modifier: Modifier) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
         AvatarDish(MochiAvatar.from(profile.avatar), Modifier.size(ChayeonDimensions.Avatar))
         ChayeonText(profile.nickname, style = ChayeonType.Section)
-        ChayeonText(profile.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+        if (LocalSourceLabels.current) ChayeonText(profile.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
     }
 }
 

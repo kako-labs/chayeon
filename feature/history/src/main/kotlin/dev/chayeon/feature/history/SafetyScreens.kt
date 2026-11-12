@@ -109,14 +109,14 @@ private fun CleanupRow(state: HistoryUiState, kind: ConfirmationKind, id: String
             val narrow = maxWidth < ChayeonSpacing.NarrowBreakpoint
             if (narrow) ContentColumn {
                 SectionTitle(if (peer == null) copy.title else "${peer.nickname} 님 · ${copy.title}")
-                if (peer != null) ChayeonText(peer.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+                if (LocalSourceLabels.current && peer != null) ChayeonText(peer.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
                 ChayeonText("멈추거나 지워져요 · ${copy.removes}", style = ChayeonType.Secondary)
                 ChayeonText("남는 내용 · ${copy.keeps}", style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
                 CleanupButton(copy.title, state.command(key), enabled, kind) { onAsk(kind, id) }
             } else Row(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
                 Column(Modifier.weight(.8f), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
                     ChayeonText(if (peer == null) copy.title else "${peer.nickname} 님\n${copy.title}", style = ChayeonType.Section)
-                    if (peer != null) ChayeonText(peer.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+                    if (LocalSourceLabels.current && peer != null) ChayeonText(peer.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
                 }
                 ChayeonText(copy.removes, Modifier.weight(1.3f), ChayeonType.Secondary)
                 ChayeonText(copy.keeps, Modifier.weight(1.3f), ChayeonType.Secondary, ChayeonColors.Secondary)

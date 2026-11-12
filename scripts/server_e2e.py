@@ -129,7 +129,7 @@ class AppTransport:
 
 
 def prove_lease_and_offline_restore(device, console, peer, transport, device_port):
-    set_synthetic_home(device)
+    set_synthetic_home(device, server=True)
     home_position(device, False)
     device.card("이어가는별")
     device.tap("연결 요청 보내기")
@@ -234,15 +234,15 @@ def enter_ui(device, room):
 
 
 def prove_server_home(device, console, peer):
-    set_synthetic_home(device)
+    set_synthetic_home(device, server=True)
     observations = []
     for mode in ("ordinary", "parked", "driving"):
         if mode == "ordinary":
-            device.tap("시연 제어")
+            device.tap("시연 제어", description_only=True)
             device.tap("집에서 멀어지기", scroll=True)
             device.tap("오늘의 인연")
         else:
-            device.tap("시연 제어")
+            device.tap("시연 제어", description_only=True)
             device.tap("가까이 있어요")
             device.tap("집에서 멀어지기", scroll=True)
             device.tap("오늘의 인연")
@@ -266,7 +266,7 @@ def prove_server_home(device, console, peer):
             device.wait("주행 중", exact=False)
             home_position(device, True, external=True)
         else:
-            device.tap("시연 제어")
+            device.tap("시연 제어", description_only=True)
             device.tap("서로 멀어져요" if mode == "ordinary" else "집 근처로 오기", scroll=True)
         deadline = time.monotonic() + 25
         states = []
@@ -310,7 +310,7 @@ def prove_server_home(device, console, peer):
         raise AssertionError("일반 이탈과 집 보호 이탈의 HTTP 상태 순서가 달라요")
     if observations[0]["connectionViews"] != observations[1]["connectionViews"] or observations[1]["connectionViews"] != observations[2]["connectionViews"]:
         raise AssertionError("식별자와 시각을 제외한 HTTP 연결 내용이 일반 이탈과 달라요")
-    device.tap("시연 제어")
+    device.tap("시연 제어", description_only=True)
     device.tap("집에서 멀어지기", scroll=True)
     device.tap("오늘의 인연")
     device.card("이어가는별", navigate=False)

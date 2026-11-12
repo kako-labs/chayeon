@@ -16,15 +16,18 @@ internal object MeetFixtures {
         signature.copy(id = "signature-self", knotSeed = KnotSeed(12), title = "깜빡이를 잊지 않는 드라이버"))
     val chemistry = Chemistry(listOf(ChemistryLine(ChemistryKind.SHARED, TraitId.SIGNAL_MANNERS, TraitId.SIGNAL_MANNERS, "둘 다 깜빡이를 챙겨요")))
     val candidate = Candidate("candidate", 1, peer, chemistry, setOf(InterestId.JAZZ, InterestId.NIGHT_VIEW))
+    private val engine = dev.chayeon.core.signature.DefaultSignatureEngine()
+    val tourOwn = own.copy(signature = signature.copy(traits = listOf(
+        PublicTrait(TraitId.GENTLE_RIDE, TraitLevel.STEADY), PublicTrait(TraitId.CABIN_CARE, TraitLevel.STEADY))))
+    val tourPeer = peer.copy(nickname = "별보는밤", avatar = AvatarId.STAR, interests = setOf(InterestId.NIGHT_VIEW, InterestId.FILM_PHOTOGRAPHY),
+        signature = signature.copy(title = "밤길을 좋아하는 드라이버", traits = listOf(
+            PublicTrait(TraitId.NIGHT_DRIVE, TraitLevel.SIGNATURE), PublicTrait(TraitId.CABIN_CARE, TraitLevel.STEADY))))
+    val tourCandidate = candidate.copy(profile = tourPeer, chemistry = engine.chemistry(tourOwn.signature!!, tourPeer.signature!!), sharedInterests = setOf(InterestId.NIGHT_VIEW))
     val completeCandidate = candidate.copy(profile = peer.copy(
         nickname = "밤하늘따라천천히달려봐요",
         interests = setOf(InterestId.JAZZ, InterestId.NIGHT_VIEW, InterestId.DRIVE_MUSIC, InterestId.FILM_PHOTOGRAPHY, InterestId.EXHIBITIONS),
         signature = signature.copy(traits = TraitId.entries.map { PublicTrait(it, TraitLevel.SIGNATURE) })),
-        chemistry = Chemistry(listOf(
-            ChemistryLine(ChemistryKind.SHARED, TraitId.SIGNAL_MANNERS, TraitId.SIGNAL_MANNERS, "둘 다 깜빡이를 챙겨요"),
-            ChemistryLine(ChemistryKind.SHARED, TraitId.NIGHT_DRIVE, TraitId.NIGHT_DRIVE, "둘 다 밤 드라이브를 좋아해요"),
-            ChemistryLine(ChemistryKind.COMPLEMENTARY, TraitId.GENTLE_RIDE, TraitId.CABIN_CARE, "한 분은 편안하게 달리고, 한 분은 함께 타는 공기까지 신경 써요"),
-        )))
+        chemistry = engine.chemistry(own.signature!!, signature.copy(traits = TraitId.entries.map { PublicTrait(it, TraitLevel.SIGNATURE) })))
     val discovery = DiscoveryState(version = 1, mode = DiscoveryMode.ON, status = DiscoveryStatus.AVAILABLE,
         locationAvailability = LocationAvailability.FRESH, candidates = listOf(candidate))
     val request = ConnectionRequest("request", 2, peer, RequestDirection.INCOMING, ConnectionRequestStatus.PENDING,
