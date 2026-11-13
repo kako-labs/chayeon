@@ -31,8 +31,6 @@ data class EngineState(
     val encounters: Map<String, EncounterRecord> = emptyMap(),
     val afterRequests: Map<String, AfterRequestRecord> = emptyMap(),
     val afterConnections: Map<String, AfterConnectionRecord> = emptyMap(),
-    val greetings: Map<String, GreetingRecord> = emptyMap(),
-    val messages: Map<String, MessageRecord> = emptyMap(),
     val blocks: Map<String, BlockRecord> = emptyMap(),
     val reports: Map<String, ReportRecord> = emptyMap(),
     val commands: List<CachedCommand> = emptyList(),
@@ -83,6 +81,7 @@ data class AfterRequestRecord(
     val id: String, val version: Long, val sender: String, val recipient: String,
     val connectionId: String, val status: AfterRequestStatus, val createdAt: Long, val expiresAt: Long,
     val afterConnectionId: String? = null, val retryAt: Long? = null,
+    val submittedContacts: ContactIds? = null,
 )
 
 @Serializable
@@ -90,13 +89,10 @@ data class AfterConnectionRecord(
     val id: String, val version: Long, val requestId: String, val connectionId: String,
     val first: String, val second: String, val connectedAt: Long,
     val status: AfterConnectionStatus = AfterConnectionStatus.CONNECTED,
+    val firstContacts: ContactIds? = null, val secondContacts: ContactIds? = null,
     val closedAt: Long? = null, val firstReason: AfterCloseReason? = null, val secondReason: AfterCloseReason? = null,
 )
 
-@Serializable
-data class GreetingRecord(val author: String, val greeting: ConnectionGreeting)
-@Serializable
-data class MessageRecord(val author: String, val message: AfterMessage)
 @Serializable
 data class BlockRecord(val id: String, val version: Long, val owner: String, val peer: String, val createdAt: Long)
 @Serializable

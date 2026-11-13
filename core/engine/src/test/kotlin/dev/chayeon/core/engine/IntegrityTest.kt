@@ -10,31 +10,25 @@ class IntegrityTest {
     private fun pair() = Fixture().also { it.join("a"); it.join("b") }
     private fun after(f: Fixture): String {
         val c = f.connect()
-        f.engine.sendGreeting("a", SendGreetingRequest(f.meta(), c, "greeting-a", PresetCode.HELLO)).ok()
-        f.engine.sendGreeting("b", SendGreetingRequest(f.meta(), c, "greeting-b", PresetCode.HELLO)).ok()
         f.engine.leaveConnection("a", LeaveConnectionRequest(f.meta(), c)).ok()
-        val r = f.engine.requestAfter("a", RequestAfterRequest(f.meta(), f.snap("a").encounters.single().id)).ok()
-        return f.engine.respondAfter("b", RespondAfterRequest(f.meta(), r.id, RequestDecision.ACCEPT)).ok().afterConnectionId!!
+        val r = f.engine.requestAfter("a", RequestAfterRequest(f.meta(), f.snap("a").encounters.single().id, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))).ok()
+        return f.engine.respondAfter("b", RespondAfterRequest(f.meta(), r.id, RequestDecision.ACCEPT, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))).ok().afterConnectionId!!
     }
 
-    @Test fun leaveReplayDoesNotRevealBlockThroughPresets() {
+    @Test fun leaveReplayRemainsTerminalAfterBlock() {
         val f = pair(); val c = f.connect()
         val command = LeaveConnectionRequest(f.meta(), c)
         val original = f.engine.leaveConnection("b", command).ok()
-        val replay = f.engine.leaveConnection("b", command).ok()
+        assertEquals(original, f.engine.leaveConnection("b", command).ok())
         f.engine.blockPeer("a", BlockPeerRequest(f.meta(), f.snap("b").profile!!.id)).ok()
-        assertEquals(replay.availablePresets, f.engine.leaveConnection("b", command).ok().availablePresets)
-        assertEquals(original.availablePresets, replay.availablePresets)
     }
 
-    @Test fun endAfterReplayDoesNotRevealBlockThroughPresets() {
+    @Test fun endAfterReplayRemainsTerminalAfterBlock() {
         val f = pair(); val ac = after(f)
         val command = EndAfterConnectionRequest(f.meta(), ac)
         val original = f.engine.endAfterConnection("b", command).ok()
-        val replay = f.engine.endAfterConnection("b", command).ok()
+        assertEquals(original, f.engine.endAfterConnection("b", command).ok())
         f.engine.blockPeer("a", BlockPeerRequest(f.meta(), f.snap("b").profile!!.id)).ok()
-        assertEquals(replay.availablePresets, f.engine.endAfterConnection("b", command).ok().availablePresets)
-        assertEquals(original.availablePresets, replay.availablePresets)
     }
 
     @Test fun blockedPeerCannotTrackProfileOrRevision() {
@@ -63,10 +57,8 @@ class IntegrityTest {
                 EngineJson.encodeToString(f.engine.endAfterConnection("b", end)),
                 EngineJson.encodeToString(f.engine.refreshDiscovery("b", discovery)),
                 EngineJson.encodeToString(f.engine.requestConnection("b", RequestConnectionRequest(f.meta(), peerId))),
-                EngineJson.encodeToString(f.engine.requestAfter("b", RequestAfterRequest(f.meta(), f.snap("b").encounters.single().id))),
-                EngineJson.encodeToString(f.engine.sendGreeting("b", SendGreetingRequest(f.meta(), f.snap("b").connections.single().id, "late", PresetCode.HELLO))),
-                EngineJson.encodeToString(f.engine.sendAfterMessage("b", SendAfterMessageRequest(f.meta(), ac, "late", AfterMessageContent.Text("안녕하세요")))),
-                EngineJson.encodeToString(f.engine.respondAfter("b", RespondAfterRequest(f.meta(), f.snap("b").afterRequests.single().id, RequestDecision.ACCEPT))),
+                EngineJson.encodeToString(f.engine.requestAfter("b", RequestAfterRequest(f.meta(), f.snap("b").encounters.single().id, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24))))),
+                EngineJson.encodeToString(f.engine.respondAfter("b", RespondAfterRequest(f.meta(), f.snap("b").afterRequests.single().id, RequestDecision.ACCEPT, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24))))),
                 EngineJson.encodeToString(f.engine.respondConnection("b", RespondConnectionRequest(f.meta(), f.snap("b").connectionRequests.single().id, RequestDecision.ACCEPT))),
             )
         }
@@ -82,8 +74,8 @@ class IntegrityTest {
                     val c = f.engine.respondConnection("b", RespondConnectionRequest(f.meta(), request.id, RequestDecision.ACCEPT)).ok().connectionId!!
                     if (stage > 1) {
                         f.engine.leaveConnection("b", LeaveConnectionRequest(f.meta(), c)).ok()
-                        val ar = f.engine.requestAfter("a", RequestAfterRequest(f.meta(), f.snap("a").encounters.single().id)).ok()
-                        if (stage > 2) f.engine.respondAfter("b", RespondAfterRequest(f.meta(), ar.id, RequestDecision.ACCEPT)).ok()
+                        val ar = f.engine.requestAfter("a", RequestAfterRequest(f.meta(), f.snap("a").encounters.single().id, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))).ok()
+                        if (stage > 2) f.engine.respondAfter("b", RespondAfterRequest(f.meta(), ar.id, RequestDecision.ACCEPT, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))).ok()
                     }
                 }
                 val command = f.meta()
@@ -121,11 +113,9 @@ class IntegrityTest {
             execute(ApiRoutes.SET_SYNTHETIC_PRESENCE, EngineJson.encodeToString(SetSyntheticPresenceRequest(f.meta(), SyntheticPresence.NEARBY)))
             val request = execute(ApiRoutes.REQUEST_CONNECTION, EngineJson.encodeToString(RequestConnectionRequest(f.meta(), profileId)))
             val c = f.engine.respondConnection("a", RespondConnectionRequest(f.meta(), request.getValue("id").jsonPrimitive.content, RequestDecision.ACCEPT)).ok().connectionId!!
-            execute(ApiRoutes.SEND_GREETING, EngineJson.encodeToString(SendGreetingRequest(f.meta(), c, "replay-greeting", PresetCode.HELLO)))
             execute(ApiRoutes.LEAVE_CONNECTION, EngineJson.encodeToString(LeaveConnectionRequest(f.meta(), c)))
-            val ar = execute(ApiRoutes.REQUEST_AFTER, EngineJson.encodeToString(RequestAfterRequest(f.meta(), f.snap("b").encounters.single().id)))
-            val ac = f.engine.respondAfter("a", RespondAfterRequest(f.meta(), ar.getValue("id").jsonPrimitive.content, RequestDecision.ACCEPT)).ok().afterConnectionId!!
-            execute(ApiRoutes.SEND_AFTER_MESSAGE, EngineJson.encodeToString(SendAfterMessageRequest(f.meta(), ac, "replay-message", AfterMessageContent.Text("반가워요"))))
+            val ar = execute(ApiRoutes.REQUEST_AFTER, EngineJson.encodeToString(RequestAfterRequest(f.meta(), f.snap("b").encounters.single().id, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))))
+            val ac = f.engine.respondAfter("a", RespondAfterRequest(f.meta(), ar.getValue("id").jsonPrimitive.content, RequestDecision.ACCEPT, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))).ok().afterConnectionId!!
             execute(ApiRoutes.END_AFTER_CONNECTION, EngineJson.encodeToString(EndAfterConnectionRequest(f.meta(), ac)))
             execute(ApiRoutes.REPORT_PEER, EngineJson.encodeToString(ReportPeerRequest(f.meta(), profileId, ReportReason.OTHER)))
             val command = f.meta()
@@ -165,18 +155,5 @@ class IntegrityTest {
         assertEquals(AfterCloseReason.ACCOUNT_DELETED, f.snap("b").afterConnections.single().closeReason)
     }
 
-    @Test fun deletedAuthorsMessagesAndGreetingsArePurgedFromStorageAndPeer() {
-        val f = pair(); val ac = after(f)
-        f.engine.sendAfterMessage("a", SendAfterMessageRequest(f.meta(), ac, "message-a", AfterMessageContent.Text("삭제할 대화예요"))).ok()
-        f.engine.sendAfterMessage("b", SendAfterMessageRequest(f.meta(), ac, "message-b", AfterMessageContent.Text("남길 대화예요"))).ok()
-        f.engine.deleteAccount("a", DeleteAccountRequest(f.meta())).ok()
-        val peer = f.snap("b")
-        assertEquals(AfterCloseReason.ACCOUNT_DELETED, peer.afterConnections.single().closeReason)
-        assertEquals(listOf(MessageAuthor.SELF), peer.afterMessages.map { it.author })
-        assertEquals(listOf(MessageAuthor.SELF), peer.greetings.map { it.author })
-        val state = f.engine.exportState()
-        assertTrue(state.messages.values.none { it.author == "a" })
-        assertTrue(state.greetings.values.none { it.author == "a" })
-        assertFalse(EngineJson.encodeToString(state).contains("삭제할 대화예요"))
-    }
+
 }

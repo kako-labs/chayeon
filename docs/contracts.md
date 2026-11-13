@@ -6,13 +6,13 @@
 
 - `core:engine`의 `ChayeonEngine`을 서버와 SOLO가 함께 사용해요. `EngineClock`, `EngineIdGenerator`, `SignatureRules`, `EngineStore`를 주입하며 명령·tick·스냅샷은 하나의 잠금 안에서 실행해요. 저장 성공 후에만 메모리 상태와 `revision`을 공개해요. 저장 실패 시 관계 변경을 되돌려요.
 - 호스트는 `EngineApi.execute(actor, route, body)`로 같은 DTO 처리를 사용해요. 인증 주체는 본문과 분리해요. `EngineJson`은 제네릭 `AppResult.Success`의 허용된 응답 타입 serializer를 등록하므로, 서버와 클라이언트 모두 이 설정을 사용해야 해요. 성공 값의 `type` 식별자도 이 설정으로 왕복해요.
-- 같은 행위자와 `commandId`의 동일 명령은 최근 512개 결과 범위에서 원래 결과를 돌려줘요. 공개 철회·차단 뒤에는 과거 후보와 상대 공개 정보를 되살리지 않도록 현재 공개 범위로 다시 투영해요. 종료 명령의 `availablePresets`는 저장된 결과를 그대로 반환하며 현재 상대 상태로 다시 채우지 않아요. 다른 본문은 `Restricted`예요. 결과를 보관 범위 밖으로 밀어내도 키와 본문 지문은 보존하며, 같은 오래된 명령은 `AlreadyClosed`로 거절해요. 키 재사용으로 과거 수정이 다시 적용되지 않아요.
+- 같은 행위자와 `commandId`의 동일 명령은 최근 512개 결과 범위에서 원래 결과를 돌려줘요. 공개 철회·차단 뒤에는 과거 후보와 상대 공개 정보를 되살리지 않도록 현재 공개 범위로 다시 투영해요. 교환 연락처는 현재 관계 권한으로 다시 투영해 종료·차단·삭제 뒤 과거 결과로 되살리지 않아요. 다른 본문은 `Restricted`예요. 결과를 보관 범위 밖으로 밀어내도 키와 본문 지문은 보존하며, 같은 오래된 명령은 `AlreadyClosed`로 거절해요. 키 재사용으로 과거 수정이 다시 적용되지 않아요.
 - 로그아웃·삭제 후 토큰은 일반 경로에서 즉시 무효예요. 응답 유실 복구를 위해 서버는 최대 512개, 5분 동안 정확히 같은 종료 경로와 본문의 영수증만 다시 반환해요. 다른 명령과 새 본문은 허용하지 않아요.
 - 새 세션 토큰으로 과거 로그아웃 명령을 재전송하면 저장된 영수증만 돌려줘요. 이미 처리한 로그아웃 때문에 새 세션 토큰을 폐기하지 않아요.
 - `EngineState`에는 좌표를 넣지 않아요. DEVICE 좌표는 엔진 메모리에만 존재하고 재시작하면 사라져요. 저장된 위치 수신 시각만으로 근접을 복원하지 않으며 새 위치 전까지 STALE이에요. 기존 연결은 CHECKING을 거쳐 확인 불가 유예가 지나면 STATUS_UNKNOWN으로 끝나요. 합성 위치는 좌표 없는 `SyntheticPresence`만 복원해요. 합성 상대가 포함된 쌍은 합성 시나리오로 근접을 판단하며 실위치 판정으로 주장하지 않아요.
 - 시간 전이는 `tick(now)`가 예정 시각 순서로 처리해요. 드문 tick도 잦은 tick과 같은 종료 결과를 만들어요. 서버 타이머는 250ms, SOLO 타이머는 1초 간격이며 모든 명령과 스냅샷 전에도 tick해요.
 - 한 연결이 끝나면 양측에 별도 기록을 하나씩 만들어요. 내 기록 삭제는 상대의 기록·애프터 신청 자격을 바꾸지 않아요. 삭제된 기록을 애프터 응답 때문에 다시 만들지 않아요.
-- 시연 행동은 `DemoCast.peers`에 모여 있어요. 느린오후는 수락·인사·이탈/복귀·애프터 수락, 바다보러가요는 거절, 숲길산책은 무응답, 재즈한잔은 발견 후 먼저 요청, 별보는밤은 수락과 애프터 수락을 해요. 이전 연결의 위치 이벤트가 새 연결을 바꾸지 않아요.
+- 시연 행동은 `DemoCast.peers`에 모여 있어요. 느린오후는 수락·이탈/복귀·애프터 수락, 바다보러가요는 거절, 숲길산책은 무응답, 재즈한잔은 발견 후 먼저 요청, 별보는밤은 수락과 애프터 수락을 해요. 이전 연결의 위치 이벤트가 새 연결을 바꾸지 않아요.
 
 ### 현재 엔진 정책
 
@@ -26,7 +26,7 @@
 | 이탈 / 상태 확인 불가 유예 | 10초 / 30초 |
 | DEVICE 위치 유효 기간 | 30초 |
 | 닉네임 / 관심사 | 유니코드 코드 포인트 2~12자 / 최대 5개 |
-| 애프터 텍스트 | 최대 500 코드 포인트, 공백만·제어문자·보이지 않는 서식 문자 금지 |
+| 연락처 | 카카오톡 ID 4~20자, 인스타그램 ID 1~30자; 선택한 ID 하나 이상으로 애프터 신청·수락 |
 | 동의 문서 버전 | 2026-11-03 |
 | 신고 기록 보관일 | null, 미정 |
 
@@ -52,11 +52,12 @@
 
 | 파일 | 내용 |
 |---|---|
-| `Common.kt` | `AppResult`, 오류 7종, 관찰 상태, 명령 식별자, 주행 정책, 상태 카드 18종 |
+| `Common.kt` | `AppResult`, 오류 7종, 관찰 상태, 명령 식별자, 주행 정책, 상태 카드 17종 |
+| `ContactIds.kt` | 비공개 연락처 ID, 정규화·유효성 검사·출력 숨김 |
 | `Profile.kt` | 테스트 계정, 세션, 내·공개 프로필, 관심사, 동의 기록, 참여 설정 |
 | `Discovery.kt` | 발견 상태와 최소 공개 후보 |
 | `Voice.kt` | `VoiceCallState`, `VoiceCallRepository`, `VoiceTransport`, `VoiceChannel`, PCM 형식 |
-| `Relationships.kt` | 요청, 일시 연결, 인사, 기록, 애프터, 차단·신고 |
+| `Relationships.kt` | 요청, 일시 연결, 기록, 연락처 교환 애프터, 차단·신고 |
 | `Signature.kt` | 공개 시그니처, 개인 근거, 주행 집계, 매듭 시드, 궁합 |
 | `Repositories.kt` | 기능이 사용하는 관찰·명령 인터페이스와 기기 안의 명령 |
 | `ServerTime.kt` | 서버 시각과 기기의 단조 시계 수신 기준점, 기한 표시용 계산 |
@@ -87,18 +88,17 @@
 - 공개 시그니처에는 칭호, 공개 특성의 단계, 매듭 시드, 출처, 범주형 근거량만 있습니다. 상대에게 개인 지표·횟수·점수·순위를 전하지 않습니다. `RECORDING` 특성은 공개 타입 생성 단계에서 거부합니다.
 - `MySignature`, `TraitEvidence`, `PrivateMetric`, `DerivedTripMetrics`, `TripRecap`은 기기 안에서만 쓰며 직렬화 가능한 서버 그래프에 들어가지 않습니다. `DerivedTripMetrics`의 이동량과 수신율은 유효 주행 판정에만 사용하고 출력 문자열에서 숨깁니다. 원시 신호는 이 계약에도 저장 모델에도 없습니다.
 - `UNSUPPORTED`인 특성은 숫자 지표 목록이 비어 있어야 합니다. 없는 값을 0으로 채우지 않습니다. `NIGHT_DRIVE`는 기본 비공개이고 전체 시그니처 게시도 기본 꺼짐입니다.
-- 차단은 본인의 `blocks`에서만 확인합니다. 서버는 상대에게 `PeerUnavailable`, 요청 `UNAVAILABLE`, 중립적인 종료 이유로 투영해야 합니다. `BLOCKED` 종료 이유는 차단을 실행한 본인에게만 허용합니다. 해제해도 과거 연결·대화가 살아나지 않습니다.
+- 차단은 본인의 `blocks`에서만 확인합니다. 서버는 상대에게 `PeerUnavailable`, 요청 `UNAVAILABLE`, 중립적인 종료 이유로 투영해야 합니다. `BLOCKED` 종료 이유는 차단을 실행한 본인에게만 허용합니다. 해제해도 과거 연결·교환 연락처가 살아나지 않습니다.
 - 차단당한 쪽이 받는 상대 프로필은 공개 동의 철회·계정 삭제와 같은 `가상 프로필` 익명 투영이에요. 닉네임·아바타·관심사·시그니처의 후속 변경을 노출하지 않아요. 차단한 쪽의 차단 목록에는 상대 프로필이 남아요. 공개 프로필 동의 철회로 끝난 연결은 상대에게 `PEER_LEFT`로 보여 차단과 구별되는 사유를 만들지 않아요.
-- 계정 삭제는 그 계정이 작성한 인사·애프터 메시지를 저장소와 상대 스냅샷에서 제거해요. 상대가 작성한 메시지는 유지하며, 이미 닫힌 관계를 포함한 대화는 `CLOSED / ACCOUNT_DELETED`로 남아요.
+- 계정 삭제는 저장한 개인 ID와 교환 ID를 제거해요. 이미 닫힌 관계도 교환 연락처를 복원하지 않으며 `CLOSED / ACCOUNT_DELETED`로 남아요.
 
 ## 버전과 명령
 
 변경되는 엔티티는 `VersionedEntity`의 `id: String`, `version: Long`을 가집니다. 시간은 UTC Unix 밀리초입니다. 값 객체(특성, 문구, 매듭 시드, 입력 초안)는 독립 엔티티가 아닙니다.
 
 - 방 내부 리비전과 응답 버전을 분리해요. 응답 버전은 계정이 볼 수 있는 전체 내용(시간·버전 제외)이 바뀔 때만 증가하며 저장소에 보존해요. 스냅샷과 새 명령 응답의 엔티티 버전은 해당 계정의 버전을 사용해요. `expectedVersion`도 이 버전과 비교해요. 숨겨진 상대 활동은 버전 증가·버전 간격·낙관적 동시성 오류·긴 폴링 조기 응답을 만들지 않아요. 기기 전용 지표의 별도 리비전과 비교하지 않아요.
-- `CommandMeta.commandId`는 클라이언트가 생성한 멱등 키입니다. 동일 명령 재시도에는 같은 키와 같은 본문을 씁니다. 성공한 결과를 다시 돌려주어 중복 연결·기록·인사가 생기지 않게 합니다. 서로 다른 새 명령은 새 키를 씁니다.
+- `CommandMeta.commandId`는 클라이언트가 생성한 멱등 키입니다. 동일 명령 재시도에는 같은 키와 같은 본문을 씁니다. 성공한 결과를 다시 돌려주어 중복 연결·기록·연락처 교환이 생기지 않게 합니다. 서로 다른 새 명령은 새 키를 씁니다.
 - `expectedVersion`은 낙관적 동시성 조건입니다. 이를 생략해도 당사자·최종 상태·동의·발견·근접 검증을 생략하지 않습니다. 경쟁에 진 명령은 실제 상태에 맞는 `AlreadyClosed`, `Expired`, `PeerUnavailable` 등으로 수렴하고 새 스냅샷을 읽습니다.
-- 메시지는 `clientMessageId`도 유지합니다. 전송 실패 UI가 같은 메시지를 다시 보낼 때 동일 식별자를 사용합니다. 서버가 메시지 엔티티 ID와 버전을 정합니다.
 - 기능은 명령마다 별도 진행 상태를 갖습니다. 관찰은 `Flow<LoadState<T>>` 또는 버전이 있는 `DiscoveryState`, `SessionState`, `DrivingState`입니다. 실패 관찰에는 오래된 공개 카드가 들어가지 않습니다.
 - 오류는 `NotAuthorized`, `AlreadyClosed`, `Expired`, `PeerUnavailable`, `Restricted`, `Network`, `Unknown` 7종입니다. 내부 예외·주소·차단 사유를 사용자 오류에 넣지 않습니다. 입력 유효성 표시는 화면에서 처리하고 서버도 다시 검증합니다.
 - 닉네임 범위, 관심사 최대 개수, 동의 문서 버전, 신고 보관일은 `ParticipationPolicy`로 받습니다. 시안의 임시 값을 계약 상수로 고정하지 않습니다. 보관일이 `null`이면 미확정이므로 UI가 임의 기간을 안내하지 않습니다.
@@ -136,14 +136,12 @@
 | RequestConnection | `/v1/connection/request` | ConnectionRequest |
 | RespondConnection | `/v1/connection/respond` | ConnectionRequest |
 | CancelConnection | `/v1/connection/cancel` | ConnectionRequest |
-| SendGreeting | `/v1/connection/greeting` | ConnectionGreeting |
 | LeaveConnection | `/v1/connection/leave` | Connection |
 | DeleteEncounter | `/v1/encounters/delete` | CommandReceipt |
 | DeleteAllEncounters | `/v1/encounters/delete-all` | CommandReceipt |
 | RequestAfter | `/v1/after/request` | AfterRequest |
 | RespondAfter | `/v1/after/respond` | AfterRequest |
 | WithdrawAfter | `/v1/after/withdraw` | AfterRequest |
-| SendAfterMessage | `/v1/after/message` | AfterMessage |
 | EndAfterConnection | `/v1/after/end` | AfterConnection |
 | BlockPeer | `/v1/safety/block` | Block |
 | UnblockPeer | `/v1/safety/unblock` | CommandReceipt |
@@ -159,10 +157,10 @@
 - 일시 연결은 `CONNECTED → CHECKING → CONNECTED`가 가능하고, 마지막은 `ENDED`입니다. `CHECKING`은 상태를 확인 중이라는 뜻이며 이탈 확정이 아닙니다. `DISTANCE/PEER_LEFT/SELF_LEFT/STATUS_UNKNOWN/DISCOVERY_OFF/BLOCKED`를 분리합니다. `ENDED`에서 이전 연결로 돌아갈 수 없습니다.
 - 실제 성립해 끝난 일시 연결만 하나의 `Encounter`를 만듭니다. 거절·취소·만료 요청은 기록이 되지 않습니다. 내 기록 삭제는 상대 기록과 차단 상태를 바꾸지 않습니다.
 - 애프터 요청 `PENDING`은 `ACCEPTED` 또는 `DECLINED/WITHDRAWN/EXPIRED/UNAVAILABLE`로 끝납니다. 별도 `AfterConnection`은 `CONNECTED → CLOSED`이며 다시 열지 않습니다.
-- 기존 일시 인사 API의 `PresetCode` 계약은 유지하지만, 현재 임시 연결 화면은 관찰·전송하지 않고 통화와 이야깃거리를 보여줘요. 애프터의 `AfterMessageContent.Preset`과 `Text`, 스레드·입력·전송 동작은 유지해요.
+- 텍스트·프리셋 메시지 엔티티, Repository 관찰·전송, HTTP 경로와 알림 설정은 없어요. 애프터는 선택한 연락처를 상호 수락 뒤 교환하는 관계예요.
 - `DrivingPolicy.ALLOWED`에서만 탐색·발신 요청·일반 수락·입력·편집을 허용해요. RESTRICTED의 활성 통화에서는 음소거/해제와 통화 끊기를 허용하고, 기본 OFF 수신 설정을 켠 전용 화면에서만 받기/거절을 추가 허용해요. UNKNOWN에서는 통화 끊기만 허용해요. 서버 요청에 클라이언트가 허용 여부를 주장하는 필드는 없습니다. 기기 정책은 UI와 명령 진입점에서 확인하고, 서버는 자신의 인증·동의·관계 상태를 별도로 검사합니다.
 - `DrivingState` 초기값은 `UNKNOWN`입니다. P와 실제 주행 상태 0을 확인한 차량 구현만 `ALLOWED`를 냅니다. 속도 0만으로 허용하지 않습니다.
-- 로그아웃·계정 삭제 성공 전에 `SignatureRepository.clearLocalData()`와 로컬 프로필·대화·토큰 캐시를 정리합니다. APP이 정리 의존성을 연결하고 SOCIAL의 SessionRepository 구현이 완료를 보장합니다. 정리 실패를 성공으로 숨기지 않습니다. 계정 삭제와 단순 로그아웃의 서버 보존 범위는 다릅니다.
+- 로그아웃·계정 삭제 성공 전에 `SignatureRepository.clearLocalData()`와 로컬 프로필·연락처·토큰 캐시를 정리합니다. APP이 정리 의존성을 연결하고 SOCIAL의 SessionRepository 구현이 완료를 보장합니다. 정리 실패를 성공으로 숨기지 않습니다. 계정 삭제와 단순 로그아웃의 서버 보존 범위는 다릅니다.
 
 ## 화면별 계약 확인
 
@@ -181,9 +179,9 @@
 | 연결 중·좁은 창 | 위와 같음 | 레이아웃만 변경, 다른 데이터 계약 없음 |
 | 연결 종료 | ConnectionRepository.connection | endReason, endedAtEpochMillis, encounterId |
 | 스친 인연 / 기록 상세 | EncounterRepository.encounters/observeEncounter | deleteEncounter/deleteAllEncounters; peer, chemistry, afterEligibility |
-| 애프터 신청 | AfterRepository.requests, observeEncounter, ServerTimeProvider.serverTime | requestAfter/withdraw; 서버 기준 기한과 재신청 가능 시각 |
-| 애프터 응답 | AfterRepository.requests, ServerTimeProvider.serverTime | respond; peer, chemistry, encounterId, 서버 기준 응답 기한 |
-| 이어진 인연 | AfterRepository.connections/observeMessages | sendMessage/endRelationship; 메시지별 delivery, 관계 종료 확인은 화면 상태 |
+| 애프터 신청 | AfterRepository.requests, observeEncounter, ServerTimeProvider.serverTime | requestAfter(contacts, saveToProfile)/withdraw; 서버 기준 기한과 재신청 가능 시각 |
+| 애프터 응답 | AfterRepository.requests, ServerTimeProvider.serverTime | respond(decision, contacts, saveToProfile); peer, chemistry, encounterId, 서버 기준 응답 기한 |
+| 이어진 인연 | AfterRepository.connections | sharedContacts/ownSharedContacts, endRelationship; 관계 종료 확인은 화면 상태 |
 | 내 프로필 | ProfileRepository.profile/settings, SignatureRepository.signature | saveProfile/updateSettings/publishSignature |
 | 차단·신고 | SafetyRepository.blocks | block/unblock/report; 사유 5종, 선택적 관련 엔티티 |
 | 기록·계정 정리 | encounters/connections/session | 발견 끄기, leave, endRelationship, deleteEncounter, signOut, deleteAccount |
@@ -193,7 +191,7 @@
 | 주행 후 요약 | SignatureRepository.recaps/observeRecap | excludeTrip/markRecapSeen; 이전·현재 매듭과 변화 문장 |
 | 시연 제어 | VehicleConsole.consoleState, DrivingStateProvider.drivingState | setGear/replay/stopReplay, setSyntheticPresence; 항상 시연 표시 |
 
-## 상태 카드 18종 확인
+## 상태 카드 17종 확인
 
 | 시안 상태 | ExperienceState | 도달 근거 |
 |---|---|---|
@@ -210,7 +208,6 @@
 | 요청 만료 | REQUEST_EXPIRED | ConnectionRequestStatus.EXPIRED |
 | 받은 요청 취소 | REQUEST_CANCELLED | ConnectionRequestStatus.CANCELLED |
 | 수락 시 연결 불가 | PEER_UNAVAILABLE | AppError.PeerUnavailable 또는 요청 UNAVAILABLE |
-| 인사 전송 실패 | MESSAGE_SEND_FAILED | 기존 일시 인사 API의 실패 상태. 현재 통화 UI에서는 사용하지 않음 |
 | 연결 상태 확인 중 | CONNECTION_CHECKING | ConnectionStatus.CHECKING |
 | 애프터 거절 | AFTER_DECLINED | AfterRequestStatus.DECLINED |
 | 애프터 만료 | AFTER_EXPIRED | AfterRequestStatus.EXPIRED |
@@ -220,7 +217,7 @@
 
 ## 계약 검증
 
-`ContractTest`는 전체 응답 직렬화 그래프에서 위치·원시 신호·개인 근거 타입을 배제하고, 명령에서 행위자·동의 주장 필드를 배제합니다. 공개 RECORDING 거부, UNSUPPORTED 숫자 거부, 야간 기본 비공개, UNKNOWN 초기 정책, 프리셋과 후속 텍스트 구분, 18개 상태, 엔티티 ID·버전, 전체 스냅샷 직렬화도 검사합니다. 명령의 원자성·토큰 권한·실제 기어 수신·버전 증가 구현은 각 담당 모듈의 테스트 범위입니다.
+`ContractTest`는 전체 응답 직렬화 그래프에서 위치·원시 신호·개인 근거 타입을 배제하고, 명령에서 행위자·동의 주장 필드를 배제합니다. 공개 RECORDING 거부, UNSUPPORTED 숫자 거부, 야간 기본 비공개, UNKNOWN 초기 정책, 연락처의 공개 투영 제외와 정규화, 17개 상태, 엔티티 ID·버전, 전체 스냅샷 직렬화도 검사합니다. 명령의 원자성·토큰 권한·실제 기어 수신·버전 증가 구현은 각 담당 모듈의 테스트 범위입니다.
 
 `ServerTimeAnchorTest`는 기기 벽시계가 5분 빠르거나 느려도 120초 기한이 정확히 120초에서 시작하는지, 단조 시간 경과·기준점 없음·시계 재시작·정수 범위를 검증합니다.
 
@@ -254,3 +251,12 @@ ContractTest는 기기 전용 타입과 집·구역·반경 필드가 요청·�
 - 프레임은 640 byte이며 초당 50개, 버스트 50개 예산을 사용해요. 순간 초과는 DROP으로 처리하고 연결을 유지해요. 잘못된 크기 또는 초당 100개 초과가 5개 연속 1초 구간에 걸치면 소켓을 닫아요. 참가자의 전송률 예산과 과부하 관측은 재접속으로 초기화하지 않아요. 상대별 큐는 5프레임 drop-oldest예요. 입장·명령·revision·ticker가 현재 참가자를 다시 확인하며 프레임마다 engine export나 prune을 호출하지 않아요. 녹음·저장·내용 및 프레임별 메타데이터 로그는 없어요.
 
 기기 PCM 재생은 첫 4프레임을 모은 뒤 시작해요. 오디오 분량은 80ms이며 첫 프레임 도착 후 대기 시간은 약 60ms예요. 수신 큐는 5프레임으로 제한하고 blocking AudioTrack sink의 쓰기가 소비 속도를 맞춰요.
+
+## 연락처 교환 계약
+
+- `ContactIds(kakaoTalkId: String? = null, instagramId: String? = null)`는 `normalized()`와 `isValid(requireAtLeastOne = false)`를 제공해요. 양끝 공백 제거·소문자화와 인스타그램 앞 `@` 제거 뒤 카카오톡 `[a-z0-9_.-]{4,20}`, 인스타그램 `[a-z0-9._]{1,30}`을 검사해요. 인스타그램의 앞뒤·연속 마침표는 거부해요. `toString()`은 값을 숨겨요.
+- `MyProfile.contacts`와 `ProfileDraft.contacts`는 기본 빈 값이고 인증된 소유자에게만 보여요. `PublicProfile`, 후보, 연결 요청, `Encounter`와 알림에는 포함하지 않아요. `ParticipationSettings`의 알림 설정은 `notifyRequests`이며 메시지 알림 필드는 없어요.
+- `RequestAfterRequest(meta, encounterId, contacts, saveToProfile = false)`는 이번에 공유할 유효한 ID 하나 이상을 요구해요. `RespondAfterRequest(meta, requestId, decision, contacts = ContactIds(), saveToProfile = false)`는 ACCEPT일 때만 유효한 ID 하나 이상을 요구해요. 응답 전까지 신청자 ID는 상대에게 보내지 않아요. `saveToProfile`은 인증된 본인의 저장 값에만 적용해요. 애프터 ACCEPT는 실제 전송·재시도 직전 집 보호 조건도 확인하고, 보호 중에는 거절해요. DECLINE·관계 종료는 이 수락 조건을 적용하지 않아요.
+- 상호 수락한 현재 `AfterConnection.sharedContacts`는 상대가 선택한 ID, `ownSharedContacts`는 내가 선택한 ID예요. 둘 다 nullable이며 관계 종료·차단·삭제에는 null로 투영해요. 저장 결과·스냅샷·명령 재시도에서도 현재 권한을 다시 확인해요. 계정 삭제는 저장·교환 사본을 제거해요.
+- 인연 목록·ID·QR은 ALLOWED에서만 관찰해요. `SocialGraph.requestSignals`는 수신 대기 요청의 불투명 ID만 제공하며 교환 ID를 실어 나르지 않아요. HTTP 스냅샷 캐시와 로그에 연락처를 추가하지 않아요.
+- Instagram QR은 검증된 ID의 `https://instagram.com/<id>`를 기기에서 ZXing Core 3.5.3(Apache-2.0)으로 생성해요. 카카오톡 ID에는 공개 URL을 추정하거나 QR을 만들지 않아요. 시연 상대의 인스타그램 값은 실제 계정이 될 수 없는 하이픈 포함 예약 값이며 사용자 입력 검증과 분리해요.

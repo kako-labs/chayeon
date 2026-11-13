@@ -152,7 +152,7 @@ class DesignGalleryTest {
         }
     }
 
-    @Test fun threadGallery() = capture("gallery_threads_messages") {
+    @Test fun threadGallery() = capture("gallery_threads") {
         Column(Modifier.fillMaxSize().padding(32.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             ChayeonText("실의 모양이 곧 마음의 상태", style = ChayeonType.Title)
             Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -170,15 +170,7 @@ class DesignGalleryTest {
                     HeroPanel(Modifier.fillMaxWidth().weight(1f)) {
                         SignatureKnot(KnotSeed(2357933L), Modifier.fillMaxSize(), interlockedWith = KnotSeed(1842720L), reveal = false)
                     }
-                    GlassCard(Modifier.fillMaxWidth()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                            ChayeonText("주고받은 인사", style = ChayeonType.Section)
-                            ChatBubble("깜빡이 매너가 멋져요", false)
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { ChatBubble("반가워요", true) }
-                            PresetButton("잠시 후 다시 이야기해요", {}, Modifier.fillMaxWidth())
-                            ChayeonText("준비된 문장만 주고받아요", style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
-                        }
-                    }
+
                 }
             }
         }

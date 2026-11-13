@@ -167,9 +167,9 @@ class RemoteBackend(
             ApiRoutes.RECORD_CONSENT, ApiRoutes.UPDATE_SETTINGS, ApiRoutes.PUBLISH_SIGNATURE,
             ApiRoutes.SET_DISCOVERY, ApiRoutes.REFRESH_DISCOVERY, ApiRoutes.UPDATE_LOCATION,
             ApiRoutes.SET_SYNTHETIC_PRESENCE, ApiRoutes.REQUEST_CONNECTION, ApiRoutes.RESPOND_CONNECTION,
-            ApiRoutes.CANCEL_CONNECTION, ApiRoutes.SEND_GREETING, ApiRoutes.LEAVE_CONNECTION,
+            ApiRoutes.CANCEL_CONNECTION, ApiRoutes.LEAVE_CONNECTION,
             ApiRoutes.DELETE_ENCOUNTER, ApiRoutes.DELETE_ALL_ENCOUNTERS, ApiRoutes.REQUEST_AFTER,
-            ApiRoutes.RESPOND_AFTER, ApiRoutes.WITHDRAW_AFTER, ApiRoutes.SEND_AFTER_MESSAGE,
+            ApiRoutes.RESPOND_AFTER, ApiRoutes.WITHDRAW_AFTER,
             ApiRoutes.END_AFTER_CONNECTION, ApiRoutes.BLOCK_PEER, ApiRoutes.UNBLOCK_PEER, ApiRoutes.REPORT_PEER,
         )
     }

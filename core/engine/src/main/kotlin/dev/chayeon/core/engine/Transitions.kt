@@ -25,7 +25,7 @@ internal fun Room.closeAfter(c: AfterConnectionRecord, initiator: String, reason
     fun forActor(actor: String) = if (reason == AfterCloseReason.ACCOUNT_DELETED) reason
         else if (actor == initiator) reason else AfterCloseReason.PEER_LEFT
     state = state.copy(afterConnections = state.afterConnections + (c.id to c.copy(version = v,
-        status = AfterConnectionStatus.CLOSED, closedAt = now, firstReason = forActor(c.first), secondReason = forActor(c.second))))
+        status = AfterConnectionStatus.CLOSED, firstContacts = null, secondContacts = null, closedAt = now, firstReason = forActor(c.first), secondReason = forActor(c.second))))
 }
 
 internal fun Room.revoke(actor: String, other: String?, reason: ConnectionEndReason, closeAfter: Boolean = true, accountDeleted: Boolean = false) {
@@ -38,7 +38,7 @@ internal fun Room.revoke(actor: String, other: String?, reason: ConnectionEndRea
     if (closeAfter) {
         state.afterRequests.values.filter { it.status == AfterRequestStatus.PENDING && involves(it.sender, it.recipient) }.forEach {
             stamp()
-            state = state.copy(afterRequests = state.afterRequests + (it.id to it.copy(version = v, status = AfterRequestStatus.UNAVAILABLE)))
+            state = state.copy(afterRequests = state.afterRequests + (it.id to it.copy(version = v, status = AfterRequestStatus.UNAVAILABLE, submittedContacts = null)))
         }
         state.afterConnections.values.filter { it.status != AfterConnectionStatus.CLOSED && involves(it.first, it.second) }.forEach {
             closeAfter(it, actor, if (accountDeleted) AfterCloseReason.ACCOUNT_DELETED else if (reason == ConnectionEndReason.BLOCKED) AfterCloseReason.BLOCKED else AfterCloseReason.SELF_LEFT)
@@ -111,7 +111,7 @@ private fun Room.scheduled(): List<Scheduled> = buildList {
     }
     state.afterRequests.values.forEach { r ->
         if (r.status == AfterRequestStatus.PENDING) add(Scheduled(r.expiresAt, "expire-after-${r.id}") {
-            stamp(); state = state.copy(afterRequests = state.afterRequests + (r.id to r.copy(version = v, status = AfterRequestStatus.EXPIRED, retryAt = now + policy.afterCooldownMillis)))
+            stamp(); state = state.copy(afterRequests = state.afterRequests + (r.id to r.copy(version = v, status = AfterRequestStatus.EXPIRED, submittedContacts = null, retryAt = now + policy.afterCooldownMillis)))
         })
         r.retryAt?.let { at -> add(Scheduled(at, "retry-after-${r.id}") { stamp() }) }
     }
@@ -148,45 +148,15 @@ private fun Room.scheduled(): List<Scheduled> = buildList {
             })
         }
         state.connections.values.lastOrNull { demo.id in setOf(it.first, it.second) }?.let { c ->
-            add(Scheduled(c.startedAt + demo.greetingDelayMillis, "demo-greeting-${c.id}-${demo.id}") {
-                val other = peer(c.first, c.second, demo.id)
-                if (state.greetings.values.any { it.greeting.connectionId == c.id && it.author == other }) return@Scheduled
-                val code = presets(demo.id, other).firstOrNull { it !in Room.BASE_PRESETS } ?: PresetCode.NICE_TO_MEET_YOU
-                sendGreeting(demo.id, SendGreetingRequest(CommandMeta("demo-greeting-${c.id}"), c.id, "demo-greeting-${c.id}", code))
-            })
             demo.presenceScript.forEach { step ->
                 add(Scheduled(c.startedAt + step.afterConnectionMillis, "demo-presence-${c.id}-${demo.id}-${step.afterConnectionMillis}") {
                     setSyntheticPresence(demo.id, SetSyntheticPresenceRequest(CommandMeta("demo-presence-${c.id}-${step.afterConnectionMillis}"), step.presence))
                 })
             }
         }
-        state.connections.values.filter { it.status == ConnectionStatus.CONNECTED && demo.id in setOf(it.first, it.second) }.forEach { c ->
-            val messages = state.greetings.values.filter { it.greeting.connectionId == c.id }.sortedBy { it.greeting.version }
-            val pending = messages.drop(messages.indexOfLast { it.author == demo.id } + 1).firstOrNull { it.author != demo.id }
-            if (pending != null && demo.greetingReplies.isNotEmpty()) {
-                val key = "demo-reply-${c.id}-${pending.greeting.id}"
-                val turn = messages.count { it.author == demo.id && it.greeting.clientMessageId.startsWith("demo-reply-") }
-                add(Scheduled(pending.greeting.sentAtEpochMillis + demo.replyDelayMillis, key) {
-                    sendGreeting(demo.id, SendGreetingRequest(CommandMeta(key), c.id, key,
-                        demo.greetingReplies[turn % demo.greetingReplies.size]))
-                })
-            }
-        }
-        state.afterConnections.values.filter { it.status == AfterConnectionStatus.CONNECTED && demo.id in setOf(it.first, it.second) }.forEach { c ->
-            val messages = state.messages.values.filter { it.message.afterConnectionId == c.id }.sortedBy { it.message.version }
-            val pending = messages.drop(messages.indexOfLast { it.author == demo.id } + 1).firstOrNull { it.author != demo.id }
-            if (pending != null && demo.afterReplies.isNotEmpty()) {
-                val key = "demo-after-reply-${c.id}-${pending.message.id}"
-                val turn = messages.count { it.author == demo.id }
-                add(Scheduled(pending.message.sentAtEpochMillis + demo.replyDelayMillis, key) {
-                    sendAfterMessage(demo.id, SendAfterMessageRequest(CommandMeta(key), c.id, key,
-                        AfterMessageContent.Text(demo.afterReplies[turn % demo.afterReplies.size])))
-                })
-            }
-        }
         if (demo.acceptsAfter) state.afterRequests.values.filter { it.recipient == demo.id && it.status == AfterRequestStatus.PENDING }.forEach { r ->
             add(Scheduled(r.createdAt + demo.responseDelayMillis, "demo-after-${r.id}") {
-                respondAfter(demo.id, RespondAfterRequest(CommandMeta("demo-after-${r.id}"), r.id, RequestDecision.ACCEPT))
+                respondAfter(demo.id, RespondAfterRequest(CommandMeta("demo-after-${r.id}"), r.id, RequestDecision.ACCEPT, demo.contacts), trustedDemo = true)
             })
         }
     }

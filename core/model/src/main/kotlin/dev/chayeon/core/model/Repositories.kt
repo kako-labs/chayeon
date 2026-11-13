@@ -32,11 +32,9 @@ interface DiscoveryRepository {
 interface ConnectionRepository {
     val requests: Flow<LoadState<List<ConnectionRequest>>>
     val connection: Flow<LoadState<Connection?>>
-    fun observeGreetings(connectionId: String): Flow<LoadState<List<ConnectionGreeting>>>
     suspend fun requestConnection(request: RequestConnectionRequest): AppResult<ConnectionRequest>
     suspend fun respond(request: RespondConnectionRequest): AppResult<ConnectionRequest>
     suspend fun cancel(request: CancelConnectionRequest): AppResult<ConnectionRequest>
-    suspend fun sendGreeting(request: SendGreetingRequest): AppResult<ConnectionGreeting>
     suspend fun leave(request: LeaveConnectionRequest): AppResult<Connection>
 }
 
@@ -50,11 +48,9 @@ interface EncounterRepository {
 interface AfterRepository {
     val requests: Flow<LoadState<List<AfterRequest>>>
     val connections: Flow<LoadState<List<AfterConnection>>>
-    fun observeMessages(afterConnectionId: String): Flow<LoadState<List<AfterMessage>>>
     suspend fun requestAfter(request: RequestAfterRequest): AppResult<AfterRequest>
     suspend fun respond(request: RespondAfterRequest): AppResult<AfterRequest>
     suspend fun withdraw(request: WithdrawAfterRequest): AppResult<AfterRequest>
-    suspend fun sendMessage(request: SendAfterMessageRequest): AppResult<AfterMessage>
     suspend fun endRelationship(request: EndAfterConnectionRequest): AppResult<AfterConnection>
 }
 

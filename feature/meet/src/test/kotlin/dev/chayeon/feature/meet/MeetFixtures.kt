@@ -32,8 +32,7 @@ internal object MeetFixtures {
         locationAvailability = LocationAvailability.FRESH, candidates = listOf(candidate))
     val request = ConnectionRequest("request", 2, peer, RequestDirection.INCOMING, ConnectionRequestStatus.PENDING,
         100_000, 220_000, chemistry)
-    val connection = Connection("connection", 3, "request", peer, ConnectionStatus.CONNECTED, 110_000, chemistry,
-        availablePresets = setOf(PresetCode.HELLO, PresetCode.NICE_TO_MEET_YOU, PresetCode.ADMIRE_SIGNAL_MANNERS, PresetCode.ADMIRE_EARLY_BRAKE))
+    val connection = Connection("connection", 3, "request", peer, ConnectionStatus.CONNECTED, 110_000, chemistry)
     val ended = connection.copy(version = 4, status = ConnectionStatus.ENDED, endReason = ConnectionEndReason.DISTANCE,
         endedAtEpochMillis = 1_190_000, encounterId = "encounter")
 }
@@ -65,40 +64,27 @@ internal class FakeMeetDeps : MeetDeps, DiscoveryRepository, ConnectionRepositor
     override val settings = MutableStateFlow<LoadState<ParticipationSettings>>(LoadState.Ready(ParticipationSettings("settings", 1), 1))
     override val requests = MutableStateFlow<LoadState<List<ConnectionRequest>>>(LoadState.Ready(emptyList(), 1))
     override val connection = MutableStateFlow<LoadState<Connection?>>(LoadState.Ready(null, 1))
-    val messages = MutableStateFlow<LoadState<List<ConnectionGreeting>>>(LoadState.Ready(emptyList(), 1))
     override val serverTime = MutableStateFlow<ServerTimeAnchor?>(ServerTimeAnchor(100_000, 10_000))
     var monotonic = 10_000L
     override fun monotonicTimeMillis() = monotonic
-    var greetingsSource: ((String) -> Flow<LoadState<List<ConnectionGreeting>>>)? = null
-    val greetingObservations = mutableListOf<String>()
-    override fun observeGreetings(connectionId: String): Flow<LoadState<List<ConnectionGreeting>>> {
-        greetingObservations += connectionId
-        return greetingsSource?.invoke(connectionId) ?: messages
-    }
 
     val discoveryCommands = mutableListOf<SetDiscoveryRequest>()
     val refreshCommands = mutableListOf<RefreshDiscoveryRequest>()
     val requestCommands = mutableListOf<RequestConnectionRequest>()
     val respondCommands = mutableListOf<RespondConnectionRequest>()
     val cancelCommands = mutableListOf<CancelConnectionRequest>()
-    val greetingCommands = mutableListOf<SendGreetingRequest>()
     val leaveCommands = mutableListOf<LeaveConnectionRequest>()
     var setDiscoveryResult: suspend (SetDiscoveryRequest) -> AppResult<DiscoveryState> = { AppResult.Success(discovery.value.copy(mode = it.mode)) }
     var refreshResult: suspend (RefreshDiscoveryRequest) -> AppResult<DiscoveryState> = { AppResult.Success(discovery.value) }
     var requestResult: suspend (RequestConnectionRequest) -> AppResult<ConnectionRequest> = { AppResult.Success(MeetFixtures.request.copy(direction = RequestDirection.OUTGOING)) }
     var respondResult: suspend (RespondConnectionRequest) -> AppResult<ConnectionRequest> = { AppResult.Success(MeetFixtures.request.copy(status = ConnectionRequestStatus.ACCEPTED, connectionId = "connection")) }
     var cancelResult: suspend (CancelConnectionRequest) -> AppResult<ConnectionRequest> = { AppResult.Success(MeetFixtures.request.copy(status = ConnectionRequestStatus.CANCELLED)) }
-    var greetingResult: suspend (SendGreetingRequest) -> AppResult<ConnectionGreeting> = {
-        AppResult.Success(ConnectionGreeting("message-${it.clientMessageId}", 4, it.connectionId, it.clientMessageId,
-            MessageAuthor.SELF, it.code, 120_000, DeliveryState.SENT))
-    }
     var leaveResult: suspend (LeaveConnectionRequest) -> AppResult<Connection> = { AppResult.Success(MeetFixtures.ended) }
     override suspend fun setDiscovery(request: SetDiscoveryRequest): AppResult<DiscoveryState> { discoveryCommands += request; return setDiscoveryResult(request) }
     override suspend fun refresh(request: RefreshDiscoveryRequest): AppResult<DiscoveryState> { refreshCommands += request; return refreshResult(request) }
     override suspend fun requestConnection(request: RequestConnectionRequest): AppResult<ConnectionRequest> { requestCommands += request; return requestResult(request) }
     override suspend fun respond(request: RespondConnectionRequest): AppResult<ConnectionRequest> { respondCommands += request; return respondResult(request) }
     override suspend fun cancel(request: CancelConnectionRequest): AppResult<ConnectionRequest> { cancelCommands += request; return cancelResult(request) }
-    override suspend fun sendGreeting(request: SendGreetingRequest): AppResult<ConnectionGreeting> { greetingCommands += request; return greetingResult(request) }
     override suspend fun leave(request: LeaveConnectionRequest): AppResult<Connection> { leaveCommands += request; return leaveResult(request) }
     override suspend fun updateLocation(request: UpdateLocationRequest) = AppResult.Failure(AppError.Unknown)
     override suspend fun setSyntheticPresence(request: SetSyntheticPresenceRequest) = AppResult.Failure(AppError.Unknown)

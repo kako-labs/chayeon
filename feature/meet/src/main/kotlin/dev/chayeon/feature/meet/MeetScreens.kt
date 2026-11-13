@@ -183,7 +183,6 @@ fun ConnectedScreen(
         MeetConnectedDriving(state, chrome, onMute, onLeave)
         return
     }
-    ViewedContent(chrome, state.driving.policy, relationshipId = state.connection?.id)
     val connection = state.connection
     ScreenScaffold(
         showSourceLabels = chrome.showSourceLabels,
@@ -237,7 +236,6 @@ fun EndedScreen(
         DrivingScreen(state.driving, chrome)
         return
     }
-    ViewedContent(chrome, state.driving.policy, relationshipId = state.connection?.id)
     val connection = state.connection
     val ended = connection?.status == ConnectionStatus.ENDED
     val endReason = connection?.endReason

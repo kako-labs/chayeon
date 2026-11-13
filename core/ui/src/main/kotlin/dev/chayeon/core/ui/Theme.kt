@@ -127,6 +127,7 @@ object ChayeonElevation {
 }
 
 object ChayeonDimensions {
+    val ContactQr = 256.dp
     val Logo = 88.dp
     val ProfileAvatar = 60.dp
     val PeerSmall = 104.dp

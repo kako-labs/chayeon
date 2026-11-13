@@ -44,7 +44,7 @@ class MyProfileViewModel(private val deps: SignatureDeps) : ViewModel() {
                 val result = commandResult {
                     if (!deps.allowedNow()) AppResult.Failure(AppError.Restricted)
                     else deps.profileRepository.updateSettings(UpdateSettingsRequest(commandMeta(current.version),
-                        current.notifyRequests, current.notifyGreetings, enabled))
+                        current.notifyRequests, enabled))
                 }
                 callSettingError.value = (result as? AppResult.Failure)?.error
             } finally { updatingCallSetting.value = false }

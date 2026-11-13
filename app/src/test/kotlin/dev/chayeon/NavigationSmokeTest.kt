@@ -156,9 +156,9 @@ class NavigationSmokeTest {
     private fun assertArrivalBanner(label: String, screenshot: String) {
         val fixture = TestGraph().apply { ready() }
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-        val events = AppEvents(fixture.graph, object : MessageNotifier {
-            override fun cancelMessage(id: String) = Unit
-            override fun notifyMessage(id: String) = Unit
+        val events = AppEvents(fixture.graph, object : RequestNotifier {
+            override fun cancelRequest(id: String) = Unit
+            override fun notifyRequest(id: String, route: String) = Unit
         }, scope)
         try {
             events.start()
@@ -202,4 +202,20 @@ class NavigationSmokeTest {
         compose.onNodeWithText("연결이 끊어져요").performScrollTo().assertIsDisplayed()
     }
 
+
+    @Test fun afterNotificationWaitsForParkingAndOpensTheUnifiedPersonDetail() {
+        val fixture = TestGraph().apply { ready() }
+        fixture.driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED, gear = Gear.DRIVE)
+        fixture.afterRequests.value = LoadState.Ready(listOf(AfterRequest("incoming-after", 2, "encounter",
+            fixture.publicProfile.copy(nickname = "별보는밤"), RequestDirection.INCOMING,
+            AfterRequestStatus.PENDING, 0, 100_000, Chemistry())), 2)
+        val target = MutableStateFlow<String?>(dev.chayeon.feature.history.HistoryDestination.person(fixture.publicProfile.id))
+        compose.setContent { ChayeonApp(fixture.graph, notificationRoute = target, consumeNotification = { target.value = null }) }
+        compose.onNodeWithText("답하기").assertDoesNotExist()
+        compose.runOnIdle { fixture.driving.value = DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK) }
+        compose.onNodeWithText("답하기").assertExists()
+        compose.onNodeWithContentDescription("새 애프터 요청", useUnmergedTree = true).assertExists()
+        compose.onRoot().captureRoboImage("src/test/screenshots/app-after-notification.png")
+        compose.runOnIdle { assertEquals(null, target.value) }
+    }
 }

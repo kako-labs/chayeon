@@ -80,7 +80,7 @@ fun MyProfileScreen(
                 SettingsRow(ChayeonIcon.HISTORY, "기록과 계정 정리", "무엇이 지워지고 무엇이 남는지 확인해요.", { onExit(SignatureExit.OpenCleanup) })
                 GlassCard(Modifier.fillMaxWidth()) {
                     InfoRow(ChayeonIcon.LOCK, "차량 정보는 보이지 않아요",
-                        body = "상대에게는 공개한 시그니처와 관심사만 보여요. 개인 주행 수치는 이 차 안에 남아요.")
+                        body = "사진과 차량 정보는 포함하지 않아요. 연락처 ID는 서로 애프터를 수락한 뒤에만 공유해요.")
                 }
                 if (LocalSourceLabels.current) ChayeonText("시연용 로그인과 연령 확인이에요. 실제 인증은 아직 제공하지 않아요.",
                     style = ChayeonType.Minimum, color = ChayeonColors.Secondary)

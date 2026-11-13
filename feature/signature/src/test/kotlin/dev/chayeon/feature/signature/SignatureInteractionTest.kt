@@ -234,6 +234,21 @@ class SignatureInteractionTest {
         compose.onNodeWithTag("signature-screen").captureRoboImage("src/test/screenshots/signature_recording_expanded.png")
     }
 
+    @Test fun profileSummaryExplainsContactPrivacyWithoutDisplayingStoredIds() {
+        val saved = ContactIds(kakaoTalkId = "private-self", instagramId = "private.self")
+        compose.setContent {
+            ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+                MyProfileScreen(MyProfileUiState(f.driving, f.ready(f.profile.copy(contacts = saved)),
+                    f.ready(f.signature)), previewChrome(), {}, {}, {}, {})
+            }
+        }
+        compose.onNodeWithText("차량 정보는 보이지 않아요").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("사진과 차량 정보는 포함하지 않아요. 연락처 ID는 서로 애프터를 수락한 뒤에만 공유해요.")
+            .performScrollTo().assertIsDisplayed()
+        compose.onAllNodes(hasText("private-self", substring = true)).assertCountEquals(0)
+        compose.onAllNodes(hasText("private.self", substring = true)).assertCountEquals(0)
+    }
+
     @Test fun profileMainActionAndFailureRecoveryAreReachable() {
         var opens = 0
         var retries = 0

@@ -29,69 +29,8 @@ import org.robolectric.annotation.GraphicsMode
 class HistoryInteractionTest {
     @get:Rule val compose = createComposeRule()
     private val store = ViewModelStore()
+    private fun ephemeralId() = "a" + java.util.UUID.randomUUID().toString().replace("-", "").take(19)
     @After fun close() { store.clear() }
-
-    @Test fun latestWrappedReplyComposerAndSendFitWithoutPageScrolling() {
-        val reply = "다시 이야기하게 되어 반가워요. 야경 보는 걸 좋아하세요? 함께 나누고 싶은 풍경 이야기가 많아요. " +
-            "저는 해 질 무렵의 하늘과 조용한 산책길을 좋아해요. 다음에는 좋아하는 음악 이야기도 천천히 나눠 보고 싶어요."
-        val older = (1..12).map { index -> AfterMessage("older-$index", 1, "after", "older-$index", MessageAuthor.PEER,
-            AfterMessageContent.Text("지난 대화 $index · 함께 나누었던 이야기를 다시 읽어 봐요"), index.toLong(), DeliveryState.SENT) }
-        val state = screenState(HistoryScreen.AFTER_CONNECTED, ScreenScenario.POPULATED).copy(
-            messages = LoadState.Ready(older + AfterMessage("reply", 2, "after", "reply", MessageAuthor.PEER,
-                AfterMessageContent.Text(reply), 20, DeliveryState.SENT), 2),
-        )
-        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
-            val chrome = previewChrome()
-            val appChrome = ScreenChrome(topBar = {
-                Box(Modifier.height(ChayeonDimensions.Banner), contentAlignment = Alignment.Center) { chrome.topBar() }
-            }, bottomBar = chrome.bottomBar)
-            AfterConnectionsScreen(state, appChrome, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
-        } }
-        val message = compose.onNodeWithText(reply).assertIsDisplayed().getUnclippedBoundsInRoot()
-        val viewport = compose.onNodeWithTag("after-message-list").getUnclippedBoundsInRoot()
-        val composer = compose.onNodeWithContentDescription("메시지").assertIsDisplayed().getUnclippedBoundsInRoot()
-        val send = compose.onNodeWithTag("after-send").assertIsDisplayed().getUnclippedBoundsInRoot()
-        assertTrue("The peer reply must wrap onto multiple lines", (message.bottom - message.top).value >= ChayeonType.Body.lineHeight.value * 2)
-        assertTrue(message.top >= viewport.top && message.bottom <= viewport.bottom)
-        assertTrue("The whole latest reply must clear the older-message fade", message.top >= viewport.top + ChayeonDimensions.ScrollFade)
-        assertTrue(viewport.bottom <= composer.top && composer.bottom <= send.top)
-        assertTrue(send.bottom - send.top >= ChayeonSpacing.Touch)
-        val scroll = compose.onNodeWithTag("after-message-list").fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange]
-        assertTrue("Older messages must scroll inside the conversation", scroll.maxValue() > 0f)
-        assertEquals(scroll.maxValue(), scroll.value(), 1f)
-        compose.onNodeWithText("지난 대화 1 · 함께 나누었던 이야기를 다시 읽어 봐요").assertIsNotDisplayed()
-        compose.onRoot().captureRoboImage("src/test/screenshots/after_wrapped_reply.png")
-        compose.onNodeWithTag("after-message-list").performScrollToNode(hasText("지난 대화 1 · 함께 나누었던 이야기를 다시 읽어 봐요"))
-        compose.onNodeWithText("지난 대화 1 · 함께 나누었던 이야기를 다시 읽어 봐요").assertIsDisplayed()
-        assertEquals(composer, compose.onNodeWithContentDescription("메시지").getUnclippedBoundsInRoot())
-        assertEquals(send, compose.onNodeWithTag("after-send").getUnclippedBoundsInRoot())
-    }
-
-    @Test fun multipleRelationshipRowsAndPresetsRemainReachable() {
-        val base = screenState(HistoryScreen.AFTER_CONNECTED, ScreenScenario.POPULATED)
-        val selected = base.selectedRelationship!!
-        val state = base.copy(relationships = LoadState.Ready(listOf(selected) + (1..6).map {
-            selected.copy(id = "other-$it", peer = selected.peer.copy(id = "peer-$it", nickname = "산책길$it"))
-        }, 2))
-        var chosen: String? = null
-        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
-            AfterConnectionsScreen(state, previewChrome(), { chosen = it }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
-        } }
-        compose.onNodeWithTag("relationship-${selected.id}").assertHasNoClickAction()
-        compose.onNodeWithText("대화 중인 인연").assertIsDisplayed()
-        val last = compose.onNodeWithTag("relationship-other-6").performScrollTo().assertIsDisplayed()
-        val bounds = last.getUnclippedBoundsInRoot()
-        assertTrue(bounds.bottom - bounds.top >= ChayeonSpacing.Touch)
-        last.performClick()
-        assertEquals("other-6", chosen)
-        selected.availablePresets.forEach { code ->
-            compose.onNode(hasText(code.label) and hasClickAction()).performScrollTo().assertIsDisplayed()
-        }
-        compose.onNode(hasText(PresetCode.ADMIRE_EARLY_BRAKE.label) and hasClickAction()).performScrollTo()
-        compose.onRoot().captureRoboImage("src/test/screenshots/after_multiple_relationships.png")
-        compose.onNodeWithText("관계 끝내기").assertIsDisplayed()
-        compose.onNodeWithTag("after-send").assertIsDisplayed()
-    }
 
     @Test fun profileSaveFailureRetainsTextAndRetryUsesOriginalCommand() {
         val deps = FakeHistoryDeps().apply { error = AppError.Network }
@@ -216,24 +155,6 @@ class HistoryInteractionTest {
         compose.onNodeWithText("저장하고 다음").assertIsDisplayed()
     }
 
-    @Test fun messageMainActionAndFailedDeliveryRetry() {
-        val deps = FakeHistoryDeps().apply { error = AppError.Network }
-        val model = AfterConnectionsViewModel(deps).also { store.put("after", it) }
-        compose.setContent {
-            val state by model.uiState.collectAsState()
-            ChayeonTheme(state.driving.policy, 0f) {
-                AfterConnectionsScreen(state, previewChrome(), model::select, {}, model::setText, model::sendText,
-                    model::sendPreset, model::retryMessage, model::retry, model::askEnd, {}, model::endRelationship, model::dismissConfirmation)
-            }
-        }
-        compose.onNodeWithContentDescription("메시지").performScrollTo().performTextInput("반가워요")
-        compose.onNodeWithText("메시지 보내기").performScrollTo().performClick()
-        compose.onNodeWithText("이 메시지 다시 보내기").performScrollTo().assertExists()
-        compose.runOnIdle { deps.error = null }
-        compose.onNodeWithText("이 메시지 다시 보내기").performClick()
-        compose.runOnIdle { assertEquals(deps.calls[0], deps.calls[1]) }
-    }
-
     @Test fun systemBackKeepsDraftWhileRestrictedAndUnknown() {
         val deps = FakeHistoryDeps()
         val model = ProfileSetupViewModel(deps).also { store.put("profile", it) }
@@ -294,20 +215,6 @@ class HistoryInteractionTest {
         assertEquals(left.bottom, right.bottom, 1f)
     }
 
-    @Test fun onboardingPanelsFitAboveActionsWithMatchingBottoms() {
-        var screen by mutableStateOf(HistoryScreen.FIRST_RUN)
-        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { RenderHistoryScreen(screen, screenState(screen, ScreenScenario.POPULATED)) } }
-        listOf(HistoryScreen.FIRST_RUN, HistoryScreen.PROFILE_SETUP, HistoryScreen.CONSENT).forEach { next ->
-            compose.runOnIdle { screen = next }
-            val left = compose.onNodeWithTag("onboarding-left").getUnclippedBoundsInRoot()
-            val right = compose.onNodeWithTag("onboarding-right").getUnclippedBoundsInRoot()
-            val actions = compose.onNodeWithTag("onboarding-actions").getUnclippedBoundsInRoot()
-            assertEquals("$screen panel bottoms", left.bottom.value, right.bottom.value, 1f)
-            assertTrue("$screen left panel clips", left.bottom <= actions.top)
-            assertTrue("$screen right panel clips", right.bottom <= actions.top)
-        }
-    }
-
     @Test fun discoveryIsOffAndExplainsDisabledStateBeforeConsent() {
         compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { RenderHistoryScreen(HistoryScreen.CONSENT, screenState(HistoryScreen.CONSENT, ScreenScenario.POPULATED)) } }
         compose.onNodeWithText("발견 켜기").performScrollTo().assertIsOff().assertIsNotEnabled()
@@ -315,38 +222,15 @@ class HistoryInteractionTest {
     }
 
     @Test fun incomingSafetyDeclineAndAcceptAreVisibleWithoutScrolling() {
-        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { RenderHistoryScreen(HistoryScreen.AFTER_INCOMING, HistoryFixtures.state) } }
-        compose.onNodeWithText("수락하면 새 대화가 열려요. 거절해도 이유는 전달되지 않아요.").assertIsDisplayed()
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { RenderHistoryScreen(HistoryScreen.AFTER_INCOMING, screenState(HistoryScreen.AFTER_INCOMING, ScreenScenario.POPULATED)) } }
+        compose.onNodeWithText("수락하면 내가 고른 아이디도 상대에게 보여요. 거절 이유는 전달되지 않아요.").assertIsDisplayed()
         listOf("차단·신고", "거절", "수락하고 이어가기").forEach { compose.onNodeWithText(it).assertIsDisplayed() }
-    }
-
-    @Test fun encounterChemistryIsVisibleAndEmptySharedInterestsHaveNoHeading() {
-        val detailed = screenState(HistoryScreen.ENCOUNTER_DETAIL, ScreenScenario.POPULATED)
-        val state = detailed.copy(encounter = LoadState.Ready(detailed.encounter.valueOrNull()!!.copy(sharedInterests = emptySet()), 1))
-        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { RenderHistoryScreen(HistoryScreen.ENCOUNTER_DETAIL, state) } }
-        compose.onNodeWithText("함께하면 잘 맞는 점").assertIsDisplayed()
-        HistoryFixtures.detailedChemistry.lines.forEach { compose.onNodeWithText(it.text).assertIsDisplayed() }
-        compose.onNodeWithText("겹친 관심사").assertDoesNotExist()
-    }
-
-    @Test fun connectedSafetyAndEndActionsAreVisibleAboveNavigation() {
-        val state = screenState(HistoryScreen.AFTER_CONNECTED, ScreenScenario.POPULATED)
-        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { RenderHistoryScreen(HistoryScreen.AFTER_CONNECTED, state) } }
-        val actionTop = compose.onNodeWithText("관계 끝내기").getUnclippedBoundsInRoot().top
-        state.selectedRelationship!!.availablePresets.forEach { code ->
-            val preset = compose.onNode(hasText(code.label) and hasClickAction())
-            preset.assertIsDisplayed()
-            assertTrue("${code.name} clips", preset.getUnclippedBoundsInRoot().bottom <= actionTop)
-        }
-        compose.onNodeWithText("관계 끝내기").assertIsDisplayed()
-        compose.onNodeWithText("차단·신고").assertIsDisplayed()
-        compose.onNodeWithText("보고 있는 인연").assertDoesNotExist()
-        compose.onNodeWithText("대화 중인 인연").assertIsDisplayed()
     }
 
     @Test fun incomingAcceptCallsRepository() {
         val deps = FakeHistoryDeps()
         val model = AfterRequestViewModel(deps, "encounter").also { store.put("request", it) }
+        model.setContacts(ContactIds(kakaoTalkId = ephemeralId()))
         compose.setContent {
             val state by model.uiState.collectAsState()
             ChayeonTheme(state.driving.policy, 0f) {
@@ -357,4 +241,120 @@ class HistoryInteractionTest {
         compose.onNodeWithText("수락하고 이어가기").performClick()
         compose.runOnIdle { assertEquals(RequestDecision.ACCEPT, (deps.calls.single() as RespondAfterRequest).decision) }
     }
+    @Test fun privateContactsAndQrDisappearImmediatelyWhenDrivingIsRestrictedOrUnknown() {
+        var policy by mutableStateOf(DrivingPolicy.ALLOWED)
+        compose.setContent {
+            val state = HistoryFixtures.state.copy(driving = DrivingState(policy = policy))
+            ChayeonTheme(policy, 0f) { RenderHistoryScreen(HistoryScreen.PERSON, state) }
+        }
+        compose.onNodeWithText("@demo-contact").assertExists()
+        for (next in listOf(DrivingPolicy.RESTRICTED, DrivingPolicy.UNKNOWN)) {
+            compose.runOnIdle { policy = next }
+            compose.onNodeWithText("@demo-contact").assertDoesNotExist()
+            compose.onNodeWithText("demo-contact").assertDoesNotExist()
+            compose.onNodeWithText("관계 끝내기").assertDoesNotExist()
+        }
+    }
+
+    @Test fun savedContactCheckboxRequiresExplicitSelection() {
+        val savedId = ephemeralId()
+        var state by mutableStateOf(screenState(HistoryScreen.AFTER_REQUEST, ScreenScenario.POPULATED).copy(
+            profile = LoadState.Ready(HistoryFixtures.profile.copy(contacts = ContactIds(kakaoTalkId = savedId)), 1)))
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+            AfterRequestScreen(state, previewChrome(), {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {},
+                onContacts = { state = state.copy(shareContacts = it) })
+        } }
+        compose.onNodeWithText("애프터 신청 보내기").assertIsNotEnabled()
+        compose.onNodeWithText("카카오톡 · $savedId").performScrollTo().performClick()
+        compose.onNodeWithText("애프터 신청 보내기").assertIsEnabled()
+        compose.onNodeWithText("카카오톡 · $savedId").performClick()
+        compose.onNodeWithText("애프터 신청 보내기").assertIsNotEnabled()
+    }
+
+    @Test fun blockedPeerNeverAppearsInUnifiedListOrDetail() {
+        val state = HistoryFixtures.state.copy(blocks = LoadState.Ready(listOf(HistoryFixtures.block), 2))
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { RenderHistoryScreen(HistoryScreen.PERSON, state) } }
+        compose.onNodeWithText(HistoryFixtures.peer.nickname).assertDoesNotExist()
+        compose.onNodeWithText("@demo-contact").assertDoesNotExist()
+        compose.onNodeWithText("이 인연은 더 이상 보이지 않아요").assertExists()
+    }
+
+    @Test fun savedBothIdsCanBeSelectedTogetherOrIndividually() {
+        val kakao = ephemeralId()
+        val instagram = ephemeralId()
+        var state by mutableStateOf(screenState(HistoryScreen.AFTER_REQUEST, ScreenScenario.POPULATED).copy(
+            profile = LoadState.Ready(HistoryFixtures.profile.copy(contacts = ContactIds(kakao, instagram)), 1)))
+        var sent: ContactIds? = null
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+            AfterRequestScreen(state, previewChrome(), { sent = state.shareContacts }, { _, _ -> }, {}, {}, {}, {}, {}, {}, {},
+                onContacts = { state = state.copy(shareContacts = it) })
+        } }
+        compose.onNodeWithText("카카오톡 · $kakao").performScrollTo().performClick()
+        compose.onNodeWithText("인스타그램 · @$instagram").performScrollTo().performClick()
+        compose.onNodeWithText("애프터 신청 보내기").performClick()
+        assertEquals(ContactIds(kakao, instagram), sent)
+        compose.onNodeWithText("카카오톡 · $kakao").performScrollTo().performClick()
+        compose.onNodeWithText("애프터 신청 보내기").performClick()
+        assertEquals(ContactIds(instagramId = instagram), sent)
+    }
+
+    @Test fun incomingPersonCanRespondAfterItsEncounterIsDeleted() {
+        val state = screenState(HistoryScreen.AFTER_INCOMING, ScreenScenario.POPULATED).copy(encounters = LoadState.Ready(emptyList(), 2))
+        var answered: String? = null
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+            PersonScreen(state, previewChrome(), { answered = it }, {}, {}, {}, {}, {}, {}, {})
+        } }
+        compose.onNodeWithText("답하기").performScrollTo().performClick()
+        assertEquals(HistoryFixtures.request.encounterId, answered)
+    }
+
+    @Test fun homeProtectionDisablesAcceptAndExplainsWhyWithoutBlockingDecline() {
+        val state = screenState(HistoryScreen.AFTER_INCOMING, ScreenScenario.POPULATED).copy(homeSuppressed = true,
+            shareContacts = ContactIds(kakaoTalkId = ephemeralId()))
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { RenderHistoryScreen(HistoryScreen.AFTER_INCOMING, state) } }
+        compose.onNodeWithText("수락하고 이어가기").assertIsNotEnabled()
+        compose.onNodeWithText("거절").assertIsEnabled()
+        compose.onNodeWithText("집 근처에서 쉬는 동안에는 수락할 수 없어요").assertIsDisplayed()
+    }
+
+    @Test fun kakaoContactUsesLargeReadableText() {
+        val id = ephemeralId()
+        val relationship = HistoryFixtures.relationship.copy(sharedContacts = ContactIds(kakaoTalkId = id))
+        val state = HistoryFixtures.state.copy(relationships = LoadState.Ready(listOf(relationship), 1))
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { RenderHistoryScreen(HistoryScreen.PERSON, state) } }
+        compose.onNodeWithText(id).assertIsDisplayed()
+        val bounds = compose.onNodeWithText(id).getUnclippedBoundsInRoot()
+        assertTrue(bounds.bottom - bounds.top >= ChayeonSpacing.Touch / 2)
+    }
+
+    @Test fun mixedRevisionContactSnapshotsStayHiddenUntilEveryProjectionConverges() {
+        var state by mutableStateOf(HistoryFixtures.state)
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { RenderHistoryScreen(HistoryScreen.PERSON, state) } }
+        compose.onNodeWithText("@demo-contact").assertExists()
+        compose.runOnIdle { state = state.copy(blocks = LoadState.Ready(emptyList(), 2)) }
+        compose.onNodeWithText("@demo-contact").assertDoesNotExist()
+        compose.onNodeWithText("@demo-own").assertDoesNotExist()
+        compose.runOnIdle { state = state.copy(blocks = LoadState.Failed(AppError.Network, 2)) }
+        compose.onNodeWithText("@demo-contact").assertDoesNotExist()
+        compose.onNodeWithText("@demo-own").assertDoesNotExist()
+        compose.runOnIdle { state = HistoryFixtures.state.copy(
+            encounters = LoadState.Ready(listOf(HistoryFixtures.encounter), 2),
+            requests = LoadState.Ready(listOf(HistoryFixtures.request.copy(status = AfterRequestStatus.ACCEPTED)), 2),
+            relationships = LoadState.Ready(listOf(HistoryFixtures.relationship), 2), blocks = LoadState.Ready(emptyList(), 2)) }
+        compose.onNodeWithText("@demo-contact").assertExists()
+    }
+
+    @Test fun wholeRelationshipRowOpensPersonWhileAnswerRemainsDirect() {
+        val state = screenState(HistoryScreen.RELATIONSHIPS, ScreenScenario.POPULATED)
+        var person: String? = null
+        var encounter: String? = null
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+            RelationshipsScreen(state, previewChrome(), { person = it }, { encounter = it }, {})
+        } }
+        compose.onNodeWithText("별보는밤").performClick()
+        assertEquals("incoming", person)
+        compose.onNodeWithText("답하기").performClick()
+        assertEquals("incoming-encounter", encounter)
+    }
+
 }

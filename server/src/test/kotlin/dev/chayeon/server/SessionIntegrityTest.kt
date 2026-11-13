@@ -37,7 +37,7 @@ class SessionIntegrityTest {
         assertNotNull(registry.authorize(header(next)))
     }
 
-    @Test fun stolenRoomCodeCannotForgeAcceptanceOrReadAfterMessages() {
+    @Test fun stolenRoomCodeCannotForgeAcceptanceOrReadContacts() {
         val a = enter(secret).ok()
         val b = enter("b".repeat(43), persona = PersonaCode.ACCOUNT_B).ok()
         val engine = registry.authorize(header(a))!!.second
@@ -56,12 +56,11 @@ class SessionIntegrityTest {
         assertEquals(ConnectionRequestStatus.PENDING, registry.snapshot(header(b))!!.ok().connectionRequests.single().status)
         val c = engine.respondConnection(b.accountId, RespondConnectionRequest(meta(), request.id, RequestDecision.ACCEPT)).ok().connectionId!!
         engine.leaveConnection(a.accountId, LeaveConnectionRequest(meta(), c)).ok()
-        val ar = engine.requestAfter(a.accountId, RequestAfterRequest(meta(), engine.snapshotFor(a.accountId).ok().encounters.single().id)).ok()
-        val ac = engine.respondAfter(b.accountId, RespondAfterRequest(meta(), ar.id, RequestDecision.ACCEPT)).ok().afterConnectionId!!
-        engine.sendAfterMessage(a.accountId, SendAfterMessageRequest(meta(), ac, "private-message", AfterMessageContent.Text("다시 만나서 반가워요"))).ok()
+        val ar = engine.requestAfter(a.accountId, RequestAfterRequest(meta(), engine.snapshotFor(a.accountId).ok().encounters.single().id, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))).ok()
+        val ac = engine.respondAfter(b.accountId, RespondAfterRequest(meta(), ar.id, RequestDecision.ACCEPT, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))).ok().afterConnectionId!!
         assertEquals(AppResult.Failure(AppError.NotAuthorized), enter(null, persona = PersonaCode.ACCOUNT_B))
         assertNull(registry.snapshot("Bearer attacker"))
-        assertEquals(1, registry.snapshot(header(b))!!.ok().afterMessages.size)
+        assertNotNull(registry.snapshot(header(b))!!.ok().afterConnections.single().sharedContacts)
     }
 
     @Test fun matchingDeviceRecoversAfterTokenLossAndSignOutWithRoomIsolation() {

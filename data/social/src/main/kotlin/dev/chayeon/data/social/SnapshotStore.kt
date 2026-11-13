@@ -7,17 +7,12 @@ import kotlinx.coroutines.flow.asStateFlow
 
 internal data class SnapshotTicket(val generation: Long, val epoch: Long, val sequence: Long)
 
-internal data class PendingGreeting(val request: SendGreetingRequest, val message: ConnectionGreeting)
-internal data class PendingAfterMessage(val request: SendAfterMessageRequest, val message: AfterMessage)
-
 internal data class SnapshotState(
     val generation: Long = 0,
     val sessionId: String? = null,
     val cursor: Long = -1,
     val data: LoadState<SyncSnapshot> = LoadState.Loading(),
     val anchor: ServerTimeAnchor? = null,
-    val pendingGreetings: List<PendingGreeting> = emptyList(),
-    val pendingAfterMessages: List<PendingAfterMessage> = emptyList(),
 )
 
 /** All repository projections read one atomic value, never independently merged entity lists. */
@@ -84,16 +79,6 @@ internal class SnapshotStore(private val monotonicMillis: () -> Long) {
             cursor = snapshot.version,
             data = LoadState.Ready(snapshot, snapshot.version),
             anchor = anchor,
-            pendingGreetings = current.pendingGreetings.filterNot { pending ->
-                snapshot.greetings.any { it.author == MessageAuthor.SELF && it.connectionId == pending.message.connectionId &&
-                    it.clientMessageId == pending.message.clientMessageId } ||
-                    (pending.message.delivery == DeliveryState.SENT && pending.message.version <= snapshot.version)
-            },
-            pendingAfterMessages = current.pendingAfterMessages.filterNot { pending ->
-                snapshot.afterMessages.any { it.author == MessageAuthor.SELF && it.afterConnectionId == pending.message.afterConnectionId &&
-                    it.clientMessageId == pending.message.clientMessageId } ||
-                    (pending.message.delivery == DeliveryState.SENT && pending.message.version <= snapshot.version)
-            },
         )
         return true
     }
@@ -105,53 +90,5 @@ internal class SnapshotStore(private val monotonicMillis: () -> Long) {
         requestEpoch++
         completedSequence = ticket.sequence
         mutable.value = current.copy(data = LoadState.Failed(error, current.cursor.coerceAtLeast(0)), anchor = null)
-    }
-
-    @Synchronized
-    fun greeting(generation: Long, request: SendGreetingRequest, delivery: DeliveryState,
-        received: ConnectionGreeting? = null,
-    ): SendGreetingRequest? {
-        val current = mutable.value
-        if (current.generation != generation || current.sessionId == null) return null
-        val original = current.pendingGreetings.find {
-            it.request.connectionId == request.connectionId && it.request.clientMessageId == request.clientMessageId
-        }
-        if (original != null && original.request.code != request.code) return null
-        val stable = original?.request ?: request
-        val message = received ?: original?.message?.copy(delivery = delivery) ?: ConnectionGreeting(
-            id = "pending:${request.clientMessageId}", version = current.cursor.coerceAtLeast(0),
-            connectionId = request.connectionId, clientMessageId = request.clientMessageId,
-            author = MessageAuthor.SELF, code = request.code,
-            sentAtEpochMillis = current.anchor?.serverEpochMillis ?: 0,
-            delivery = delivery,
-        )
-        mutable.value = current.copy(pendingGreetings = current.pendingGreetings.filterNot {
-            it.request.connectionId == request.connectionId && it.request.clientMessageId == request.clientMessageId
-        } + PendingGreeting(stable, message))
-        return stable
-    }
-
-    @Synchronized
-    fun afterMessage(generation: Long, request: SendAfterMessageRequest, delivery: DeliveryState,
-        received: AfterMessage? = null,
-    ): SendAfterMessageRequest? {
-        val current = mutable.value
-        if (current.generation != generation || current.sessionId == null) return null
-        val original = current.pendingAfterMessages.find {
-            it.request.afterConnectionId == request.afterConnectionId && it.request.clientMessageId == request.clientMessageId
-        }
-        if (original != null && original.request.content != request.content) return null
-        val stable = original?.request ?: request
-        val message = received ?: original?.message?.copy(delivery = delivery) ?: AfterMessage(
-            id = "pending:${request.clientMessageId}", version = current.cursor.coerceAtLeast(0),
-            afterConnectionId = request.afterConnectionId, clientMessageId = request.clientMessageId,
-            author = MessageAuthor.SELF, content = request.content,
-            sentAtEpochMillis = current.anchor?.serverEpochMillis ?: 0,
-            delivery = delivery,
-        )
-        mutable.value = current.copy(pendingAfterMessages = current.pendingAfterMessages.filterNot {
-            it.request.afterConnectionId == request.afterConnectionId && it.request.clientMessageId == request.clientMessageId
-        } + PendingAfterMessage(stable, message))
-        return stable
     }
 }

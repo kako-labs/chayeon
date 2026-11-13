@@ -14,13 +14,13 @@
 | 묶음 | API |
 |---|---|
 | 표면 | `ChayeonBackground`, `GlassCard`, `HeroPanel` |
-| 입력 | `JellyButton`, `GelToggle`, `GelRadioRow`, `GelCheckbox`, `PresetButton` |
-| 표시 | `ChayeonText`, `IconOrb`, `StatusChip`, `InterestTag`, `ChatBubble`, `StateCard` |
+| 입력 | `JellyButton`, `GelToggle`, `GelRadioRow`, `GelCheckbox` |
+| 표시 | `ChayeonText`, `IconOrb`, `StatusChip`, `InterestTag`, `StateCard` |
 | 탐색 | `BackButton`, `StepIndicator`, `GearStrip`, `TopBanner`, `BottomNav`, `ScreenScaffold` |
 | 에셋 | `MochiAvatar`, `AvatarDish`, `ThreadStage`, `ChayeonAssets` |
 | 시그니처 | `SignatureKnot(seed, interlockedWith)`, `ThreadView(stage)` |
 
-`ExperienceState` 18종은 `StateCard`에 대응합니다. `onAction`이 없으면 행동 버튼을 생략합니다. 상대 차단 여부나 비공개 상태의 이유를 추측해 표시하지 않습니다. 의미 있는 에셋에는 설명이 있고, 중복 장식에는 `decorative = true`를 씁니다.
+`ExperienceState` 17종은 `StateCard`에 대응합니다. `onAction`이 없으면 행동 버튼을 생략합니다. 상대 차단 여부나 비공개 상태의 이유를 추측해 표시하지 않습니다. 의미 있는 에셋에는 설명이 있고, 중복 장식에는 `decorative = true`를 씁니다.
 
 `SignatureKnot`은 시드를 섞어 고리의 위상·기울기·폭을 정하고, 3차원 곡선을 투영해 깊이 순서로 그립니다. 연속 튜브 면의 깊이와 법선을 보간해 진홍색 음영·가변 반사광·교차 그림자를 계산해요. 상대의 가닥은 진주빛 흰색이며 같은 깊이 버퍼에 참여해요. 시드와 크기에 따른 래스터·표시 경로를 캐시하고 reveal 프레임에서는 경로와 마스크를 재사용해요. 래스터의 긴 변은 960px 이하예요.
 
@@ -39,7 +39,7 @@ Asta Sans 원본은 [Google Fonts의 ofl/astasans](https://github.com/google/fon
 
 ## 시그니처 화면 키트
 
-표시 문구는 `SignaturePresentation.kt`를 사용합니다. `TraitId.presentation`의 `name`, `publicPhrase`, `icon`, `category`와 `TraitLevel.label`을 조합합니다. 관심사·인사·신고 이유·프로필 종류·데이터 출처·아바타는 각 enum의 `.label`을 사용합니다. 종료 사유는 `reason.presentation(peerNickname)`의 `title`, `body`, `label`, `tag`를 사용합니다. `BLOCKED`도 중립적인 종료 문구입니다. 저장소에서 받은 최종 종료 사유를 그대로 전달하며 상대의 차단 여부를 추측하지 않습니다.
+표시 문구는 `SignaturePresentation.kt`를 사용합니다. `TraitId.presentation`의 `name`, `publicPhrase`, `icon`, `category`와 `TraitLevel.label`을 조합합니다. 관심사·신고 이유·프로필 종류·데이터 출처·아바타는 각 enum의 `.label`을 사용합니다. 종료 사유는 `reason.presentation(peerNickname)`의 `title`, `body`, `label`, `tag`를 사용합니다. `BLOCKED`도 중립적인 종료 문구입니다. 저장소에서 받은 최종 종료 사유를 그대로 전달하며 상대의 차단 여부를 추측하지 않습니다.
 
 | 부품 | 사용 방법 |
 |---|---|
@@ -51,7 +51,7 @@ Asta Sans 원본은 [Google Fonts의 ofl/astasans](https://github.com/google/fon
 | `PeerHeader` | `PublicProfile`과 `PeerHeaderSize.SMALL/LARGE`; 가상 데이터 표시를 항상 포함해요 |
 | `ResponseCountdown` | `remainingMillis: Long?`, 선택적으로 `totalMillis`; 자체 시계를 실행하지 않아요 |
 | `ConfirmSheet` | `title, body, confirmLabel, onConfirm, onDismiss`; 직접 그린 모달이에요. `busy` 동안 중복 확인·닫기를 막아요 |
-| `GelTextField` | 값·변경 콜백·라벨, 오류, 선택적 `maxLength`; 인사는 `singleLine = false`를 사용해요 |
+| `GelTextField` | 값·변경 콜백·라벨, 오류, 선택적 `maxLength` |
 | `InterestPicker` | 선택 집합과 서버 `ParticipationPolicy.maximumInterests`; 한도에서도 선택 해제는 가능해요 |
 | `AvatarPicker` | 선택한 `AvatarId`와 `onSelect`; 라디오 역할과 선택 상태를 전달해요 |
 | `AppHeader` | 로고·그라데이션 제목·설명, 선택적 프로필과 이동 콜백이에요 |
@@ -75,7 +75,7 @@ fun ExampleScreen(chrome: ScreenChrome, candidate: Candidate, onOpen: () -> Unit
         secondary = {
             GlassCard(Modifier.fillMaxWidth()) {
                 InfoRow(ChayeonIcon.LOCK, "서로 수락해야 연결돼요",
-                    body = "수락 전에는 대화가 열리지 않아요")
+                    body = "수락 전에는 아이디를 공유하지 않아요")
             }
         },
     )

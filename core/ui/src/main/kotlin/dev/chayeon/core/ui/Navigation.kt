@@ -98,15 +98,14 @@ fun TopBanner(text: String, modifier: Modifier = Modifier, icon: ChayeonIcon = C
 }
 
 enum class NavigationItem(val label: String, val icon: ChayeonIcon) {
-    MEET("오늘의 인연", ChayeonIcon.THREAD),
-    HISTORY("스친 인연", ChayeonIcon.HISTORY),
-    AFTER("이어진 인연", ChayeonIcon.KNOT),
+    MEET("홈", ChayeonIcon.THREAD),
+    RELATIONSHIPS("인연", ChayeonIcon.KNOT),
     PROFILE("내 프로필", ChayeonIcon.PROFILE),
 }
 
 @Composable
 fun BottomNav(selected: NavigationItem, discoveryOn: Boolean, onSelect: (NavigationItem) -> Unit, onDiscoveryToggle: () -> Unit, modifier: Modifier = Modifier,
-    resting: Boolean = false) {
+    resting: Boolean = false, incomingAfter: Boolean = false) {
     val interactive = LocalDrivingPolicy.current == DrivingPolicy.ALLOWED
     Row(modifier.fillMaxWidth().heightIn(min = ChayeonDimensions.Navigation).glassSurface(radius = ChayeonRadii.Banner), verticalAlignment = Alignment.CenterVertically) {
         NavigationItem.entries.forEachIndexed { index, item ->
@@ -133,7 +132,14 @@ fun BottomNav(selected: NavigationItem, discoveryOn: Boolean, onSelect: (Navigat
                 .clickable(enabled = interactive, role = Role.Tab) { onSelect(item) }
                 .semantics { this.selected = selected == item }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Tiny, Alignment.CenterVertically)) {
                 val color = if (selected == item) ChayeonColors.Accent else ChayeonColors.Secondary
-                ChayeonIcon(item.icon, Modifier.size(ChayeonDimensions.NavigationIcon), color)
+                Box {
+                    ChayeonIcon(item.icon, Modifier.size(ChayeonDimensions.NavigationIcon), color)
+                    if (item == NavigationItem.RELATIONSHIPS && incomingAfter) Box(
+                        Modifier.align(Alignment.TopEnd).size(ChayeonSpacing.TagGap)
+                            .background(ChayeonColors.BrightRed, CircleShape)
+                            .semantics { contentDescription = "새 애프터 요청" },
+                    )
+                }
                 ChayeonText(item.label, style = ChayeonType.Minimum, color = color)
             }
         }
@@ -149,7 +155,7 @@ class ScreenChrome(
     val topBar: @Composable () -> Unit,
     val bottomBar: @Composable (NavigationItem) -> Unit,
     val showSourceLabels: Boolean = true,
-    val onViewing: (requestId: String?, relationshipId: String?) -> (() -> Unit) = { _, _ -> {} },
+    val onViewing: (requestId: String?) -> (() -> Unit) = { {} },
 )
 
 @Composable
@@ -187,10 +193,10 @@ fun ScreenScaffold(
 }
 
 @Composable
-fun ViewedContent(chrome: ScreenChrome, policy: DrivingPolicy, requestId: String? = null, relationshipId: String? = null) {
-    DisposableEffect(chrome, policy, requestId, relationshipId) {
-        val release = if (policy == DrivingPolicy.ALLOWED && (requestId != null || relationshipId != null))
-            chrome.onViewing(requestId, relationshipId) else ({})
+fun ViewedContent(chrome: ScreenChrome, policy: DrivingPolicy, requestId: String? = null) {
+    DisposableEffect(chrome, policy, requestId) {
+        val release = if (policy == DrivingPolicy.ALLOWED && requestId != null)
+            chrome.onViewing(requestId) else ({})
         onDispose { release() }
     }
 }

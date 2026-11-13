@@ -131,14 +131,24 @@ class ScreenKitBehaviorTest {
         assertEquals(5, TraitId.entries.count { it.presentation.category == TraitCategory.CARE })
         assertEquals(setOf("기록 중", "보여요", "꾸준해요", "시그니처"), TraitLevel.entries.map { it.label }.toSet())
         InterestId.entries.forEach { assertTrue(it.label.isNotBlank()) }
-        PresetCode.entries.forEach { assertTrue(it.label.isNotBlank()) }
         ReportReason.entries.forEach { assertTrue(it.label.isNotBlank()) }
         ProfileKind.entries.forEach { assertTrue(it.label.isNotBlank()) }
         DataSource.entries.forEach { assertTrue(it.label.isNotBlank()) }
         AvatarId.entries.forEach { assertEquals(it.label, MochiAvatar.from(it).description) }
         ConnectionEndReason.entries.forEach { assertFalse(it.presentation("가상 상대").title.contains("차단")) }
-        assertEquals("깜빡이 매너가 멋져요", PresetCode.ADMIRE_SIGNAL_MANNERS.label)
         assertEquals("느린오후 님이 통화를 마쳤어요", ConnectionEndReason.PEER_LEFT.presentation("느린오후").title)
         assertEquals("위치나 통신이 오래 끊겼어요. 멀어졌다고 판단한 것은 아니에요.", ConnectionEndReason.STATUS_UNKNOWN.presentation("상대").body)
+    }
+
+    @Test fun navigationHasThreeTabsAndIncomingAfterBadge() {
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+            BottomNav(NavigationItem.RELATIONSHIPS, false, {}, {}, incomingAfter = true)
+        } }
+        compose.onAllNodes(hasAnyAncestor(isRoot()) and SemanticsMatcher.expectValue(androidx.compose.ui.semantics.SemanticsProperties.Role,
+            androidx.compose.ui.semantics.Role.Tab)).assertCountEquals(3)
+        compose.onNodeWithText("홈").assertExists()
+        compose.onNodeWithText("인연").assertExists()
+        compose.onNodeWithText("내 프로필").assertExists()
+        compose.onNodeWithContentDescription("새 애프터 요청", useUnmergedTree = true).assertExists()
     }
 }

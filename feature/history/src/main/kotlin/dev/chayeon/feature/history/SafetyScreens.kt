@@ -19,9 +19,9 @@ fun SafetyScreen(state: HistoryUiState, chrome: ScreenChrome, peerProfileId: Str
                 if (peer == null || target == "이 상대") ChayeonText("상대의 공개 프로필을 확인할 수 없어요. 이 화면을 연 상대에게 조치해요.", style = ChayeonType.Secondary)
                 GradientText("차단하면", style = ChayeonType.Title)
                 InfoRow(ChayeonIcon.CHECK, "서로의 카드와 요청이 사라져요")
-                InfoRow(ChayeonIcon.CHECK, "일시 연결과 이어진 대화도 닫혀요")
+                InfoRow(ChayeonIcon.CHECK, "일시 연결과 이어진 관계도 닫혀요")
                 InfoRow(ChayeonIcon.CHECK, "상대에게 이유를 알리지 않아요")
-                InfoRow(ChayeonIcon.LOCK, "해제해도 이전 대화와 관계는 돌아오지 않아요")
+                InfoRow(ChayeonIcon.LOCK, "해제해도 이전 관계는 돌아오지 않아요")
                 JellyButton(if (blocked || state.command("block").completed) "차단했어요" else "$target 차단", onBlock,
                     Modifier.fillMaxWidth(), JellyVariant.WHITE, enabled = !blocked && !state.command("block").completed && !state.command("block").running)
                 CommandFeedback(state.command("block"), { onRetry("block") })
@@ -45,7 +45,7 @@ fun SafetyScreen(state: HistoryUiState, chrome: ScreenChrome, peerProfileId: Str
 @Composable
 fun BlocksScreen(state: HistoryUiState, chrome: ScreenChrome, onUnblock: (Block) -> Unit,
     onRetry: (String) -> Unit, onConfirm: () -> Unit, onDismiss: () -> Unit, onBack: () -> Unit) {
-    HistoryFrame(state, chrome, "차단한 사람", "해제해도 이전 대화와 관계는 돌아오지 않아요", onBack,
+    HistoryFrame(state, chrome, "차단한 사람", "해제해도 이전 관계는 돌아오지 않아요", onBack,
         primary = {
             Loaded(state.blocks, "차단한 사람이 없어요") { blocks ->
                 ContentColumn {

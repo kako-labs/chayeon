@@ -93,12 +93,12 @@ val allowedEdges = mapOf(
 | `SessionRepository` | 시연 공간 입장, 테스트 계정, 로그아웃, 계정 삭제 |
 | `ProfileRepository` | 내 프로필, 참여 설정, 공개 시그니처 게시 |
 | `DiscoveryRepository` | 발견 켜기와 끄기, 후보 관찰 |
-| `ConnectionRepository` | 요청, 응답, 취소, 현재 연결 관찰, 통화 끊기(leave). 기존 인사 계약은 유지하되 임시 연결 UI에서는 사용하지 않음 |
+| `ConnectionRepository` | 요청, 응답, 취소, 현재 연결 관찰, 통화 끊기(leave). 텍스트 메시지 계약 없음 |
 | `VoiceCallRepository` | 연결 ID별 통화 상태, 음소거, 주차 중 선택적 마이크 권한 |
 | `VoiceTransport`, `VoiceChannel` | data:social이 구현하는 인증 WebSocket PCM 채널 |
 | `DemoPeerVoice` (`data:voice` 내부) | 양 모드의 데모 상대 재생·포커스·종료. Pleos 기기 내 음성, 마이크와 WebSocket 없음 |
 | `EncounterRepository` | 스친 인연 목록과 상세, 내 기록 삭제 |
-| `AfterRepository` | 애프터 신청, 응답, 철회, 후속 대화, 관계 종료 |
+| `AfterRepository` | 연락처를 선택한 애프터 신청·응답, 철회, 상호 수락 후 연락처 교환, 관계 종료 |
 | `SafetyRepository` | 차단, 해제, 신고, 차단 목록 |
 | `DrivingStateProvider` | `ALLOWED`, `RESTRICTED`, `UNKNOWN` 관찰 |
 | `SignatureRepository` | 내 시그니처, 특성 근거, 공개 설정, 주행 후 요약, 주행 제외 |
@@ -159,7 +159,7 @@ stateDiagram-v2
 
 `ChayeonApplication`은 `VehicleGraph`, `SocialGraph`, `SignaturePublisher`, `AppEvents`를 소유해요. 세션·서버의 차량 데이터 동의가 기록 게이트를 결정해요. 이 서비스용 동의는 주행 중에도 관찰되며 화면용 프로필과 분리되어 있어요. Android 14 서비스는 Activity가 전경일 때 시작해요. 동의가 철회되면 기록을 멈추고, 발견·연결·집 보호도 필요 없으면 서비스를 끝내요. `CAR_SPEED`·`CAR_ENERGY`는 동의 뒤 런타임에 요청해요. 거부한 신호는 UNSUPPORTED로 남아요.
 
-로그아웃과 삭제는 게이트를 먼저 닫고 게시 작업과 직렬화한 뒤 소셜 저장소의 정리 영수증 경로를 실행해요. 공개 투영 변경은 `SignaturePublisher`가 게시·철회하고 같은 명령으로 재시도해요. 화면은 현재 세션의 등록 상태로 복원되며 주행 중 알림은 메시지 내용 없는 `CATEGORY_MESSAGE`예요.
+로그아웃과 삭제는 게이트를 먼저 닫고 게시 작업과 직렬화한 뒤 소셜 저장소의 정리 영수증 경로를 실행해요. 공개 투영 변경은 `SignaturePublisher`가 게시·철회하고 같은 명령으로 재시도해요. 화면은 현재 세션의 등록 상태로 복원되며 주행 중 알림은 연락처 내용 없는 `CATEGORY_MESSAGE`예요.
 
 Pleos 에뮬레이터 측정에서 온 조건입니다. 실차와 App Market 승인은 확인하지 못했습니다.
 
@@ -168,7 +168,7 @@ Pleos 에뮬레이터 측정에서 온 조건입니다. 실차와 App Market 승
 | P만 제한 없음. D와 N은 0km/h에서도 제한 | `ALLOWED`는 신선한 P와 UX 제한의 Requires DO=false일 때만 |
 | `distractionOptimized` 미선언 화면은 주행 중 가려짐 | 단일 Activity에 선언, 잠금은 앱이 처리 |
 | 일반 서비스는 60초 뒤 종료 | 기록과 발견 유지는 포그라운드 서비스 |
-| 상단 카드는 `CATEGORY_MESSAGE`만 표시 | 요청과 인사 알림에 사용 |
+| 상단 카드는 `CATEGORY_MESSAGE`만 표시 | 내용 없는 요청 알림에 사용 |
 | 토스트 안 보임, 오버레이 실패 | 앱 밖 안내에 쓰지 않음 |
 | 앱 창 1682×1210, 160dpi | 레이아웃 기준 |
 | 사용자 ID 10 | adb 명령에 `--user 10` |
@@ -228,7 +228,7 @@ Application 소유 `HomeZoneCoordinator` 한곳만 presence를 전송해요. `pr
 
 서버의 `chayeonModule()`은 60초 presence lease를 켜요. NEARBY 명령이 기한을 늘리지만 이미 NEARBY인 갱신은 버전이나 long-poll을 깨우지 않아요. 기한 만료는 서버 ticker에서 명시적 AWAY와 같은 경로로 처리하며 CHECKING → 유예 → DISTANCE로 끝나요. DemoCast는 제외해요. `EnginePolicy.presenceLeaseMillis = null`인 로컬 엔진은 기존 동작을 유지해요. 앱 종료·차량 전원 종료·통신 단절 뒤에도 발견 가능 상태는 최대 lease 길이만큼 남을 수 있고, 연결 종료에는 기존 유예 시간이 추가돼요.
 
-응답을 기다리는 동안 `HomeProtectedDiscoveryRepository`는 후보를 숨기고 발견 ON을 presence 확인 뒤에만 보내요. `HomeProtectedConnectionRepository`는 보호 중 요청·수락을 막고 거절·취소·나가기·인사는 그대로 전달해요. 활성 세션의 프로필을 아직 받지 못해도 홈과 내 프로필의 로컬 설정에 접근할 수 있어요. 발견 토글은 조정기가 바꾸지 않아요.
+응답을 기다리는 동안 `HomeProtectedDiscoveryRepository`는 후보를 숨기고 발견 ON을 presence 확인 뒤에만 보내요. `HomeProtectedConnectionRepository`는 보호 중 요청·수락을 막고 거절·취소·나가기는 그대로 전달해요. `SocialAfterRepository`도 같은 수락 허용 조건을 주입받아 애프터 ACCEPT의 실제 전송·재시도 직전에 확인하며 거절·관계 종료는 유지해요. 활성 세션의 프로필을 아직 받지 못해도 홈과 내 프로필의 로컬 설정에 접근할 수 있어요. 발견 토글은 조정기가 바꾸지 않아요.
 
 좌표와 반경은 서버로 보내지 않으며 엔진·서버에는 집 개념을 추가하지 않아요. 상대는 집 보호, 앱 종료, 차량 전원 종료, 통신 단절에서 같은 거리 이탈 화면을 봐요. 다만 서버 운영자는 명시적 AWAY가 도착했음을 볼 수 있어요. 이번 빌드에는 실제 위치 기반 이탈이 없어 집 보호 때문이라고 추측할 수 있어요. `data:social`의 내부 presence 명령은 주행 제한 중에도 실행되며 사람이 누르는 콘솔과 집 설정은 현재 정책을 다시 확인해요.
 
@@ -243,3 +243,7 @@ Application 소유 `HomeZoneCoordinator` 한곳만 presence를 전송해요. `pr
 마이크를 사용할 수 없으면 수신만 유지해요. Android 14에서 RECORD_AUDIO 없이 microphone 타입 서비스를 시작할 수 없으므로 수신 전용·데모 상대 통화는 mediaPlayback 타입을 사용하고, 녹음 가능한 통화에는 microphone 타입을 함께 사용해요. 알림은 CATEGORY_CALL이며 통화 끊기 action이 같은 leave 경로를 실행해요. 실차 오디오 라우팅과 Pleos 백그라운드 유지·권한 승인은 별도 검증 대상이에요.
 
 데모 상대의 음성은 `data:voice`의 `ScriptedDemoPeerVoice` → `DemoSpeechEngine` → `PleosSpeechEngine`에서 처리해요. Pleos TextToSpeech 3.3.1을 직접 호출하고 `Mode.ON_DEVICE`만 사용해요. 일반 권한 `pleos.car.permission.TTS_SERVICE`만 선언하며 보안 그룹은 추가하지 않아요. SOLO 또는 `ProfileKind.DEMO_PEER`이면 서버 모드에서도 음성 WebSocket·마이크를 열지 않아요. 초기 prepare로 SDK를 준비한 뒤 포커스 아래에서 세 문장을 순서대로 재생하고, 시작 시각 기준 약 20초 간격을 둬요. 실제 소리 시작을 검증하지 못하므로 SDK 시작 콜백으로 발화 UI를 바꾸지 않아요. 종료·보호·포커스 상실은 재생을 멈춰요.
+
+## 인연과 연락처 경계
+
+하단 이동은 `홈 · 인연 · 내 프로필`이며 `인연`은 한 사람당 한 행인 하나의 목록이에요. 받은 애프터는 상단 빨간 배지, 이어진 관계는 하트, 보낸 신청은 `답을 기다려요`, 스친 관계는 기본 행으로 구분해요. 내부 탭은 없어요. `ContactIds`는 선택적인 카카오톡·인스타그램 ID 값 객체예요. 내 프로필의 저장 ID는 본인에게만, 개별 애프터에서 선택한 ID는 양측 수락 뒤 현재 후속 연결의 두 당사자에게만 보여요. 공개 프로필·후보·요청·기록과 알림에는 넣지 않아요. 관계 종료·차단·계정 삭제 뒤 스냅샷과 명령 재시도 결과에도 교환 ID가 남지 않아요. ALLOWED가 아니면 연락처와 인연 기록·QR을 숨겨요.

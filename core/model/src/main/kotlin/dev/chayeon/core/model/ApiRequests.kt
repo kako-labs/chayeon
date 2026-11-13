@@ -40,7 +40,6 @@ data class RecordConsentRequest(
 data class UpdateSettingsRequest(
     val meta: CommandMeta,
     val notifyRequests: Boolean,
-    val notifyGreetings: Boolean,
     val receiveRequestsWhileDriving: Boolean = false,
 )
 
@@ -89,14 +88,6 @@ data class RespondConnectionRequest(
 data class CancelConnectionRequest(val meta: CommandMeta, val requestId: String)
 
 @Serializable
-data class SendGreetingRequest(
-    val meta: CommandMeta,
-    val connectionId: String,
-    val clientMessageId: String,
-    val code: PresetCode,
-)
-
-@Serializable
 data class LeaveConnectionRequest(val meta: CommandMeta, val connectionId: String)
 
 @Serializable
@@ -106,21 +97,13 @@ data class DeleteEncounterRequest(val meta: CommandMeta, val encounterId: String
 data class DeleteAllEncountersRequest(val meta: CommandMeta)
 
 @Serializable
-data class RequestAfterRequest(val meta: CommandMeta, val encounterId: String)
+data class RequestAfterRequest(val meta: CommandMeta, val encounterId: String, val contacts: ContactIds, val saveToProfile: Boolean = false)
 
 @Serializable
-data class RespondAfterRequest(val meta: CommandMeta, val requestId: String, val decision: RequestDecision)
+data class RespondAfterRequest(val meta: CommandMeta, val requestId: String, val decision: RequestDecision, val contacts: ContactIds = ContactIds(), val saveToProfile: Boolean = false)
 
 @Serializable
 data class WithdrawAfterRequest(val meta: CommandMeta, val requestId: String)
-
-@Serializable
-data class SendAfterMessageRequest(
-    val meta: CommandMeta,
-    val afterConnectionId: String,
-    val clientMessageId: String,
-    val content: AfterMessageContent,
-)
 
 @Serializable
 data class EndAfterConnectionRequest(val meta: CommandMeta, val afterConnectionId: String)
@@ -143,4 +126,4 @@ data class ReportPeerRequest(
 data class ReportContext(val kind: ReportContextKind, val entityId: String)
 
 @Serializable
-enum class ReportContextKind { CONNECTION, GREETING, ENCOUNTER, AFTER_CONNECTION, AFTER_MESSAGE }
+enum class ReportContextKind { CONNECTION, ENCOUNTER, AFTER_CONNECTION }

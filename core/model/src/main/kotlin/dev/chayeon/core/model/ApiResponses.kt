@@ -16,14 +16,12 @@ import kotlinx.serialization.Serializable
 @Serializable data class RequestConnectionResponse(val result: AppResult<ConnectionRequest>)
 @Serializable data class RespondConnectionResponse(val result: AppResult<ConnectionRequest>)
 @Serializable data class CancelConnectionResponse(val result: AppResult<ConnectionRequest>)
-@Serializable data class SendGreetingResponse(val result: AppResult<ConnectionGreeting>)
 @Serializable data class LeaveConnectionResponse(val result: AppResult<Connection>)
 @Serializable data class DeleteEncounterResponse(val result: AppResult<CommandReceipt>)
 @Serializable data class DeleteAllEncountersResponse(val result: AppResult<CommandReceipt>)
 @Serializable data class RequestAfterResponse(val result: AppResult<AfterRequest>)
 @Serializable data class RespondAfterResponse(val result: AppResult<AfterRequest>)
 @Serializable data class WithdrawAfterResponse(val result: AppResult<AfterRequest>)
-@Serializable data class SendAfterMessageResponse(val result: AppResult<AfterMessage>)
 @Serializable data class EndAfterConnectionResponse(val result: AppResult<AfterConnection>)
 @Serializable data class BlockPeerResponse(val result: AppResult<Block>)
 @Serializable data class UnblockPeerResponse(val result: AppResult<CommandReceipt>)
@@ -32,8 +30,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class EntityKind {
-    PROFILE, SETTINGS, DISCOVERY, CONNECTION_REQUEST, CONNECTION, GREETING,
-    ENCOUNTER, AFTER_REQUEST, AFTER_CONNECTION, AFTER_MESSAGE, BLOCK,
+    PROFILE, SETTINGS, DISCOVERY, CONNECTION_REQUEST, CONNECTION,
+    ENCOUNTER, AFTER_REQUEST, AFTER_CONNECTION, BLOCK,
 }
 
 @Serializable
@@ -54,11 +52,9 @@ data class SyncSnapshot(
     val discovery: DiscoveryState = DiscoveryState(),
     val connectionRequests: List<ConnectionRequest> = emptyList(),
     val connections: List<Connection> = emptyList(),
-    val greetings: List<ConnectionGreeting> = emptyList(),
     val encounters: List<Encounter> = emptyList(),
     val afterRequests: List<AfterRequest> = emptyList(),
     val afterConnections: List<AfterConnection> = emptyList(),
-    val afterMessages: List<AfterMessage> = emptyList(),
     val blocks: List<Block> = emptyList(),
     val tombstones: List<Tombstone> = emptyList(),
 ) : VersionedEntity

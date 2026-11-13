@@ -46,7 +46,7 @@ fun FirstRunScreen(state: HistoryUiState, chrome: ScreenChrome, onMode: (Session
                                     startX = imageLeft, endX = imageLeft + imageWidth), blendMode = BlendMode.DstIn)
                             }, contentScale = FirstRunVisualScale, alignment = Alignment.TopCenter)
                     CompactInfo("발견을 켠 사람끼리만 보여요")
-                    CompactInfo("양쪽이 수락해야 대화가 열려요")
+                    CompactInfo("양쪽이 수락해야 통화가 열려요")
                     CompactInfo("다시 원할 때 애프터로 이어가요")
                 }
             }
@@ -96,7 +96,7 @@ fun ProfileSetupScreen(state: HistoryUiState, chrome: ScreenChrome, editing: Boo
                     verticalArrangement = OnboardingPanelArrangement) {
                 SectionTitle("상대에게 이렇게 보여요")
                 ProfilePresentation(preview)
-                InfoRow(ChayeonIcon.LOCK, "사진, 연락처, 차량 정보는 넣지 않아요", body = "직접 고른 공개 시그니처만 함께 보여요")
+                InfoRow(ChayeonIcon.LOCK, "연락처는 공개 카드에 보이지 않아요", body = "직접 고른 공개 시그니처만 함께 보여요")
             } }
         }, secondary = {
             if (policy == null || !state.draftLoaded) Loaded(state.profile) { EmptyCard("참여 설정을 확인하고 있어요", "잠시만 기다려 주세요") }
@@ -107,6 +107,8 @@ fun ProfileSetupScreen(state: HistoryUiState, chrome: ScreenChrome, editing: Boo
                     maxLength = policy.nicknameMaxLength, error = state.draftError, enabled = !state.command("save").running)
                 AvatarPicker(state.draft.avatar, { onDraft(state.draft.copy(avatar = it)) }, enabled = !state.command("save").running)
                 InterestPicker(state.draft.interests, policy.maximumInterests, { onDraft(state.draft.copy(interests = it)) }, enabled = !state.command("save").running)
+                SectionTitle("애프터 아이디 · 선택", subtitle = "서로 수락할 때 고른 상대에게만 공유해요")
+                ContactInputs(state.draft.contacts, { onDraft(state.draft.copy(contacts = it)) }, enabled = !state.command("save").running)
                 if (state.command("save").error != null) StateCard(ExperienceState.PROFILE_SAVE_FAILED, Modifier.fillMaxWidth(), onAction = onRetry)
                 CommandFeedback(state.command("save"), onRetry, if (editing) "프로필을 저장했어요" else null)
             } }
@@ -128,7 +130,7 @@ fun ConsentScreen(state: HistoryUiState, chrome: ScreenChrome, onConsent: (Conse
                         it.signature?.let { signature -> SignatureMini(signature) }
                         InterestRow(it.interests)
                     }
-                    InfoRow(ChayeonIcon.LOCK, "상대에게 보이지 않아요", body = "정확한 위치와 이동 경로, 집과 목적지, 실명과 연락처, 차량번호와 차량 외형은 보여주지 않아요.")
+                    InfoRow(ChayeonIcon.LOCK, "상대에게 보이지 않아요", body = "정확한 위치와 이동 경로, 집과 목적지, 실명, 차량번호와 차량 외형은 보여주지 않아요. 저장한 아이디는 애프터에서 직접 골라 서로 수락할 때만 공유해요.")
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
                         JellyButton("시그니처 공개 범위 고르기", onVisibility, Modifier.weight(1.2f), JellyVariant.SECONDARY)
                         JellyButton("집 보호 구역 · 선택", onHomeZone, Modifier.weight(1f), JellyVariant.SECONDARY,
@@ -166,7 +168,7 @@ fun ConsentScreen(state: HistoryUiState, chrome: ScreenChrome, onConsent: (Conse
                     GelToggle(state.requiredConsentsGranted && state.discovery.mode == DiscoveryMode.ON, onDiscovery, "발견 켜기",
                         enabled = state.requiredConsentsGranted && state.myProfile?.registration == RegistrationState.READY && !state.command("discovery").running)
                     if (!state.requiredConsentsGranted) ChayeonText("위의 네 항목에 동의한 뒤 발견을 켤 수 있어요.", style = ChayeonType.Secondary, color = ChayeonColors.Pink)
-                    ChayeonText("켜도 대화는 따로 수락해요. 원하지 않으면 꺼둬도 돼요.", style = ChayeonType.Secondary)
+                    ChayeonText("켜도 통화는 따로 수락해요. 원하지 않으면 꺼둬도 돼요.", style = ChayeonType.Secondary)
                     CommandFeedback(state.command("discovery"), { onRetry("discovery") })
                 } }
             }

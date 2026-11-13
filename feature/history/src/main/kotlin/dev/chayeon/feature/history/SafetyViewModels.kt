@@ -36,10 +36,10 @@ class SafetyViewModel(deps: HistoryDeps, val peerProfileId: String? = null) : Hi
         val id = peerProfileId ?: return
         val action = "${content.value.safetyPeer.safetyName} 차단"
         confirm(HistoryConfirmation(ConfirmationKind.BLOCK, id, action,
-            "서로의 카드와 요청이 사라지고, 일시 연결과 이어진 대화가 닫혀요. 상대에게 이유를 알리지 않아요. 해제해도 이전 대화와 관계는 돌아오지 않아요.", "block", action))
+            "서로의 카드와 요청이 사라지고, 일시 연결과 이어진 관계가 닫혀요. 상대에게 이유를 알리지 않아요. 해제해도 이전 관계는 돌아오지 않아요.", "block", action))
     }
     fun askUnblock(block: Block) = confirm(HistoryConfirmation(ConfirmationKind.UNBLOCK, block.id,
-        "차단을 해제할까요?", "서로 다시 발견될 수 있어요. 이전 대화와 관계는 돌아오지 않아요.", "unblock:${block.id}"))
+        "차단을 해제할까요?", "서로 다시 발견될 수 있어요. 이전 관계는 돌아오지 않아요.", "unblock:${block.id}"))
     fun confirmAction() {
         val confirmation = content.value.confirmation ?: return
         when (confirmation.kind) {
@@ -110,11 +110,11 @@ class CleanupViewModel(deps: HistoryDeps) : HistoryViewModel(deps) {
 data class CleanupCopy(val title: String, val removes: String, val keeps: String)
 fun cleanupCopy(kind: ConfirmationKind, retentionDays: Int?): CleanupCopy = when (kind) {
     ConfirmationKind.DISCOVERY_OFF -> CleanupCopy("발견 끄기", "새 노출과 요청이 멈추고, 진행 중인 일시 연결도 끝나요.", "스친 인연과 이어진 인연은 남아요.")
-    ConfirmationKind.LEAVE -> CleanupCopy("일시 연결 나가기", "지금 연결과 인사가 끝나요.", "발견 상태는 그대로이고, 스친 기록이 남아요.")
-    ConfirmationKind.END_RELATIONSHIP -> CleanupCopy("관계 끝내기", "이어진 대화가 닫히고 다시 열리지 않아요.", "처음 스친 기록은 남아요.")
+    ConfirmationKind.LEAVE -> CleanupCopy("일시 연결 나가기", "지금 통화와 연결이 끝나요.", "발견 상태는 그대로이고, 스친 기록이 남아요.")
+    ConfirmationKind.END_RELATIONSHIP -> CleanupCopy("관계 끝내기", "공유한 아이디가 차연에서 보이지 않아요. 이미 전달된 아이디는 되돌릴 수 없어요.", "처음 스친 기록은 남아요.")
     ConfirmationKind.DELETE_RECORDS -> CleanupCopy("내 기록 삭제", "내 스친 기록이 모두 사라져요. 되돌릴 수 없어요.", "상대의 기록과 차단 상태, 이어진 인연은 그대로예요.")
-    ConfirmationKind.SIGN_OUT -> CleanupCopy("로그아웃", "이 차량의 프로필, 대화, 로그인 정보, 주행 지표와 집 위치를 지워요.", "계정과 서버의 기록은 남아요. 같은 기기에서 다시 들어올 수 있도록 임의의 복구 비밀값은 이 기기에 남겨요.")
-    ConfirmationKind.DELETE_ACCOUNT -> CleanupCopy("계정 삭제", "프로필, 내 기록과 내가 보낸 메시지를 지우고 관계를 닫아요. 이 차량의 주행 지표와 집 위치도 지우며 되돌릴 수 없어요.",
-        if (retentionDays == null) "상대에게는 닫힌 관계 표시와 상대가 보낸 메시지가 남아요. 신고 접수 기록은 별도로 남을 수 있어요." else "상대에게는 닫힌 관계 표시와 상대가 보낸 메시지가 남아요. 신고 접수 기록은 ${retentionDays}일 동안 제한 보관해요.")
+    ConfirmationKind.SIGN_OUT -> CleanupCopy("로그아웃", "이 차량의 프로필, 공유한 아이디, 로그인 정보, 주행 지표와 집 위치를 지워요.", "계정과 서버의 기록은 남아요. 같은 기기에서 다시 들어올 수 있도록 임의의 복구 비밀값은 이 기기에 남겨요.")
+    ConfirmationKind.DELETE_ACCOUNT -> CleanupCopy("계정 삭제", "프로필과 내 기록을 지우고 관계를 닫아요. 이 차량의 주행 지표와 집 위치도 지우며 되돌릴 수 없어요.",
+        if (retentionDays == null) "상대에게는 닫힌 관계 표시가 남아요. 신고 접수 기록은 별도로 남을 수 있어요." else "상대에게는 닫힌 관계 표시가 남아요. 신고 접수 기록은 ${retentionDays}일 동안 제한 보관해요.")
     else -> CleanupCopy("정리", "선택한 항목을 정리해요.", "다른 기록은 그대로예요.")
 }

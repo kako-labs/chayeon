@@ -73,7 +73,7 @@ class RemoteBackendTest {
             throw IOException("Interrupted")
         }), retryDelayMillis = 1, secretStorage = MemoryClientSecretStorage())
         val result = runCatching {
-            backend.execute(SocialCoordinatorTest.testSession(SessionMode.SERVER_DEMO), ApiRoutes.SEND_GREETING, "{}") { allowed }
+            backend.execute(SocialCoordinatorTest.testSession(SessionMode.SERVER_DEMO), ApiRoutes.REQUEST_AFTER, "{}") { allowed }
         }
         assertTrue(result.exceptionOrNull() is SocialRestrictedException)
         assertEquals(1, attempts)

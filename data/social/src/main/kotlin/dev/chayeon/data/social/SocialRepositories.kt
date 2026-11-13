@@ -1,7 +1,6 @@
 package dev.chayeon.data.social
 
 import dev.chayeon.core.model.*
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
@@ -109,21 +108,6 @@ internal class SocialConnectionRepository(
             is LoadState.Failed -> data
         }
     }
-    override fun observeGreetings(connectionId: String): Flow<LoadState<List<ConnectionGreeting>>> =
-        combine(coordinator.store.state, coordinator.driving) { state, driving ->
-            if (driving.policy != DrivingPolicy.ALLOWED) return@combine LoadState.Failed(AppError.Restricted, state.cursor.coerceAtLeast(0))
-            val pending = state.pendingGreetings.map { it.message }.filter { it.connectionId == connectionId }
-            when (val data = state.data) {
-                is LoadState.Ready -> {
-                    val sent = data.value.greetings.filter { it.connectionId == connectionId }
-                    LoadState.Ready(sent + pending.filterNot { item -> sent.any {
-                        it.author == MessageAuthor.SELF && it.clientMessageId == item.clientMessageId
-                    } }, data.version)
-                }
-                is LoadState.Failed -> if (pending.isNotEmpty()) LoadState.Ready(pending, data.version) else data
-                is LoadState.Loading -> data
-            }
-        }
     override suspend fun requestConnection(request: RequestConnectionRequest) = coordinator.command(
         ApiRoutes.REQUEST_CONNECTION, request, RequestConnectionRequest.serializer(), RequestConnectionResponse.serializer(), { it.result },
         canExecute = canStartConnection)
@@ -137,26 +121,6 @@ internal class SocialConnectionRepository(
     override suspend fun leave(request: LeaveConnectionRequest) = coordinator.command(
         ApiRoutes.LEAVE_CONNECTION, request, LeaveConnectionRequest.serializer(), LeaveConnectionResponse.serializer(), { it.result },
         requiresAllowed = false)
-
-    override suspend fun sendGreeting(request: SendGreetingRequest): AppResult<ConnectionGreeting> {
-        if (!coordinator.allowed()) return AppResult.Failure(AppError.Restricted)
-        val generation = coordinator.store.state.value.generation
-        val stable = coordinator.store.greeting(generation, request, DeliveryState.SENDING)
-            ?: return AppResult.Failure(AppError.Unknown)
-        val result = try {
-            coordinator.command(ApiRoutes.SEND_GREETING, stable, SendGreetingRequest.serializer(),
-                SendGreetingResponse.serializer(), { it.result }, refresh = false)
-        } catch (cancelled: CancellationException) {
-            coordinator.store.greeting(generation, stable, DeliveryState.FAILED)
-            throw cancelled
-        }
-        when (result) {
-            is AppResult.Success -> coordinator.store.greeting(generation, stable, DeliveryState.SENT, result.value)
-            is AppResult.Failure -> coordinator.store.greeting(generation, stable, DeliveryState.FAILED)
-        }
-        coordinator.refresh(generation = generation)
-        return result
-    }
 }
 
 internal class SocialEncounterRepository(private val coordinator: SocialCoordinator) : EncounterRepository {
@@ -170,52 +134,22 @@ internal class SocialEncounterRepository(private val coordinator: SocialCoordina
         ApiRoutes.DELETE_ALL_ENCOUNTERS, request, DeleteAllEncountersRequest.serializer(), DeleteAllEncountersResponse.serializer(), { it.result })
 }
 
-internal class SocialAfterRepository(private val coordinator: SocialCoordinator) : AfterRepository {
+internal class SocialAfterRepository(
+    private val coordinator: SocialCoordinator,
+    private val canStartConnection: suspend () -> Boolean = { true },
+) : AfterRepository {
     override val requests = coordinator.observe { it.afterRequests }
     override val connections = coordinator.observe { it.afterConnections }
-    override fun observeMessages(afterConnectionId: String): Flow<LoadState<List<AfterMessage>>> =
-        combine(coordinator.store.state, coordinator.driving) { state, driving ->
-            if (driving.policy != DrivingPolicy.ALLOWED) return@combine LoadState.Failed(AppError.Restricted, state.cursor.coerceAtLeast(0))
-            val pending = state.pendingAfterMessages.map { it.message }.filter { it.afterConnectionId == afterConnectionId }
-            when (val data = state.data) {
-                is LoadState.Ready -> {
-                    val sent = data.value.afterMessages.filter { it.afterConnectionId == afterConnectionId }
-                    LoadState.Ready(sent + pending.filterNot { item -> sent.any {
-                        it.author == MessageAuthor.SELF && it.clientMessageId == item.clientMessageId
-                    } }, data.version)
-                }
-                is LoadState.Failed -> if (pending.isNotEmpty()) LoadState.Ready(pending, data.version) else data
-                is LoadState.Loading -> data
-            }
-        }
     override suspend fun requestAfter(request: RequestAfterRequest) = coordinator.command(
         ApiRoutes.REQUEST_AFTER, request, RequestAfterRequest.serializer(), RequestAfterResponse.serializer(), { it.result })
     override suspend fun respond(request: RespondAfterRequest) = coordinator.command(
-        ApiRoutes.RESPOND_AFTER, request, RespondAfterRequest.serializer(), RespondAfterResponse.serializer(), { it.result })
+        ApiRoutes.RESPOND_AFTER, request, RespondAfterRequest.serializer(), RespondAfterResponse.serializer(), { it.result },
+        canExecute = { request.decision != RequestDecision.ACCEPT || canStartConnection() })
     override suspend fun withdraw(request: WithdrawAfterRequest) = coordinator.command(
         ApiRoutes.WITHDRAW_AFTER, request, WithdrawAfterRequest.serializer(), WithdrawAfterResponse.serializer(), { it.result })
     override suspend fun endRelationship(request: EndAfterConnectionRequest) = coordinator.command(
         ApiRoutes.END_AFTER_CONNECTION, request, EndAfterConnectionRequest.serializer(), EndAfterConnectionResponse.serializer(), { it.result },
         requiresAllowed = false)
-    override suspend fun sendMessage(request: SendAfterMessageRequest): AppResult<AfterMessage> {
-        if (!coordinator.allowed()) return AppResult.Failure(AppError.Restricted)
-        val generation = coordinator.store.state.value.generation
-        val stable = coordinator.store.afterMessage(generation, request, DeliveryState.SENDING)
-            ?: return AppResult.Failure(AppError.Unknown)
-        val result = try {
-            coordinator.command(ApiRoutes.SEND_AFTER_MESSAGE, stable, SendAfterMessageRequest.serializer(),
-                SendAfterMessageResponse.serializer(), { it.result }, refresh = false)
-        } catch (cancelled: CancellationException) {
-            coordinator.store.afterMessage(generation, stable, DeliveryState.FAILED)
-            throw cancelled
-        }
-        when (result) {
-            is AppResult.Success -> coordinator.store.afterMessage(generation, stable, DeliveryState.SENT, result.value)
-            is AppResult.Failure -> coordinator.store.afterMessage(generation, stable, DeliveryState.FAILED)
-        }
-        coordinator.refresh(generation = generation)
-        return result
-    }
 }
 
 internal class SocialSafetyRepository(private val coordinator: SocialCoordinator) : SafetyRepository {

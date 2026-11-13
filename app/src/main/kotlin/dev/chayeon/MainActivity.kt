@@ -1,5 +1,7 @@
 package dev.chayeon
 
+import android.content.Intent
+import kotlinx.coroutines.flow.MutableStateFlow
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -17,6 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.CompletableDeferred
 
 class MainActivity : ComponentActivity() {
+    private val notificationRoute = MutableStateFlow<String?>(null)
     private val vehiclePermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         (application as ChayeonApplication).vehicleGraph.permissionsChanged()
     }
@@ -62,7 +65,10 @@ class MainActivity : ComponentActivity() {
                 result.await()
             }
         }
-        setContent { ChayeonApp(app.graph, events = app.events, publisherFailure = app.publisher.failure, recordingFailure = app.vehicleGraph.recordingFailure) }
+        notificationRoute.value = intent.getStringExtra(REQUEST_DESTINATION)
+        setContent { ChayeonApp(app.graph, events = app.events, publisherFailure = app.publisher.failure,
+            recordingFailure = app.vehicleGraph.recordingFailure, notificationRoute = notificationRoute,
+            consumeNotification = { notificationRoute.value = null }) }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 combine(app.graph.profileRepository.settings, app.graph.drivingStateProvider.drivingState) { settings, driving ->
@@ -85,6 +91,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        notificationRoute.value = intent.getStringExtra(REQUEST_DESTINATION)
     }
 
     override fun onResume() {

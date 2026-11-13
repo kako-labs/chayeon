@@ -47,7 +47,7 @@ internal class FakeProfileRepository : ProfileRepository {
         settingsCalls += request
         val current = (settings.value as LoadState.Ready).value
         val next = current.copy(version = current.version + 1, notifyRequests = request.notifyRequests,
-            notifyGreetings = request.notifyGreetings, receiveRequestsWhileDriving = request.receiveRequestsWhileDriving)
+            receiveRequestsWhileDriving = request.receiveRequestsWhileDriving)
         settings.value = LoadState.Ready(next, next.version)
         return AppResult.Success(next)
     }

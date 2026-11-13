@@ -122,7 +122,15 @@ class ChayeonEngine(
             val discovery = json.encodeToJsonElement(room.discovery(actor)).jsonObject
             return withVersion(JsonObject(wrapper + ("value" to JsonObject(discovery + value.filterKeys { it == "type" }))), state.viewRevisions[actor] ?: 0)
         }
+        if ("afterRequestId" in value) {
+            val id = value["id"]?.jsonPrimitive?.content
+            val connection = room.state.afterConnections[id] ?: return result
+            val projection = json.encodeToJsonElement(room.afterConnection(connection, actor)).jsonObject
+            val refreshed = JsonObject(projection + value.filterKeys { it == "type" })
+            return withVersion(JsonObject(wrapper + ("value" to refreshed)), state.viewRevisions[actor] ?: 0)
+        }
         val fields = value.toMutableMap()
+        if ("contacts" in value) fields["contacts"] = json.encodeToJsonElement(room.account(actor).profile.contacts)
         val peer = value["peer"] as? JsonObject
         val own = value["publicProfile"] as? JsonObject
         if (peer != null) {
@@ -179,8 +187,6 @@ class ChayeonEngine(
     fun cancelConnection(actor: String, request: CancelConnectionRequest): AppResult<ConnectionRequest> =
         command(actor, request.meta, request) { cancelConnection(actor, request) }
 
-    fun sendGreeting(actor: String, request: SendGreetingRequest): AppResult<ConnectionGreeting> =
-        command(actor, request.meta, request) { sendGreeting(actor, request) }
 
     fun leaveConnection(actor: String, request: LeaveConnectionRequest): AppResult<Connection> =
         command(actor, request.meta, request) { leaveConnection(actor, request) }
@@ -200,8 +206,6 @@ class ChayeonEngine(
     fun withdrawAfter(actor: String, request: WithdrawAfterRequest): AppResult<AfterRequest> =
         command(actor, request.meta, request) { withdrawAfter(actor, request) }
 
-    fun sendAfterMessage(actor: String, request: SendAfterMessageRequest): AppResult<AfterMessage> =
-        command(actor, request.meta, request) { sendAfterMessage(actor, request) }
 
     fun endAfterConnection(actor: String, request: EndAfterConnectionRequest): AppResult<AfterConnection> =
         command(actor, request.meta, request) { endAfterConnection(actor, request) }

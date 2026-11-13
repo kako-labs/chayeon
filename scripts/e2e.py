@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import secrets
 import subprocess
 import threading
 import time
@@ -371,7 +372,7 @@ def create_signature(device, choice, prefix=""):
     device.wait("시그니처 근거: 합성 주행")
     device.capture(prefix + "05-evidence-source", ["특성 상세", "시그니처 근거: 합성 주행"])
     device.tap("뒤로")
-    device.tap("오늘의 인연")
+    device.tap("홈")
     device.wait("잘 맞는 점", exact=False)
     if device.find("내 시그니처 만들기", device.tree()) is not None:
         raise AssertionError("공개 후에도 시그니처 초대가 남아 있어요")
@@ -388,7 +389,7 @@ def set_synthetic_home(device, server=False):
     device.tap("합성 위치로 집 정하기" if server else "집 보호 시작하기", scroll=True)
     device.wait("집 근처에서는 쉬고 있어요")
     device.capture("home-zone-set", ["집 근처에서는 쉬고 있어요", "500m"])
-    device.tap("오늘의 인연")
+    device.tap("홈")
     assert_home_rest(device)
 
 
@@ -406,7 +407,7 @@ def home_position(device, inside, external=False):
     else:
         device.tap("시연 제어", description_only=True)
         device.tap("집 근처로 오기" if inside else "집에서 멀어지기", scroll=True)
-        device.tap("오늘의 인연")
+        device.tap("홈")
     if not inside:
         device.wait("별보는밤", timeout=20)
 
@@ -620,37 +621,33 @@ def run(with_real_drive=False, skip_build=False, apk=None, serial=None):
         device.wait("애프터 신청")
         device.capture("17-encounter", ["별보는밤", "멀어짐", "애프터 신청"])
         device.tap("애프터 신청")
+        enter_instagram_contact(device)
         device.tap("애프터 신청 보내기")
         device.wait("이어진 인연 보기")
         device.tap("이어진 인연 보기")
-        device.wait("대화 중인 인연")
-        device.tap("안녕하세요")
-        device.wait("보냈어요")
-        reply = "다시 이야기하게 되어 반가워요. 야경 보는 걸 좋아하세요?"
-        device.wait(reply)
+        device.wait("@byeol-night.drive")
+        device.wait("인스타그램 QR 코드")
         assert_no_arrival_banner(device)
-        device.capture("18-after-message", ["대화 중인 인연", "보냈어요", reply, "메시지 보내기", "메시지"])
-        tree = device.tree()
-        send = device.find("메시지 보내기", tree)
-        message = device.find(reply, tree)
-        field = device.find("메시지", tree)
-        message_bounds = list(map(int, re.findall(r"\d+", message.get("bounds"))))
-        field_bounds = list(map(int, re.findall(r"\d+", field.get("bounds"))))
-        send_bounds = list(map(int, re.findall(r"\d+", send.get("bounds"))))
-        if message_bounds[3] > field_bounds[1] or field_bounds[3] > send_bounds[1]:
-            raise AssertionError("최근 답장, 입력 칸, 전송 버튼이 겹쳐요")
+        device.capture("18-after-contact", ["인스타그램", "@byeol-night.drive", "인스타그램 QR 코드", "관계 끝내기"])
+        console.gear("Drive")
+        assert_contacts_hidden(device, ("byeol-night.drive",))
+        device.capture("18-after-restricted", ["주차하면"])
+        console.gear("Park")
+        device.wait("@byeol-night.drive")
         prove_home_zone(device, console, include_driving=debug_proof)
-        device.tap("이어진 인연")
+        device.tap("인연")
+        device.tap("별보는밤", exact=False, scroll=True)
         device.tap("차단·신고", scroll=True)
         device.tap("별보는밤 님 차단")
         device.confirm("별보는밤 님 차단")
         device.wait("차단했어요")
         device.capture("19-blocked", ["차단했어요"])
         device.tap("뒤로")
-        device.wait("이 대화는 닫혔어요")
-        device.capture("20-after-closed", ["이 대화는 닫혔어요"])
+        device.wait("이 인연은 더 이상 보이지 않아요")
+        device.capture("20-after-closed", ["이 인연은 더 이상 보이지 않아요"])
+        assert_contacts_hidden(device, ("byeol-night.drive",))
         device.tap("내 프로필")
-        device.tap("오늘의 인연")
+        device.tap("홈")
         device.wait("잘 맞는 점", exact=False)
         tree = device.tree()
         if device.find("별보는밤", tree) is not None:
@@ -685,6 +682,21 @@ def run(with_real_drive=False, skip_build=False, apk=None, serial=None):
         return 0
 
 
+def enter_instagram_contact(device):
+    value = secrets.token_hex(12)
+    device.tap("인스타그램 아이디 · 선택", scroll=True, description_only=True)
+    device.shell("input", "text", value)
+    device.shell("input", "keyevent", "KEYCODE_BACK")
+    device.wait("한 번 공유한 아이디는 되돌릴 수 없어요.")
+    return value
+
+
+def assert_contacts_hidden(device, ids):
+    labels = " ".join(device.labels(device.tree()))
+    if "인스타그램 QR 코드" in labels or any(value in labels for value in ids):
+        raise AssertionError("가려야 하는 연락처가 화면에 보여요")
+
+
 def finish_session(device, debug_proof):
     device.shell("am", "force-stop", "--user", "10", "dev.chayeon")
     device.launch()
@@ -693,9 +705,11 @@ def finish_session(device, debug_proof):
     device.wait("내 시그니처 보기")
     assert_solo_surface(device)
     device.capture("23-profile-restored", ["새벽드라이브", "내 시그니처 보기"])
-    device.tap("스친 인연")
-    device.wait("멀어짐", exact=False)
-    device.capture("24-records-restored", ["멀어짐"])
+    device.tap("인연")
+    assert_contacts_hidden(device, ("byeol-night.drive",))
+    if device.find("별보는밤") is not None:
+        raise AssertionError("차단한 상대가 인연 목록에 다시 보여요")
+    device.capture("24-records-restored", ["인연"])
     device.tap("내 프로필")
     device.tap("기록과 계정 정리", scroll=True)
     device.tap("로그아웃", scroll=True)

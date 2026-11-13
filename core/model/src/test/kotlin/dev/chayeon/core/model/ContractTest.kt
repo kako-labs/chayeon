@@ -4,6 +4,12 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
+import java.util.UUID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -95,15 +101,7 @@ class ContractTest {
         assertEquals(Gear.UNKNOWN, DrivingState().gear)
     }
 
-    @Test
-    fun `temporary greetings cannot carry free text but after messages can`() {
-        assertEquals(listOf("meta", "connectionId", "clientMessageId", "code"),
-            elementNames(SendGreetingRequest.serializer().descriptor))
-        val message = SendAfterMessageRequest(CommandMeta("command-a"), "after-a", "message-a",
-            AfterMessageContent.Text("반가워요"))
-        assertEquals(message, json.decodeFromString(SendAfterMessageRequest.serializer(),
-            json.encodeToString(SendAfterMessageRequest.serializer(), message)))
-    }
+
 
     @Test
     fun `request payload diagnostics never expose private location`() {
@@ -128,12 +126,12 @@ class ContractTest {
     }
 
     @Test
-    fun `eighteen approved card states retain their stable names`() {
+    fun `approved card states retain their stable names`() {
         assertEquals(setOf(
             "DISCOVERY_LOADING", "LOCATION_PERMISSION_OFF", "LOCATION_STALE", "NO_CANDIDATES",
             "NETWORK_FAILURE", "DRIVING_RESTRICTED", "DRIVING_UNKNOWN", "ALREADY_CONNECTED",
             "PROFILE_SAVE_FAILED", "REQUEST_DECLINED", "REQUEST_EXPIRED", "REQUEST_CANCELLED",
-            "PEER_UNAVAILABLE", "MESSAGE_SEND_FAILED", "CONNECTION_CHECKING", "AFTER_DECLINED",
+            "PEER_UNAVAILABLE", "CONNECTION_CHECKING", "AFTER_DECLINED",
             "AFTER_EXPIRED", "AFTER_WITHDRAWN",
         ), ExperienceState.entries.map { it.name }.toSet())
     }
@@ -145,8 +143,8 @@ class ContractTest {
             PublicProfile.serializer(), MyProfile.serializer(), ConsentRecord.serializer(),
             ParticipationSettings.serializer(), Candidate.serializer(), DiscoveryState.serializer(),
             PublicSignature.serializer(), VisibilitySettings.serializer(), ConnectionRequest.serializer(),
-            Connection.serializer(), ConnectionGreeting.serializer(), Encounter.serializer(),
-            AfterRequest.serializer(), AfterConnection.serializer(), AfterMessage.serializer(),
+            Connection.serializer(), Encounter.serializer(),
+            AfterRequest.serializer(), AfterConnection.serializer(),
             Block.serializer(), Report.serializer(), Tombstone.serializer(), SyncSnapshot.serializer(),
         )
         serializers.forEach { serializer ->
@@ -164,8 +162,56 @@ class ContractTest {
         assertTrue(snapshot.afterConnections.isEmpty())
         assertTrue(snapshot.discovery.candidates.isEmpty())
         assertTrue(snapshot.encounters.isEmpty())
-        assertTrue(snapshot.greetings.isEmpty())
-        assertTrue(snapshot.afterMessages.isEmpty())
+    }
+
+    @Test
+    fun `public relationship graphs cannot carry contact IDs including command responses`() {
+        val publicSerializers = listOf(
+            PublicProfile.serializer(), Candidate.serializer(), DiscoveryState.serializer(),
+            ConnectionRequest.serializer(), Connection.serializer(), Encounter.serializer(),
+            AfterRequest.serializer(), Block.serializer(), Report.serializer(),
+            RequestConnectionResponse.serializer(), RespondConnectionResponse.serializer(),
+            CancelConnectionResponse.serializer(), LeaveConnectionResponse.serializer(),
+            RequestAfterResponse.serializer(), RespondAfterResponse.serializer(), WithdrawAfterResponse.serializer(),
+            BlockPeerResponse.serializer(), ReportPeerResponse.serializer(), ReportPeerRequest.serializer(),
+        )
+        publicSerializers.forEach { serializer ->
+            visit(serializer.descriptor, mutableSetOf()) { descriptor ->
+                assertFalse("Contact type in public graph: ${serializer.descriptor.serialName}",
+                    descriptor.serialName.removeSuffix("?").substringAfterLast('.') == "ContactIds")
+                repeat(descriptor.elementsCount) { index ->
+                    assertFalse("Contact field in public graph: ${descriptor.getElementName(index)}",
+                        descriptor.getElementName(index) in setOf("contacts", "sharedContacts", "ownSharedContacts", "kakaoTalkId", "instagramId"))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `owner profile responses and own sync permit private contacts without extending public profiles`() {
+        val contacts = ContactIds(instagramId = UUID.randomUUID().toString().replace("-", "").take(24))
+        val publicProfile = PublicProfile("profile", 1, "가상프로필", AvatarId.DAWN, emptySet(), ProfileKind.VIRTUAL_PROFILE, null)
+        val profile = MyProfile("profile", 1, publicProfile, RegistrationState.READY, contacts)
+        val ownerJson = Json(json) {
+            serializersModule = SerializersModule { polymorphic(Any::class) { subclass(MyProfile::class) } }
+        }
+        val save = SaveProfileResponse(AppResult.Success(profile))
+        val saved = ownerJson.encodeToString(SaveProfileResponse.serializer(), save)
+        assertEquals(save, ownerJson.decodeFromString(SaveProfileResponse.serializer(), saved))
+        val publish = PublishSignatureResponse(AppResult.Success(profile))
+        val published = ownerJson.encodeToString(PublishSignatureResponse.serializer(), publish)
+        assertEquals(publish, ownerJson.decodeFromString(PublishSignatureResponse.serializer(), published))
+        for (encoded in listOf(saved, published)) {
+            val value = ownerJson.parseToJsonElement(encoded).jsonObject.getValue("result").jsonObject.getValue("value").jsonObject
+            assertEquals(contacts.instagramId, value.getValue("contacts").jsonObject.getValue("instagramId").jsonPrimitive.content)
+            assertFalse(value.getValue("publicProfile").jsonObject.containsKey("contacts"))
+        }
+        val snapshot = SyncSnapshot("session", 1, 1, profile = profile)
+        val encodedSnapshot = json.encodeToString(SyncSnapshot.serializer(), snapshot)
+        assertEquals(contacts, json.decodeFromString(SyncSnapshot.serializer(), encodedSnapshot).profile?.contacts)
+        assertEquals(listOf("kakaoTalkId", "instagramId"), elementNames(ContactIds.serializer().descriptor))
+        assertTrue("contacts" in elementNames(MyProfile.serializer().descriptor))
+        assertFalse("contacts" in elementNames(PublicProfile.serializer().descriptor))
     }
 
     private fun elementNames(descriptor: SerialDescriptor): List<String> =
@@ -182,10 +228,10 @@ class ContractTest {
         SaveProfileRequest.serializer(), RecordConsentRequest.serializer(), UpdateSettingsRequest.serializer(),
         PublishSignatureRequest.serializer(), SetDiscoveryRequest.serializer(), RefreshDiscoveryRequest.serializer(),
         UpdateLocationRequest.serializer(), SetSyntheticPresenceRequest.serializer(), RequestConnectionRequest.serializer(),
-        RespondConnectionRequest.serializer(), CancelConnectionRequest.serializer(), SendGreetingRequest.serializer(),
+        RespondConnectionRequest.serializer(), CancelConnectionRequest.serializer(),
         LeaveConnectionRequest.serializer(), DeleteEncounterRequest.serializer(), DeleteAllEncountersRequest.serializer(),
         RequestAfterRequest.serializer(), RespondAfterRequest.serializer(), WithdrawAfterRequest.serializer(),
-        SendAfterMessageRequest.serializer(), EndAfterConnectionRequest.serializer(), BlockPeerRequest.serializer(),
+        EndAfterConnectionRequest.serializer(), BlockPeerRequest.serializer(),
         UnblockPeerRequest.serializer(), ReportPeerRequest.serializer(),
     )
 
@@ -194,10 +240,10 @@ class ContractTest {
         SaveProfileResponse.serializer(), RecordConsentResponse.serializer(), UpdateSettingsResponse.serializer(),
         PublishSignatureResponse.serializer(), SetDiscoveryResponse.serializer(), RefreshDiscoveryResponse.serializer(),
         UpdateLocationResponse.serializer(), SetSyntheticPresenceResponse.serializer(), RequestConnectionResponse.serializer(),
-        RespondConnectionResponse.serializer(), CancelConnectionResponse.serializer(), SendGreetingResponse.serializer(),
+        RespondConnectionResponse.serializer(), CancelConnectionResponse.serializer(),
         LeaveConnectionResponse.serializer(), DeleteEncounterResponse.serializer(), DeleteAllEncountersResponse.serializer(),
         RequestAfterResponse.serializer(), RespondAfterResponse.serializer(), WithdrawAfterResponse.serializer(),
-        SendAfterMessageResponse.serializer(), EndAfterConnectionResponse.serializer(), BlockPeerResponse.serializer(),
+        EndAfterConnectionResponse.serializer(), BlockPeerResponse.serializer(),
         UnblockPeerResponse.serializer(), ReportPeerResponse.serializer(), SyncResponse.serializer(),
     )
 

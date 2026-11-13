@@ -144,7 +144,7 @@ class VoiceServerTest {
         val request = f.engine.requestConnection(f.a.accountId, RequestConnectionRequest(voiceMeta(),
             f.engine.exportState().accounts.getValue(f.b.accountId).profile.id)).value()
         assertFalse(f.engine.exportState().accounts.getValue(f.a.accountId).settings.receiveRequestsWhileDriving)
-        f.engine.updateSettings(f.a.accountId, UpdateSettingsRequest(voiceMeta(), true, true, true)).value()
+        f.engine.updateSettings(f.a.accountId, UpdateSettingsRequest(voiceMeta(), true, true)).value()
         assertTrue(f.engine.exportState().accounts.getValue(f.a.accountId).settings.receiveRequestsWhileDriving)
         f.clock.set(request.expiresAtEpochMillis)
         f.registry.tick()

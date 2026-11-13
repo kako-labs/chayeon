@@ -30,10 +30,9 @@ private fun ExperienceState.presentation(): StatePresentation = when (this) {
     ExperienceState.REQUEST_EXPIRED -> StatePresentation("보낸 요청", "만료됨", "응답 시간이 지나 요청이 끝났어요", "연결은 만들어지지 않았고 기록에도 남지 않아요.", "목록으로", ChayeonIcon.CLOCK)
     ExperienceState.REQUEST_CANCELLED -> StatePresentation("받은 요청", "취소됨", "상대가 요청을 취소했어요", "수락할 수 없어요. 다른 사람과 자동으로 연결하지 않아요.", null, ChayeonIcon.BACK)
     ExperienceState.PEER_UNAVAILABLE -> StatePresentation("수락 시점", "연결 불가", "지금은 연결할 수 없어요", "지금은 상대와 연결할 수 없어요. 다른 참여자를 확인해보세요.", "목록으로", ChayeonIcon.PEOPLE, true)
-    ExperienceState.MESSAGE_SEND_FAILED -> StatePresentation("인사", "전송 실패", "인사를 보내지 못했어요", "연결은 유지 중이에요. 한 번 더 눌러 다시 보낼 수 있어요.", "다시 보내기", ChayeonIcon.CHAT, true)
     ExperienceState.CONNECTION_CHECKING -> StatePresentation("일시 연결", "확인 중", "연결 상태를 확인하고 있어요", "위치나 통신이 끊겼어요. 멀어졌다고 판단한 것은 아니에요.", null, ChayeonIcon.WARNING, true)
-    ExperienceState.AFTER_DECLINED -> StatePresentation("애프터", "거절됨", "애프터가 이어지지 않았어요", "스친 인연 기록은 남아요. 한동안 다시 신청할 수 없어요.", null, ChayeonIcon.KNOT)
-    ExperienceState.AFTER_EXPIRED -> StatePresentation("애프터", "만료됨", "응답 없이 신청이 끝났어요", "새 대화는 열리지 않았어요.", null, ChayeonIcon.CLOCK)
+    ExperienceState.AFTER_DECLINED -> StatePresentation("애프터", "거절됨", "애프터가 이어지지 않았어요", "인연 기록은 남아요. 한동안 다시 신청할 수 없어요.", null, ChayeonIcon.KNOT)
+    ExperienceState.AFTER_EXPIRED -> StatePresentation("애프터", "만료됨", "응답 없이 신청이 끝났어요", "아이디는 공유되지 않았어요.", null, ChayeonIcon.CLOCK)
     ExperienceState.AFTER_WITHDRAWN -> StatePresentation("애프터", "철회됨", "상대가 신청을 철회했어요", "수락할 수 없어요. 기록은 그대로 남아요.", null, ChayeonIcon.CUT)
 }
 
@@ -55,17 +54,4 @@ fun StateCard(state: ExperienceState, modifier: Modifier = Modifier, onAction: (
             JellyButton(presentation.action, onAction, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
         }
     }
-}
-
-@Composable
-fun ChatBubble(text: String, mine: Boolean, modifier: Modifier = Modifier) {
-    androidx.compose.foundation.layout.Box(modifier.gelSurface(if (mine) JellyVariant.PRIMARY else JellyVariant.SECONDARY, ChayeonRadii.Card)
-        .padding(horizontal = ChayeonSpacing.BubbleHorizontal, vertical = ChayeonSpacing.Gap)) {
-        ChayeonText(text, style = ChayeonType.Body)
-    }
-}
-
-@Composable
-fun PresetButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
-    JellyButton(text, onClick, modifier, JellyVariant.SECONDARY, enabled)
 }

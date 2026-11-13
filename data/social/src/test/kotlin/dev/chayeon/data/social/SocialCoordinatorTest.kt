@@ -29,6 +29,34 @@ import org.junit.Test
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class SocialCoordinatorTest {
+    @Test fun privateContactIdsAndAfterHistoryAreHiddenUntilDrivingPolicyAllowsBrowsing() = runTest {
+        val backend = FakeBackend()
+        val driving = MutableStateFlow(DrivingState(policy = DrivingPolicy.ALLOWED))
+        val coordinator = SocialCoordinator(mapOf(SessionMode.SOLO to backend), backgroundScope,
+            { AppResult.Success(Unit) }, { 10 }, provider(driving))
+        coordinator.enter(enter()); runCurrent()
+        val ownIds = ContactIds(kakaoTalkId = "private-self")
+        val peerIds = ContactIds(instagramId = "private.peer")
+        val after = AfterConnection("after", 2, "request", "encounter", profile().publicProfile,
+            AfterConnectionStatus.CONNECTED, 1_000, Chemistry(), sharedContacts = peerIds, ownSharedContacts = ownIds)
+        backend.snapshot.value = AppResult.Success(SyncSnapshot("session", 2, 1_000,
+            profile = profile().copy(contacts = ownIds), afterConnections = listOf(after)))
+        runCurrent()
+        val profiles = SocialProfileRepository(coordinator)
+        val relationships = SocialAfterRepository(coordinator)
+        assertEquals(ownIds, (profiles.profile.first() as LoadState.Ready).value?.contacts)
+        assertEquals(peerIds, (relationships.connections.first() as LoadState.Ready).value.single().sharedContacts)
+        for (policy in listOf(DrivingPolicy.RESTRICTED, DrivingPolicy.UNKNOWN)) {
+            driving.value = DrivingState(policy = policy)
+            assertTrue(profiles.profile.first() is LoadState.Failed)
+            assertTrue(relationships.connections.first() is LoadState.Failed)
+            assertTrue(SocialEncounterRepository(coordinator).encounters.first() is LoadState.Failed)
+        }
+        driving.value = DrivingState(policy = DrivingPolicy.ALLOWED)
+        assertEquals(ownIds, (relationships.connections.first() as LoadState.Ready).value.single().ownSharedContacts)
+        coordinator.close()
+    }
+
     @Test fun drivingIncomingIsOptInAndOnlyPendingIncomingResponsesPassTheTransportGuard() = runTest {
         val backend = FakeBackend()
         val driving = MutableStateFlow(DrivingState(policy = DrivingPolicy.ALLOWED))
@@ -168,6 +196,56 @@ class SocialCoordinatorTest {
         }
     }
 
+    @Test fun afterAcceptTransportRetriesRecheckHomeSuppressionButDeclineAndEndRemainAvailable() = runTest {
+        run {
+            val firstAttempt = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            val requests = mutableListOf<String>()
+            val session = testSession(SessionMode.SERVER_DEMO)
+            val backend = RemoteBackend("https://example.test", object : SessionStorage {
+                override fun read(): Session? = null
+                override fun write(session: Session) {}
+                override fun clear() {}
+            }, HttpClient(MockEngine(MockEngineConfig().apply {
+                dispatcher = StandardTestDispatcher(testScheduler)
+                addHandler { request ->
+                    val route = request.url.encodedPath
+                    val body = when (route) {
+                        ApiRoutes.ENTER_SESSION -> socialJson.encodeToString(EnterSessionResponse.serializer(), EnterSessionResponse(AppResult.Success(session)))
+                        ApiRoutes.SYNC -> socialJson.encodeToString(SyncResponse.serializer(), SyncResponse(AppResult.Success(SyncSnapshot(session.id, 1, 1_000, profile()))))
+                        else -> {
+                            requests += route
+                            if (requests.size == 1) { firstAttempt.complete(Unit); release.await(); throw IOException("Unavailable") }
+                            socialJson.encodeToString(RespondAfterResponse.serializer(), RespondAfterResponse(AppResult.Failure(AppError.Unknown)))
+                        }
+                    }
+                    respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+                }
+            })), retryDelayMillis = 1, secretStorage = MemoryClientSecretStorage())
+            val coordinator = SocialCoordinator(mapOf(SessionMode.SERVER_DEMO to backend), backgroundScope,
+                { AppResult.Success(Unit) }, { 10 }, allowedProvider())
+            coordinator.enter(EnterSessionRequest(CommandMeta("enter"), SessionMode.SERVER_DEMO, PersonaCode.ACCOUNT_A, "room"))
+            var outside = true
+            var checks = 0
+            val repository = SocialAfterRepository(coordinator) { checks++; outside }
+            val sending = async {
+                repository.respond(RespondAfterRequest(CommandMeta("accept"), "request", RequestDecision.ACCEPT,
+                    ContactIds(instagramId = "private.self")))
+            }
+            firstAttempt.await()
+            outside = false; release.complete(Unit); advanceTimeBy(10); runCurrent()
+            assertEquals(AppResult.Failure(AppError.Restricted), sending.await())
+            assertEquals(1, requests.size)
+            assertTrue(checks >= 2)
+            val beforeDecline = checks
+            repository.respond(RespondAfterRequest(CommandMeta("decline"), "request", RequestDecision.DECLINE))
+            repository.endRelationship(EndAfterConnectionRequest(CommandMeta("end"), "after"))
+            assertEquals(beforeDecline, checks)
+            assertEquals(3, requests.size)
+            coordinator.close()
+        }
+    }
+
     @Test fun internalPresenceRechecksPermissionAtTransportRetryWithoutChangingObservationState() = runTest {
         val backend = FakeBackend()
         var send: (suspend (SetSyntheticPresenceRequest, suspend () -> Boolean) -> AppResult<CommandReceipt>)? = null
@@ -199,35 +277,6 @@ class SocialCoordinatorTest {
         assertEquals(AppResult.Failure(AppError.Restricted), repository.saveProfile(save()))
         assertEquals(0, backend.bodies.size)
         assertTrue(repository.profile.first() is LoadState.Failed)
-    }
-
-    @Test fun `network failure hides public cards while retrying greetings keep one stable message`() = runTest {
-        val backend = FakeBackend()
-        val coordinator = SocialCoordinator(mapOf(SessionMode.SOLO to backend), backgroundScope,
-            { AppResult.Success(Unit) }, { 10 }, allowedProvider())
-        runCurrent()
-        coordinator.enter(enter())
-        runCurrent()
-        val repository = SocialConnectionRepository(coordinator)
-        val request = SendGreetingRequest(CommandMeta("first"), "connection", "message", PresetCode.HELLO)
-        val gate = CompletableDeferred<Unit>()
-        backend.handler = { _, _ -> gate.await(); throw IOException("Unavailable") }
-        val sending = async { repository.sendGreeting(request) }
-        runCurrent()
-        assertEquals(DeliveryState.SENDING, greetings(repository).single().delivery)
-        gate.complete(Unit)
-        assertEquals(AppResult.Failure(AppError.Network), sending.await())
-        assertEquals(DeliveryState.FAILED, greetings(repository).single().delivery)
-        backend.handler = { _, body ->
-            val sent = socialJson.decodeFromString(SendGreetingRequest.serializer(), body)
-            socialJson.encodeToString(SendGreetingResponse.serializer(), SendGreetingResponse(AppResult.Success(
-                ConnectionGreeting("server-message", 2, sent.connectionId, sent.clientMessageId,
-                    MessageAuthor.SELF, sent.code, 1_000, DeliveryState.SENT))))
-        }
-        assertTrue(repository.sendGreeting(request.copy(meta = CommandMeta("replacement"))) is AppResult.Success)
-        assertEquals(DeliveryState.SENT, greetings(repository).single().delivery)
-        assertEquals(backend.bodies[0], backend.bodies[1])
-        assertEquals(1, greetings(repository).size)
     }
 
     @Test fun `cleanup failure clears observations but never reports signout success and can retry cleanup`() = runTest {
@@ -502,8 +551,6 @@ class SocialCoordinatorTest {
         assertNull(coordinator.store.state.value.sessionId)
     }
 
-    private suspend fun greetings(repository: ConnectionRepository) =
-        (repository.observeGreetings("connection").first() as LoadState.Ready).value
     private fun provider(flow: Flow<DrivingState>) = object : DrivingStateProvider { override val drivingState = flow }
     private fun allowedProvider() = provider(flowOf(DrivingState(policy = DrivingPolicy.ALLOWED)))
     private fun enter() = EnterSessionRequest(CommandMeta("enter"), SessionMode.SOLO, PersonaCode.ACCOUNT_A)

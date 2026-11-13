@@ -21,10 +21,10 @@ from urllib.request import Request, urlopen
 
 try:
     from . import dev
-    from .e2e import Console, Device, assert_locked, set_synthetic_home, home_position, assert_home_rest, home_record_count
+    from .e2e import Console, Device, assert_locked, set_synthetic_home, home_position, assert_home_rest, home_record_count, enter_instagram_contact, assert_contacts_hidden
 except ImportError:
     import dev
-    from e2e import Console, Device, assert_locked, set_synthetic_home, home_position, assert_home_rest, home_record_count
+    from e2e import Console, Device, assert_locked, set_synthetic_home, home_position, assert_home_rest, home_record_count, enter_instagram_contact, assert_contacts_hidden
 
 
 class Peer:
@@ -34,6 +34,7 @@ class Peer:
         self.stop = threading.Event()
         self.failure = None
         self.worker = None
+        self.response_guard = None
 
     def start_heartbeat(self):
         def renew():
@@ -59,7 +60,10 @@ class Peer:
             body = {"meta": {"commandId": str(uuid.uuid4())}, **body}
         request = Request(self.base + route, data=json.dumps(body).encode() if body else None, headers=headers)
         with urlopen(request, timeout=30) as response:
-            result = json.load(response)["result"]
+            envelope = json.load(response)
+            if self.response_guard:
+                self.response_guard(envelope)
+            result = envelope["result"]
         if result["type"] != "success":
             raise AssertionError("HTTP 명령 실패: " + route)
         return result["value"]
@@ -228,6 +232,9 @@ class AppTransport:
     def __init__(self, port):
         self.started = []
         self.completed = []
+        self.private_contact_values = ()
+        self.contact_leak = False
+        self.inspected_responses = 0
         self.lock = threading.Lock()
         owner = self
 
@@ -254,6 +261,11 @@ class AppTransport:
                     payload = response.read()
                     status = response.status
                 accepted = json.loads(payload).get("result", {}).get("type") == "success"
+                with owner.lock:
+                    if owner.private_contact_values:
+                        owner.inspected_responses += 1
+                        if any(value.encode() in payload for value in owner.private_contact_values):
+                            owner.contact_leak = True
                 with owner.lock:
                     owner.completed.append((time.monotonic(), self.path, presence, accepted))
                 try:
@@ -424,12 +436,12 @@ def prove_server_home(device, console, peer):
         if mode == "ordinary":
             device.tap("시연 제어", description_only=True)
             device.tap("집에서 멀어지기", scroll=True)
-            device.tap("오늘의 인연")
+            device.tap("홈")
         else:
             device.tap("시연 제어", description_only=True)
             device.tap("가까이 있어요")
             device.tap("집에서 멀어지기", scroll=True)
-            device.tap("오늘의 인연")
+            device.tap("홈")
         device.card("이어가는별")
         device.tap("연결 요청 보내기")
         deadline = time.monotonic() + 20
@@ -506,7 +518,7 @@ def prove_server_home(device, console, peer):
         raise AssertionError("식별자와 시각을 제외한 HTTP 연결 내용이 일반 이탈과 달라요")
     device.tap("시연 제어", description_only=True)
     device.tap("집에서 멀어지기", scroll=True)
-    device.tap("오늘의 인연")
+    device.tap("홈")
     device.card("이어가는별", navigate=False)
     deadline = time.monotonic() + 15
     while not any(c["profile"]["nickname"] == "새벽드라이브" for c in peer.sync()["discovery"]["candidates"]):
@@ -523,6 +535,65 @@ def prove_server_home(device, console, peer):
     if home_record_count(device):
         raise AssertionError("서버 모드 로그아웃 뒤 집 기록이 남아 있어요")
     device.capture("home-http-cleanup", ["이 계정으로 시작"])
+
+
+def prove_after_exchange(device, console, peer, transport):
+    device.tap("애프터 신청")
+    own_id = enter_instagram_contact(device)
+    peer_id = secrets.token_hex(12)
+    transport.private_contact_values = (own_id, peer_id)
+    observed = []
+
+    def guard(payload):
+        observed.append(True)
+        if any(value in json.dumps(payload) for value in (own_id, peer_id)):
+            raise AssertionError("수락 전에 HTTP 응답에 연락처가 나타났어요")
+
+    peer.response_guard = guard
+    device.tap("애프터 신청 보내기")
+    deadline = time.monotonic() + 20
+    while True:
+        snapshot = peer.sync()
+        pending = next((item for item in snapshot["afterRequests"]
+                        if item["direction"] == "INCOMING" and item["status"] == "PENDING"
+                        and item["peer"]["nickname"] == "새벽드라이브"), None)
+        if pending:
+            break
+        if time.monotonic() >= deadline:
+            raise AssertionError("HTTP 상대에게 애프터 신청이 도착하지 않았어요")
+        time.sleep(.25)
+    assert_contacts_hidden(device, (peer_id,))
+    if transport.contact_leak or not transport.inspected_responses:
+        raise AssertionError("수락 전 앱 응답의 연락처 비공개를 확인하지 못했어요")
+    peer.response_guard = None
+    transport.private_contact_values = ()
+    accepted = peer.call("/v1/after/respond", requestId=pending["id"], decision="ACCEPT",
+                         contacts={"instagramId": peer_id})
+    relationship = next(item for item in peer.sync()["afterConnections"] if item["id"] == accepted["afterConnectionId"])
+    if relationship["sharedContacts"]["instagramId"] != own_id or relationship["ownSharedContacts"]["instagramId"] != peer_id:
+        raise AssertionError("수락 뒤 양측 아이디가 함께 나타나지 않았어요")
+    device.wait("이어진 인연 보기")
+    device.tap("이어진 인연 보기")
+    device.wait("@" + peer_id)
+    device.wait("인스타그램 QR 코드")
+    device.capture("06-http-contact-exchange", ["인스타그램", "@" + peer_id, "인스타그램 QR 코드"])
+    console.gear("Drive")
+    device.wait("주차하면", exact=False)
+    assert_contacts_hidden(device, (own_id, peer_id))
+    console.gear("Park")
+    device.wait("@" + peer_id)
+    peer.call("/v1/after/end", afterConnectionId=relationship["id"])
+    device.wait("관계가 끝났어요")
+    assert_contacts_hidden(device, (own_id, peer_id))
+    closed = next(item for item in peer.sync()["afterConnections"] if item["id"] == relationship["id"])
+    if closed.get("sharedContacts") or closed.get("ownSharedContacts"):
+        raise AssertionError("관계 종료 뒤 서버가 연락처를 반환해요")
+    (device.output / "contact-exchange-proof.json").write_text(json.dumps({
+        "peerResponsesInspectedBeforeAccept": len(observed),
+        "appResponsesInspectedBeforeAccept": transport.inspected_responses,
+        "hiddenBeforeAccept": True, "mutualExchange": True,
+        "hiddenWhileDriving": True, "hiddenAfterEnd": True,
+    }, indent=2), encoding="utf-8")
 
 
 def run(port=18765, serial=None):
@@ -611,9 +682,10 @@ def run(port=18765, serial=None):
             device.tap("기록 보기")
             device.wait("애프터 신청")
             device.capture("05-http-encounter", ["이어가는별", "애프터 신청"])
+            prove_after_exchange(device, console, peer, transport)
             prove_lease_and_offline_restore(device, console, peer, transport, port)
             prove_server_home(device, console, peer)
-        print("PASS HTTP + voice: request, accept, PCM relay, third-account rejection, driving mute, call termination, distance close, encounter", flush=True)
+        print("PASS HTTP + voice: request, accept, PCM relay, third-account rejection, driving mute, call termination, distance close, encounter, mutual contact exchange", flush=True)
         return 0
     finally:
         if voice:

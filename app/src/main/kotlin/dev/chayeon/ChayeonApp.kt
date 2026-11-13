@@ -35,7 +35,10 @@ fun rootRoute(session: SessionState, profile: LoadState<MyProfile?>): String? = 
 @Composable
 fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavController(), events: AppEvents? = null,
     publisherFailure: StateFlow<Boolean> = remember { MutableStateFlow(false) },
-    recordingFailure: StateFlow<Boolean> = remember { MutableStateFlow(false) }) {
+    recordingFailure: StateFlow<Boolean> = remember { MutableStateFlow(false) },
+    notificationRoute: StateFlow<String?> = remember { MutableStateFlow(null) },
+    consumeNotification: () -> Unit = {}) {
+    val notification by notificationRoute.collectAsStateWithLifecycle()
     val driving by graph.drivingStateProvider.drivingState.collectAsStateWithLifecycle(DrivingState())
     val discovery by graph.discoveryRepository.discovery.collectAsStateWithLifecycle(DiscoveryState())
     val homeZone by graph.homeZoneRepository.state.collectAsStateWithLifecycle(HomeZoneState(HomeZoneStatus.LOCATION_UNKNOWN))
@@ -44,6 +47,8 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
     val participation by graph.profileRepository.settings.collectAsStateWithLifecycle(LoadState.Loading())
     val connection by graph.connectionRepository.connection.collectAsStateWithLifecycle(LoadState.Loading())
     val requests by graph.connectionRepository.requests.collectAsStateWithLifecycle(LoadState.Loading())
+    val encounters by graph.encounterRepository.encounters.collectAsStateWithLifecycle(LoadState.Loading())
+    val afterRequests by graph.afterRepository.requests.collectAsStateWithLifecycle(LoadState.Loading())
     val recaps by graph.signatureRepository.recaps.collectAsStateWithLifecycle(LoadState.Loading())
     val publicationFailed by publisherFailure.collectAsStateWithLifecycle()
     val recordingFailed by recordingFailure.collectAsStateWithLifecycle()
@@ -109,8 +114,10 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
                         } finally { discoveryBusy = false }
                     }
                 }
-            }, resting = homeZone.suppressed)
-    }, onViewing = { request, relationship -> events?.viewing(request, relationship) ?: {} })
+            }, resting = homeZone.suppressed, incomingAfter = (afterRequests as? LoadState.Ready)?.value.orEmpty().any {
+                it.direction == RequestDirection.INCOMING && it.status == AfterRequestStatus.PENDING
+            })
+    }, onViewing = { request -> events?.viewing(request) ?: {} })
     ChayeonTheme(policy = driving.policy, showSourceLabels = showSourceLabels) {
         NavHost(navController, startDestination = HistoryDestination.FIRST_RUN) {
             historyGraph(graph.historyDeps, chrome, navController) { exit ->
@@ -124,7 +131,10 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
             }
             meetGraph(graph.meetDeps, chrome, navController) { exit ->
                 when (exit) {
-                    is MeetExit.OpenEncounter -> open(HistoryDestination.encounter(exit.encounterId))
+                    is MeetExit.OpenEncounter -> {
+                        val peerId = (encounters as? LoadState.Ready)?.value?.find { it.id == exit.encounterId }?.peer?.id
+                        open(peerId?.let(HistoryDestination::person) ?: HistoryDestination.RELATIONSHIPS)
+                    }
                     is MeetExit.OpenSafety -> open(HistoryDestination.safety(exit.peerProfileId))
                     MeetExit.OpenDemo -> if (graph.demoEnabled) open(DEMO_ROUTE)
                     MeetExit.CreateSignature -> open(if (graph.demoEnabled) CREATE_SIGNATURE_ROUTE else SignatureDestination.MY_SIGNATURE)
@@ -218,13 +228,22 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
             open(SignatureDestination.recap(next.id))
         }
     }
+    LaunchedEffect(notification, profile, driving.policy) {
+        val target = notification ?: return@LaunchedEffect
+        if ((profile as? LoadState.Ready)?.value?.registration != RegistrationState.READY ||
+            graph.currentPolicy() != DrivingPolicy.ALLOWED) return@LaunchedEffect
+        val allowed = target == HistoryDestination.RELATIONSHIPS || target == MeetDestination.REQUESTS ||
+            target.startsWith(HistoryDestination.person(""))
+        if (allowed) open(target)
+        consumeNotification()
+    }
+
 }
 
 private fun NavHostController.openTab(item: NavigationItem) {
     val route = when (item) {
         NavigationItem.MEET -> MeetDestination.HOME
-        NavigationItem.HISTORY -> HistoryDestination.ENCOUNTERS
-        NavigationItem.AFTER -> HistoryDestination.AFTER_CONNECTIONS
+        NavigationItem.RELATIONSHIPS -> HistoryDestination.RELATIONSHIPS
         NavigationItem.PROFILE -> SignatureDestination.MY_PROFILE
     }
     navigate(route) {

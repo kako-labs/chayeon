@@ -59,9 +59,6 @@ def main():
             requestId=request["id"], decision="ACCEPT")
     accepted = command("connection/respond", second, requestId=request["id"], decision="ACCEPT")
     connection_id = accepted["connectionId"]
-    command("connection/greeting", first, connectionId=connection_id, clientMessageId="http-greeting", code="HELLO")
-    received = snapshot(second)
-    assert any(item["connectionId"] == connection_id and item["author"] == "PEER" for item in received["greetings"])
     command("connection/leave", first, connectionId=connection_id)
     own = snapshot(first)
     peer = snapshot(second)
@@ -71,15 +68,19 @@ def main():
     command("encounters/delete", first, encounterId=own["encounters"][0]["id"])
     assert not snapshot(first)["encounters"]
     assert len(snapshot(second)["encounters"]) == 1
-    after = command("after/request", second, encounterId=peer["encounters"][0]["id"])
-    connected = command("after/respond", first, requestId=after["id"], decision="ACCEPT")["afterConnectionId"]
-    command("after/message", first, afterConnectionId=connected, clientMessageId="delete-me", content={"type": "text", "text": "다시 만나서 반가워요"})
-    command("after/message", second, afterConnectionId=connected, clientMessageId="keep-me", content={"type": "text", "text": "저도 반가워요"})
+    first_contacts = {"instagramId": uuid.uuid4().hex[:24]}
+    second_contacts = {"instagramId": uuid.uuid4().hex[:24]}
+    after = command("after/request", second, encounterId=peer["encounters"][0]["id"], contacts=second_contacts)
+    assert second_contacts["instagramId"] not in json.dumps(after)
+    assert second_contacts["instagramId"] not in json.dumps(snapshot(first))
+    connected = command("after/respond", first, requestId=after["id"], decision="ACCEPT", contacts=first_contacts)["afterConnectionId"]
+    assert snapshot(first)["afterConnections"][0]["sharedContacts"]["instagramId"] == second_contacts["instagramId"]
+    assert snapshot(second)["afterConnections"][0]["sharedContacts"]["instagramId"] == first_contacts["instagramId"]
     end_body = {"meta": {"commandId": str(uuid.uuid4())}, "afterConnectionId": connected}
     command("after/end", second, **end_body)
     before_replay = command("after/end", second, **end_body)
     command("safety/block", first, peerProfileId=second_profile["id"])
-    assert command("after/end", second, **end_body)["availablePresets"] == before_replay["availablePresets"]
+    assert command("after/end", second, **end_body)["sharedContacts"] is None
     before = snapshot(second)
     command("profile/save", first, draft={"nickname": "새로운가상상대", "avatar": "STAR", "interests": ["TRAVEL"]})
     after_edit = snapshot(second)
@@ -93,11 +94,12 @@ def main():
     command("account/delete", recovered)
     remaining = snapshot(second)
     assert remaining["afterConnections"][0]["closeReason"] == "ACCOUNT_DELETED"
-    assert all(message["author"] == "SELF" for message in remaining["afterMessages"] + remaining["greetings"])
+    assert remaining["afterConnections"][0]["sharedContacts"] is None
+    assert remaining["afterConnections"][0]["ownSharedContacts"] is None
     recovered_second = enter("ACCOUNT_B")
     assert recovered_second["accountId"] == second["accountId"]
     command("session/sign-out", recovered_second)
-    print("PASS: two accounts, consent, takeover rejection, forged accept rejection, greetings, private encounter deletion, after messages, replay privacy, hidden activity, session recovery, deletion purge")
+    print("PASS: two accounts, consent, takeover rejection, forged accept rejection, private encounter deletion, mutual contact exchange, replay privacy, hidden activity, session recovery, deletion purge")
 
 
 if __name__ == "__main__":

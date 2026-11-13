@@ -28,6 +28,9 @@ class HistoryViewModelTest {
         try { block() } finally { store.clear(); runCurrent() }
     }
 
+    private val ephemeralKakao = "a" + java.util.UUID.randomUUID().toString().replace("-", "").take(19)
+    private fun validKakao() = ephemeralKakao
+
     @Test fun `optional microphone permission is requested only while parked`() = modelTest {
         val model = watch(ConsentViewModel(deps))
         val requiredBefore = model.uiState.value.requiredConsentsGranted
@@ -222,6 +225,7 @@ class HistoryViewModelTest {
     @Test fun `accept duplicates collapse and mid flow expiry never creates local relationship`() = modelTest {
         val model = watch(AfterRequestViewModel(deps, HistoryFixtures.encounter.id))
         deps.gate = CompletableDeferred()
+        model.setContacts(ContactIds(kakaoTalkId = validKakao())); runCurrent()
         model.respond("request", RequestDecision.ACCEPT); model.respond("request", RequestDecision.ACCEPT); runCurrent()
         assertEquals(1, deps.calls.size)
         deps.requestsState.value = LoadState.Ready(listOf(HistoryFixtures.request.copy(status = AfterRequestStatus.EXPIRED, version = 2)), 2)
@@ -249,78 +253,6 @@ class HistoryViewModelTest {
         assertNull(model.uiState.value.remainingMillis["request"])
     }
 
-    @Test fun `message retry preserves ids and draft survives interruption`() = modelTest {
-        val model = watch(AfterConnectionsViewModel(deps))
-        model.setText("다시 만나서 반가워요"); runCurrent()
-        deps.error = AppError.Network
-        model.sendText(); model.sendText(); runCurrent()
-        assertEquals(1, deps.calls.size)
-        assertEquals(DeliveryState.FAILED, model.uiState.value.outbox.single().delivery)
-        val pending = model.uiState.value.outbox.single()
-        deps.driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED)
-        model.setText("지워짐"); model.retryMessage(pending.request.clientMessageId); runCurrent()
-        assertEquals("다시 만나서 반가워요", model.uiState.value.messageDrafts["after"])
-        assertEquals(1, deps.calls.size)
-        deps.driving.value = DrivingState(policy = DrivingPolicy.ALLOWED)
-        deps.error = null
-        model.retryMessage(pending.request.clientMessageId); runCurrent()
-        assertEquals(deps.calls[0], deps.calls[1])
-        assertEquals("", model.uiState.value.messageDrafts["after"].orEmpty())
-    }
-
-    @Test fun `multiple failed text messages retain separate retry commands`() = modelTest {
-        val model = watch(AfterConnectionsViewModel(deps))
-        deps.error = AppError.Network
-        model.setText("첫 번째 인사"); runCurrent(); model.sendText(); runCurrent()
-        val first = model.uiState.value.outbox.single().request
-        model.setText("두 번째 인사"); runCurrent(); model.sendText(); runCurrent()
-        val second = model.uiState.value.outbox.last().request
-        deps.error = null
-        model.retryMessage(first.clientMessageId); runCurrent()
-        model.retryMessage(second.clientMessageId); runCurrent()
-        assertEquals(first, deps.calls[2])
-        assertEquals(second, deps.calls[3])
-        assertNotEquals(first.meta, second.meta)
-    }
-
-    @Test fun `observed failed message can be retried after screen recreation`() = modelTest {
-        val original = SendAfterMessageRequest(CommandMeta("client-retry"), "after", "client-retry", AfterMessageContent.Text("반가워요"))
-        deps.messagesState.value = LoadState.Ready(listOf(HistoryFixtures.message.copy(author = MessageAuthor.SELF, clientMessageId = original.clientMessageId, content = original.content, delivery = DeliveryState.FAILED)), 2)
-        val model = watch(AfterConnectionsViewModel(deps))
-        model.retryMessage(original.clientMessageId); runCurrent()
-        assertEquals(original, deps.calls.single())
-    }
-
-    @Test fun `relationship closing before tap blocks late message`() = modelTest {
-        val model = watch(AfterConnectionsViewModel(deps))
-        model.setText("안녕하세요"); runCurrent()
-        deps.relationshipsState.value = LoadState.Ready(listOf(HistoryFixtures.relationship.copy(status = AfterConnectionStatus.CLOSED, version = 2)), 2)
-        model.sendText(); runCurrent()
-        assertTrue(deps.calls.isEmpty())
-        assertEquals(AppError.AlreadyClosed, model.uiState.value.command("compose:after").error)
-    }
-
-    @Test fun `driving change during relationship refresh blocks message dispatch`() = modelTest {
-        var pause = false
-        val release = CompletableDeferred<Unit>()
-        val guarded = object : HistoryDeps by deps {
-            override val afterRepository = object : AfterRepository by deps.afterRepository {
-                override val connections = flow {
-                    if (pause) release.await()
-                    emitAll(deps.relationshipsState)
-                }
-            }
-        }
-        val model = watch(AfterConnectionsViewModel(guarded))
-        model.setText("반가워요"); runCurrent()
-        pause = true
-        model.sendText(); runCurrent()
-        deps.driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED)
-        release.complete(Unit); runCurrent()
-        assertTrue(deps.calls.isEmpty())
-        assertEquals(AppError.Restricted, model.uiState.value.command("compose:after").error)
-    }
-
     @Test fun `unblocking elsewhere allows blocking again with new metadata`() = modelTest {
         val model = watch(SafetyViewModel(deps, HistoryFixtures.block.peer.id))
         model.askBlock(); runCurrent(); model.confirmAction(); runCurrent()
@@ -330,13 +262,6 @@ class HistoryViewModelTest {
         val requests = deps.calls.filterIsInstance<BlockPeerRequest>()
         assertEquals(2, requests.size)
         assertNotEquals(requests[0].meta, requests[1].meta)
-    }
-
-    @Test fun `message limit uses code points and rejects overflow`() = modelTest {
-        val model = watch(AfterConnectionsViewModel(deps))
-        model.setText("가".repeat(500)); runCurrent()
-        model.setText("나".repeat(501)); runCurrent()
-        assertEquals("가".repeat(500), model.uiState.value.messageDrafts["after"])
     }
 
     @Test fun `safety uses peer id without needing an encounter and blocks only after confirmation`() = modelTest {
@@ -373,9 +298,109 @@ class HistoryViewModelTest {
     }
 
     @Test fun `failed observation removes previously visible profiles`() = modelTest {
-        val model = watch(EncountersViewModel(deps))
+        val model = watch(RelationshipsViewModel(deps))
         assertNotNull(model.uiState.value.encounters.valueOrNull())
         deps.encountersState.value = LoadState.Failed(AppError.Network, 2); runCurrent()
         assertNull(model.uiState.value.encounters.valueOrNull())
     }
+    @Test fun `sharing needs explicit valid selection and failed request retries same snapshot`() = modelTest {
+        deps.requestsState.value = LoadState.Ready(emptyList(), 1)
+        val model = watch(AfterRequestViewModel(deps, "encounter"))
+        model.request(); runCurrent()
+        assertTrue(deps.calls.isEmpty())
+        assertNotNull(model.uiState.value.contactError)
+        model.setContacts(ContactIds(kakaoTalkId = validKakao())); model.setSaveToProfile(true); runCurrent()
+        deps.error = AppError.Network
+        model.request(); runCurrent()
+        deps.error = null
+        model.retry("request"); runCurrent()
+        assertEquals(deps.calls[0], deps.calls[1])
+        val request = deps.calls[0] as RequestAfterRequest
+        assertEquals(ContactIds(kakaoTalkId = validKakao()), request.contacts)
+        assertTrue(request.saveToProfile)
+    }
+
+    @Test fun `decline needs no contact but accept requires one`() = modelTest {
+        val model = watch(AfterRequestViewModel(deps, "encounter"))
+        model.respond("request", RequestDecision.ACCEPT); runCurrent()
+        assertTrue(deps.calls.isEmpty())
+        model.respond("request", RequestDecision.DECLINE); runCurrent()
+        val request = deps.calls.single() as RespondAfterRequest
+        assertEquals(ContactIds(), request.contacts)
+        assertEquals(RequestDecision.DECLINE, request.decision)
+    }
+
+    @Test fun `saved private ids are loaded into draft but never selected for sharing`() = modelTest {
+        val contacts = ContactIds(kakaoTalkId = validKakao())
+        deps.profileState.value = LoadState.Ready(HistoryFixtures.profile.copy(contacts = contacts), 2)
+        val profile = watch(ProfileSetupViewModel(deps))
+        assertEquals(contacts, profile.uiState.value.draft.contacts)
+        val request = watch(AfterRequestViewModel(deps, "encounter"))
+        assertEquals(ContactIds(), request.uiState.value.shareContacts)
+        request.respond("request", RequestDecision.ACCEPT); runCurrent()
+        assertTrue(deps.calls.isEmpty())
+    }
+
+    @Test fun `private profile ids validate before save and remain private on public profile`() = modelTest {
+        val model = watch(ProfileSetupViewModel(deps))
+        model.updateDraft(model.uiState.value.draft.copy(contacts = ContactIds(instagramId = "!"))); runCurrent()
+        model.save(); runCurrent()
+        assertTrue(deps.calls.isEmpty())
+        assertNotNull(model.uiState.value.draftError)
+        model.updateDraft(model.uiState.value.draft.copy(contacts = ContactIds(kakaoTalkId = validKakao()))); runCurrent()
+        model.save(); runCurrent()
+        assertEquals(validKakao(), (deps.calls.single() as SaveProfileRequest).draft.contacts.kakaoTalkId)
+    }
+
+    @Test fun `person list deduplicates peers uses latest encounter and prioritizes incoming`() = modelTest {
+        val other = HistoryFixtures.peer.copy(id = "other", nickname = "별보는밤")
+        deps.encountersState.value = LoadState.Ready(listOf(HistoryFixtures.encounter,
+            HistoryFixtures.encounter.copy(id = "newer", endedAtEpochMillis = 1_900_000_000_000),
+            HistoryFixtures.encounter.copy(id = "other-encounter", peer = other, endedAtEpochMillis = 2_000_000_000_000)), 2)
+        val model = watch(RelationshipsViewModel(deps, HistoryFixtures.peer.id))
+        val people = model.uiState.value.people
+        assertEquals(2, people.size)
+        assertEquals(HistoryFixtures.peer.id, people.first().peer.id)
+        assertEquals("newer", model.uiState.value.person?.encounter?.id)
+        deps.blocksState.value = LoadState.Ready(listOf(HistoryFixtures.block), 3); runCurrent()
+        assertEquals(listOf("other"), model.uiState.value.people.map { it.peer.id })
+        assertNull(model.uiState.value.person)
+    }
+
+    @Test fun `relationship commands require confirmation and parked policy`() = modelTest {
+        val model = watch(RelationshipsViewModel(deps, HistoryFixtures.peer.id))
+        model.confirmAction(); runCurrent(); assertTrue(deps.calls.isEmpty())
+        model.askEnd(); runCurrent()
+        deps.driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED)
+        model.confirmAction(); runCurrent(); assertTrue(deps.calls.isEmpty())
+        deps.driving.value = DrivingState(policy = DrivingPolicy.ALLOWED)
+        model.retry("end:after"); runCurrent()
+        assertTrue(deps.calls.single() is EndAfterConnectionRequest)
+    }
+
+    @Test fun `home protection is rechecked on every acceptance retry but allows decline`() = modelTest {
+        val model = watch(AfterRequestViewModel(deps, "encounter"))
+        model.setContacts(ContactIds(kakaoTalkId = validKakao())); runCurrent()
+        deps.error = AppError.Network
+        model.respond("request", RequestDecision.ACCEPT); runCurrent()
+        assertEquals(1, deps.calls.size)
+        deps.homeZone.value = HomeZoneState(status = HomeZoneStatus.INSIDE); runCurrent()
+        deps.error = null
+        model.retry("respond:request"); runCurrent()
+        assertEquals(1, deps.calls.size)
+        assertEquals(AppError.PeerUnavailable, model.uiState.value.command("respond:request").error)
+        model.setContacts(ContactIds(kakaoTalkId = validKakao())); runCurrent()
+        model.respond("request", RequestDecision.DECLINE); runCurrent()
+        assertEquals(RequestDecision.DECLINE, (deps.calls.last() as RespondAfterRequest).decision)
+    }
+
+    @Test fun `mixed sync revisions fail closed for contact display`() = modelTest {
+        val model = watch(RelationshipsViewModel(deps, HistoryFixtures.peer.id))
+        assertTrue(model.uiState.value.contactsProjectionReady)
+        deps.blocksState.value = LoadState.Ready(emptyList(), 2); runCurrent()
+        assertFalse(model.uiState.value.contactsProjectionReady)
+        deps.blocksState.value = LoadState.Failed(AppError.Network, 2); runCurrent()
+        assertFalse(model.uiState.value.contactsProjectionReady)
+    }
+
 }

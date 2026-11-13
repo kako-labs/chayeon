@@ -59,24 +59,6 @@ internal fun Room.cancelConnection(actor: String, r: CancelConnectionRequest): C
     return request(updated, actor)
 }
 
-internal fun Room.sendGreeting(actor: String, r: SendGreetingRequest): ConnectionGreeting {
-    val c = state.connections[r.connectionId] ?: reject()
-    val other = peer(c.first, c.second, actor)
-    val old = state.greetings.values.firstOrNull { it.author == actor && it.greeting.clientMessageId == r.clientMessageId }
-    if (old != null) {
-        ensure(old.greeting.connectionId == c.id && old.greeting.code == r.code)
-        return greeting(old, actor)
-    }
-    ensure(c.status == ConnectionStatus.CONNECTED, AppError.AlreadyClosed)
-    ensure(available(actor) && available(other) && !blocked(actor, other), AppError.PeerUnavailable)
-    ensure(validIdentifier(r.clientMessageId) && r.code in presets(actor, other))
-    checkVersion(r.meta, v)
-    stamp()
-    val g = ConnectionGreeting(ids.next(), v, c.id, r.clientMessageId, MessageAuthor.SELF, r.code, now, DeliveryState.SENT)
-    state = state.copy(greetings = state.greetings + (g.id to GreetingRecord(actor, g)))
-    return g
-}
-
 internal fun Room.leaveConnection(actor: String, r: LeaveConnectionRequest): Connection {
     val c = state.connections[r.connectionId] ?: reject()
     peer(c.first, c.second, actor)

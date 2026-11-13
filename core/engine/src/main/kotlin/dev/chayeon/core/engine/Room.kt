@@ -72,15 +72,6 @@ internal class Room(
         val second = publicProfile(b, a).signature ?: return Chemistry()
         return rules.chemistry(first, second)
     }
-    fun presets(actor: String, other: String): Set<PresetCode> {
-        val mine = publicProfile(actor, other).signature?.traits.orEmpty().map { it.trait }.toSet()
-        return BASE_PRESETS + publicProfile(other, actor).signature?.traits.orEmpty().mapNotNull { trait ->
-            val shared = trait.trait == TraitId.LONG_ROAD || trait.trait == TraitId.NIGHT_DRIVE
-            if (shared && trait.trait !in mine) null
-            else PresetCode.valueOf(if (shared) "SHARE_${trait.trait}" else "ADMIRE_${trait.trait}")
-        }
-    }
-
     fun freshness(actor: String): LocationAvailability {
         val a = state.accounts.getValue(actor)
         if (!a.active || a.deleted) return LocationAvailability.UNAVAILABLE
@@ -143,8 +134,7 @@ internal class Room(
         val other = peer(c.first, c.second, actor)
         return Connection(c.id, v, c.requestId, publicProfile(other, actor), c.status, c.startedAt, chemistry(actor, other),
             c.endedAt, if (actor == c.first) c.firstReason else c.secondReason,
-            (if (actor == c.first) c.firstEncounter else c.secondEncounter)?.takeIf { it in state.encounters },
-            if (c.status == ConnectionStatus.CONNECTED && !blocked(actor, other)) presets(actor, other) else emptySet())
+            (if (actor == c.first) c.firstEncounter else c.secondEncounter)?.takeIf { it in state.encounters })
     }
     fun afterEligibility(actor: String, c: ConnectionRecord): Pair<AfterEligibility, Long?> {
         val other = peer(c.first, c.second, actor)
@@ -181,10 +171,9 @@ internal class Room(
         val other = peer(c.first, c.second, actor)
         return AfterConnection(c.id, v, c.requestId, encounterId(state.connections.getValue(c.connectionId), actor), publicProfile(other, actor),
             c.status, c.connectedAt, chemistry(actor, other), c.closedAt, if (actor == c.first) c.firstReason else c.secondReason,
-            if (c.status == AfterConnectionStatus.CONNECTED && !blocked(actor, other)) presets(actor, other) else emptySet())
+            if (c.status == AfterConnectionStatus.CONNECTED && !blocked(actor, other)) { if (actor == c.first) c.secondContacts else c.firstContacts } else null,
+            if (c.status == AfterConnectionStatus.CONNECTED && !blocked(actor, other)) { if (actor == c.first) c.firstContacts else c.secondContacts } else null)
     }
-    fun greeting(g: GreetingRecord, actor: String) = g.greeting.copy(author = if (g.author == actor) MessageAuthor.SELF else MessageAuthor.PEER)
-    fun message(m: MessageRecord, actor: String) = m.message.copy(author = if (m.author == actor) MessageAuthor.SELF else MessageAuthor.PEER)
     fun block(b: BlockRecord, actor: String) = Block(b.id, v, publicProfile(b.peer, actor), b.createdAt)
 
     fun snapshot(actor: String): SyncSnapshot {
@@ -195,16 +184,10 @@ internal class Room(
             a.settings.copy(version = v), discovery(actor),
             state.requests.values.filter { actor == it.sender || actor == it.recipient }.map { request(it, actor) },
             cs.map { connection(it, actor) },
-            state.greetings.values.filter { g -> cs.any { it.id == g.greeting.connectionId } }.map { greeting(it, actor) },
             state.encounters.values.filter { it.owner == actor }.map { encounter(it, actor) },
             state.afterRequests.values.filter { actor == it.sender || actor == it.recipient }.map { afterRequest(it, actor) },
             acs.map { afterConnection(it, actor) },
-            state.messages.values.filter { m -> acs.any { it.id == m.message.afterConnectionId } }.map { message(it, actor) },
             state.blocks.values.filter { it.owner == actor }.map { block(it, actor) })
     }
 
-    companion object {
-        val BASE_PRESETS = setOf(PresetCode.HELLO, PresetCode.NICE_TO_MEET_YOU,
-            PresetCode.SHARED_INTERESTS, PresetCode.TALK_LATER, PresetCode.TAKE_CARE, PresetCode.NICE_TO_MEET_AGAIN)
-    }
 }

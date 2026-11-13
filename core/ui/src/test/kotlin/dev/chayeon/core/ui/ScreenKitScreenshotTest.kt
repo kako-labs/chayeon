@@ -65,7 +65,7 @@ class ScreenKitScreenshotTest {
     @Test fun gelTextField() = capture("gel_text_field") {
         Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
             GelTextField("느린오후", {}, "닉네임", maxLength = 12)
-            GelTextField("", {}, "인사", placeholder = "인사를 적어주세요", maxLength = 120, singleLine = false)
+            GelTextField("", {}, "인스타그램 아이디", placeholder = "아이디를 입력해 주세요", maxLength = 31)
             GelTextField("가", {}, "닉네임 확인", error = "두 글자 이상 적어주세요", maxLength = 12)
         }
     }

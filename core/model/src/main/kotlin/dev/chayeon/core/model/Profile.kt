@@ -83,6 +83,7 @@ data class MyProfile(
     override val version: Long,
     val publicProfile: PublicProfile,
     val registration: RegistrationState,
+    val contacts: ContactIds = ContactIds(),
 ) : VersionedEntity
 
 @Serializable
@@ -93,6 +94,7 @@ data class ProfileDraft(
     val nickname: String,
     val avatar: AvatarId,
     val interests: Set<InterestId>,
+    val contacts: ContactIds = ContactIds(),
 )
 
 @Serializable
@@ -120,6 +122,5 @@ data class ParticipationSettings(
     override val version: Long,
     val consents: List<ConsentRecord> = emptyList(),
     val notifyRequests: Boolean = true,
-    val notifyGreetings: Boolean = true,
     val receiveRequestsWhileDriving: Boolean = false,
 ) : VersionedEntity

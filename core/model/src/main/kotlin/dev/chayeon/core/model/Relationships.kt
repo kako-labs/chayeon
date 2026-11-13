@@ -1,6 +1,5 @@
 package dev.chayeon.core.model
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -33,33 +32,6 @@ enum class ConnectionStatus { CONNECTED, CHECKING, ENDED }
 enum class ConnectionEndReason { DISTANCE, PEER_LEFT, SELF_LEFT, STATUS_UNKNOWN, DISCOVERY_OFF, BLOCKED }
 
 @Serializable
-enum class PresetCode {
-    HELLO, NICE_TO_MEET_YOU, GOOD_EVENING, SHARED_INTERESTS, TALK_LATER, TAKE_CARE,
-    NICE_TO_MEET_AGAIN, ADMIRE_GENTLE_RIDE, ADMIRE_EARLY_BRAKE, ADMIRE_SIGNAL_MANNERS,
-    ADMIRE_STEADY_PACE, ADMIRE_BELT_FIRST, SHARE_LONG_ROAD, SHARE_NIGHT_DRIVE,
-    ADMIRE_TIRE_CARE, ADMIRE_ENERGY_PLANNER, ADMIRE_BATTERY_KIND, ADMIRE_FLUID_READY,
-    ADMIRE_CABIN_CARE,
-}
-
-@Serializable
-enum class MessageAuthor { SELF, PEER }
-
-@Serializable
-enum class DeliveryState { SENDING, SENT, FAILED }
-
-@Serializable
-data class ConnectionGreeting(
-    override val id: String,
-    override val version: Long,
-    val connectionId: String,
-    val clientMessageId: String,
-    val author: MessageAuthor,
-    val code: PresetCode,
-    val sentAtEpochMillis: Long,
-    val delivery: DeliveryState,
-) : VersionedEntity
-
-@Serializable
 data class Connection(
     override val id: String,
     override val version: Long,
@@ -71,7 +43,6 @@ data class Connection(
     val endedAtEpochMillis: Long? = null,
     val endReason: ConnectionEndReason? = null,
     val encounterId: String? = null,
-    val availablePresets: Set<PresetCode> = emptySet(),
 ) : VersionedEntity
 
 @Serializable
@@ -130,25 +101,8 @@ data class AfterConnection(
     val chemistry: Chemistry,
     val closedAtEpochMillis: Long? = null,
     val closeReason: AfterCloseReason? = null,
-    val availablePresets: Set<PresetCode> = emptySet(),
-) : VersionedEntity
-
-@Serializable
-sealed interface AfterMessageContent {
-    @Serializable @SerialName("preset") data class Preset(val code: PresetCode) : AfterMessageContent
-    @Serializable @SerialName("text") data class Text(val text: String) : AfterMessageContent
-}
-
-@Serializable
-data class AfterMessage(
-    override val id: String,
-    override val version: Long,
-    val afterConnectionId: String,
-    val clientMessageId: String,
-    val author: MessageAuthor,
-    val content: AfterMessageContent,
-    val sentAtEpochMillis: Long,
-    val delivery: DeliveryState,
+    val sharedContacts: ContactIds? = null,
+    val ownSharedContacts: ContactIds? = null,
 ) : VersionedEntity
 
 @Serializable
@@ -160,7 +114,7 @@ data class Block(
 ) : VersionedEntity
 
 @Serializable
-enum class ReportReason { UNPLEASANT_MESSAGE, UNWANTED_APPROACH, IMPERSONATION, POSSIBLE_MINOR, OTHER }
+enum class ReportReason { UNPLEASANT_CONTACT, UNWANTED_APPROACH, IMPERSONATION, POSSIBLE_MINOR, OTHER }
 
 @Serializable
 enum class ReportStatus { RECEIVED }

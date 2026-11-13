@@ -9,6 +9,8 @@ Read before working: docs/architecture.md, docs/product/drive-signature.md, docs
 - Never read, store or transmit VIN, CRN, plate, vehicle model or exterior data. Never call CarInfo.getVINInfo or getCRNInfo.
 - Coordinates, distance, direction and trajectories never appear in any API response, UI or log.
 - Raw vehicle signals stay in memory on the device. Persist derived metrics only.
+- Contact IDs are private owner data. Public profiles, candidates, requests, encounters, logs and notifications never contain them. Share only the IDs selected for an after request after both participants accept. Revoke exchanged IDs on relationship end, block or account deletion, including cached command results.
+- Contact IDs and Instagram QR codes are visible only under DrivingPolicy.ALLOWED. Never derive a KakaoTalk link from an ID.
 
 ## Architecture
 

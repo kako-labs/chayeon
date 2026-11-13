@@ -13,136 +13,11 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AppGraphTest {
-    private class FakeNotifier : MessageNotifier {
+    private class FakeNotifier : RequestNotifier {
         val active = mutableSetOf<String>()
         val cancelled = mutableListOf<String>()
-        override fun notifyMessage(id: String) { active += id }
-        override fun cancelMessage(id: String) { active -= id; cancelled += id }
-    }
-
-    @Test fun viewingAfterConversationCancelsOnlyItsNotificationsEvenAfterBannerTimeout() = runTest {
-        val fixture = TestGraph().apply { ready(); driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED) }
-        val notifier = FakeNotifier()
-        val events = AppEvents(fixture.graph, notifier, backgroundScope)
-        events.start()
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { events.banner.collect {} }
-        runCurrent()
-        fixture.requests.value = LoadState.Ready(listOf(ConnectionRequest("request", 2, fixture.publicProfile,
-            RequestDirection.INCOMING, ConnectionRequestStatus.PENDING, 0, 100_000, Chemistry())), 2)
-        fixture.afterConnections.value = LoadState.Ready(listOf("after", "other").map {
-            AfterConnection(it, 2, "after-request-$it", "encounter-$it", fixture.publicProfile,
-                AfterConnectionStatus.CONNECTED, 0, Chemistry())
-        }, 2)
-        fixture.afterMessages.value = LoadState.Ready(listOf("after", "other").map {
-            AfterMessage("message-$it", 2, it, "client-$it", MessageAuthor.PEER,
-                AfterMessageContent.Text("반가워요"), 0, DeliveryState.SENT)
-        }, 2)
-        runCurrent()
-        assertEquals(setOf("request", "message-after", "message-other"), notifier.active)
-        fixture.driving.value = DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK)
-        runCurrent()
-        advanceTimeBy(15_001); runCurrent()
-        assertNull(events.banner.value)
-        val release = events.viewing(null, "after")
-        assertEquals(listOf("message-after"), notifier.cancelled)
-        assertEquals(setOf("request", "message-other"), notifier.active)
-        fixture.afterMessages.value = LoadState.Ready((fixture.afterMessages.value as LoadState.Ready).value +
-            AfterMessage("reply", 3, "after", "reply", MessageAuthor.PEER,
-                AfterMessageContent.Text("저도 반가워요"), 1, DeliveryState.SENT), 3)
-        runCurrent()
-        assertEquals(setOf("request", "message-other"), notifier.active)
-        release()
-        events.viewing("request", null)
-        assertEquals(setOf("message-other"), notifier.active)
-        events.viewing(null, "other")
-        assertTrue(notifier.active.isEmpty())
-    }
-
-    @Test fun restrictedAfterSignalIsCancelledWhenItsConversationBecomesReadableAndIsAlreadyViewed() = runTest {
-        val fixture = TestGraph().apply { ready(); driving.value = DrivingState() }
-        val signals = MutableStateFlow<List<String>>(emptyList())
-        val notifier = FakeNotifier()
-        val events = AppEvents(fixture.graph, notifier, backgroundScope, signals)
-        events.start()
-        runCurrent()
-        signals.value = listOf("greeting")
-        runCurrent()
-        assertEquals(setOf("greeting"), notifier.active)
-        fixture.driving.value = DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK)
-        events.viewing(null, "connection")
-        fixture.afterConnections.value = LoadState.Ready(listOf(AfterConnection("connection", 2, "request", "encounter", fixture.publicProfile,
-            AfterConnectionStatus.CONNECTED, 0, Chemistry())), 2)
-        fixture.afterMessages.value = LoadState.Ready(listOf(AfterMessage("greeting", 2, "connection", "client",
-            MessageAuthor.PEER, AfterMessageContent.Preset(PresetCode.HELLO), 0, DeliveryState.SENT)), 2)
-        runCurrent()
-        assertEquals(listOf("greeting"), notifier.cancelled)
-        assertTrue(notifier.active.isEmpty())
-        fixture.driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED)
-        signals.value += "unread"
-        runCurrent()
-        assertEquals(setOf("unread"), notifier.active)
-        fixture.sessions.value = SessionState.SignedOut()
-        runCurrent()
-        assertTrue(notifier.active.isEmpty())
-    }
-
-    @Test fun restoredAfterNotificationIsCancelledFromHistoricalMessageIdsAfterRestart() = runTest {
-        for (viewBeforeRestore in listOf(false, true)) {
-            val fixture = TestGraph().apply { ready() }
-            val notifier = FakeNotifier().apply { active += "historical" }
-            val events = AppEvents(fixture.graph, notifier, backgroundScope, MutableStateFlow(listOf("historical")))
-            events.start()
-            runCurrent()
-            if (viewBeforeRestore) events.viewing(null, "connection")
-            fixture.afterConnections.value = LoadState.Ready(listOf(AfterConnection("connection", 2, "request", "encounter", fixture.publicProfile,
-                AfterConnectionStatus.CONNECTED, 0, Chemistry())), 2)
-            fixture.afterMessages.value = LoadState.Ready(listOf(AfterMessage("historical", 2, "connection", "client",
-                MessageAuthor.PEER, AfterMessageContent.Preset(PresetCode.HELLO), 0, DeliveryState.SENT)), 2)
-            runCurrent()
-            if (!viewBeforeRestore) {
-                assertEquals(setOf("historical"), notifier.active)
-                events.viewing(null, "connection")
-            }
-            assertEquals(listOf("historical"), notifier.cancelled)
-            assertTrue(notifier.active.isEmpty())
-            fixture.afterMessages.value = LoadState.Ready((fixture.afterMessages.value as LoadState.Ready).value, 3)
-            runCurrent()
-            assertEquals(listOf("historical"), notifier.cancelled)
-        }
-    }
-
-    @Test fun openingTheRelevantAfterContentClearsOnlyItsBannerAndSuppressesNewArrivals() = runTest {
-        val fixture = TestGraph().apply { ready() }
-        val events = AppEvents(fixture.graph, FakeNotifier(), backgroundScope)
-        events.start()
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { events.banner.collect {} }
-        runCurrent()
-        fixture.requests.value = LoadState.Ready(listOf(ConnectionRequest("request", 2, fixture.publicProfile,
-            RequestDirection.INCOMING, ConnectionRequestStatus.PENDING, 0, 100_000, Chemistry())), 2)
-        runCurrent()
-        val unrelated = events.viewing("other-request", null)
-        assertEquals("request", events.banner.value?.id)
-        val requestView = events.viewing("request", null)
-        runCurrent()
-        assertNull(events.banner.value)
-        requestView(); unrelated()
-        fixture.afterConnections.value = LoadState.Ready(listOf(AfterConnection("connection", 3, "request", "encounter", fixture.publicProfile,
-            AfterConnectionStatus.CONNECTED, 0, Chemistry())), 3)
-        runCurrent()
-        fixture.afterMessages.value = LoadState.Ready(listOf(AfterMessage("greeting", 4, "connection", "message",
-            MessageAuthor.PEER, AfterMessageContent.Preset(PresetCode.HELLO), 0, DeliveryState.SENT)), 4)
-        runCurrent()
-        assertEquals("greeting", events.banner.value?.id)
-        val conversation = events.viewing(null, "connection")
-        runCurrent()
-        assertNull(events.banner.value)
-        fixture.afterMessages.value = LoadState.Ready((fixture.afterMessages.value as LoadState.Ready).value +
-            AfterMessage("reply", 5, "connection", "reply-message", MessageAuthor.PEER, AfterMessageContent.Preset(PresetCode.NICE_TO_MEET_YOU), 0, DeliveryState.SENT), 5)
-        runCurrent()
-        assertNull(events.banner.value)
-        conversation()
-        runCurrent()
-        assertNull(events.banner.value)
+        override fun notifyRequest(id: String, route: String) { active += id }
+        override fun cancelRequest(id: String) { active -= id; cancelled += id }
     }
 
     @Test fun bannerDismissesAfterFiveVisibleSecondsAndDoesNotReappear() = runTest {
@@ -198,9 +73,9 @@ class AppGraphTest {
     @Test fun incomingRequestIsQueuedWhileLockedAndNotifiedWithoutPayload() = runTest {
         val fixture = TestGraph().apply { ready(); driving.value = DrivingState() }
         val notifications = mutableListOf<String>()
-        val events = AppEvents(fixture.graph, object : MessageNotifier {
-            override fun cancelMessage(id: String) = Unit
-            override fun notifyMessage(id: String) { notifications += id } }, backgroundScope)
+        val events = AppEvents(fixture.graph, object : RequestNotifier {
+            override fun cancelRequest(id: String) = Unit
+            override fun notifyRequest(id: String, route: String) { notifications += id } }, backgroundScope)
         events.start()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { events.banner.collect {} }
         runCurrent()
@@ -223,9 +98,9 @@ class AppGraphTest {
             val signals = MutableStateFlow<List<String>>(emptyList())
             val ready = MutableStateFlow(false)
             val notifications = mutableListOf<String>()
-            val events = AppEvents(fixture.graph, object : MessageNotifier {
-                override fun cancelMessage(id: String) = Unit
-                override fun notifyMessage(id: String) { notifications += id }
+            val events = AppEvents(fixture.graph, object : RequestNotifier {
+                override fun cancelRequest(id: String) = Unit
+                override fun notifyRequest(id: String, route: String) { notifications += id }
             }, backgroundScope, signals, ready)
             events.start()
             runCurrent()
@@ -243,9 +118,9 @@ class AppGraphTest {
         val fixture = TestGraph().apply { ready(); driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED) }
         val signals = MutableStateFlow((1..30).map { "old-$it" })
         val notifications = mutableListOf<String>()
-        val events = AppEvents(fixture.graph, object : MessageNotifier {
-            override fun cancelMessage(id: String) = Unit
-            override fun notifyMessage(id: String) { notifications += id }
+        val events = AppEvents(fixture.graph, object : RequestNotifier {
+            override fun cancelRequest(id: String) = Unit
+            override fun notifyRequest(id: String, route: String) { notifications += id }
         }, backgroundScope, signals)
         events.start()
         runCurrent()
@@ -279,45 +154,42 @@ class AppGraphTest {
         assertEquals(1, fixture.publications.size)
     }
 
-    @Test fun endedAfterRelationshipRemovesItsGreetingBanner() = runTest {
-        val fixture = TestGraph().apply { ready() }
-        val events = AppEvents(fixture.graph, FakeNotifier(), backgroundScope)
+
+    @Test fun incomingAfterRoutesToPersonAndViewingClearsOnlyThatRequest() = runTest {
+        val fixture = TestGraph().apply { ready(); driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED) }
+        val notifier = FakeNotifier()
+        val events = AppEvents(fixture.graph, notifier, backgroundScope)
         events.start()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { events.banner.collect {} }
-        val connection = AfterConnection("after", 1, "request", "encounter", fixture.publicProfile,
-            AfterConnectionStatus.CONNECTED, 0, Chemistry())
-        fixture.afterConnections.value = LoadState.Ready(listOf(connection), 1)
-        fixture.afterMessages.value = LoadState.Ready(listOf(AfterMessage("greeting", 1, connection.id,
-            "client-message", MessageAuthor.PEER, AfterMessageContent.Preset(PresetCode.HELLO), 1, DeliveryState.SENT)), 1)
         runCurrent()
-        assertEquals("greeting", events.banner.value?.id)
-        fixture.afterConnections.value = LoadState.Loading()
+        val request = AfterRequest("incoming-after", 2, "encounter", fixture.publicProfile,
+            RequestDirection.INCOMING, AfterRequestStatus.PENDING, 0, 100_000, Chemistry())
+        fixture.afterRequests.value = LoadState.Ready(listOf(request), 2)
         runCurrent()
-        assertEquals("greeting", events.banner.value?.id)
-        fixture.afterConnections.value = LoadState.Ready(listOf(connection.copy(status = AfterConnectionStatus.CLOSED)), 2)
+        assertEquals(HistoryDestination.person(fixture.publicProfile.id), events.banner.value?.route)
+        assertEquals(setOf("incoming-after"), notifier.active)
+        fixture.driving.value = DrivingState(policy = DrivingPolicy.ALLOWED)
+        events.viewing(request.id)
+        runCurrent()
+        assertNull(events.banner.value)
+        assertTrue(notifier.active.isEmpty())
+        fixture.afterRequests.value = LoadState.Ready(listOf(request.copy(version = 3)), 3)
         runCurrent()
         assertNull(events.banner.value)
     }
 
-    @Test fun temporaryConnectionGreetingsNeverCreateBannersOrNotificationsInAnyDrivingPolicy() = runTest {
-        for (policy in DrivingPolicy.entries) {
-            val fixture = TestGraph().apply { ready(); driving.value = DrivingState(policy = policy) }
-            val notifier = FakeNotifier()
-            val events = AppEvents(fixture.graph, notifier, backgroundScope)
-            events.start()
-            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { events.banner.collect {} }
-            runCurrent()
-            fixture.connection.value = LoadState.Ready(Connection("temporary", 2, "request", fixture.publicProfile,
-                ConnectionStatus.CONNECTED, 0, Chemistry()), 2)
-            fixture.greetings.value = LoadState.Ready(listOf(ConnectionGreeting("temporary-greeting", 3,
-                "temporary", "client-message", MessageAuthor.PEER, PresetCode.HELLO, 1, DeliveryState.SENT)), 3)
-            runCurrent()
-            assertNull(events.banner.value)
-            assertTrue(notifier.active.isEmpty())
-            fixture.driving.value = DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK)
-            runCurrent()
-            assertNull(events.banner.value)
-            assertTrue(notifier.active.isEmpty())
-        }
+    @Test fun contactExchangeDoesNotCreateAnEventOrNotification() = runTest {
+        val fixture = TestGraph().apply { ready(); driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED) }
+        val notifier = FakeNotifier()
+        val events = AppEvents(fixture.graph, notifier, backgroundScope)
+        events.start()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { events.banner.collect {} }
+        runCurrent()
+        fixture.afterConnections.value = LoadState.Ready(listOf(AfterConnection("after", 2, "request", "encounter",
+            fixture.publicProfile, AfterConnectionStatus.CONNECTED, 0, Chemistry(),
+            sharedContacts = ContactIds(instagramId = "byeol-night.drive"))), 2)
+        runCurrent()
+        assertNull(events.banner.value)
+        assertTrue(notifier.active.isEmpty())
     }
 }

@@ -1,6 +1,7 @@
 package dev.chayeon.core.engine
 
 import dev.chayeon.core.model.*
+import kotlinx.serialization.json.encodeToJsonElement
 
 internal fun Room.enterSession(actor: String, r: EnterSessionRequest): Session {
     ensure(actor.isNotBlank() && actor.length <= 128)
@@ -30,9 +31,11 @@ internal fun Room.saveProfile(actor: String, r: SaveProfileRequest): MyProfile {
     ensure(nick == nick.trim() && nick.codePointCount(0, nick.length) in policy.nicknameMinLength..policy.nicknameMaxLength &&
         nick.none { Character.isISOControl(it) || Character.getType(it) == Character.FORMAT.toInt() })
     ensure(r.draft.interests.size <= policy.maximumInterests)
+    ensure(r.draft.contacts.isValid())
     stamp()
     val profile = a.profile.copy(version = v, publicProfile = a.profile.publicProfile.copy(version = v,
         nickname = nick, avatar = r.draft.avatar, interests = r.draft.interests),
+        contacts = r.draft.contacts.normalized(),
         registration = if (ConsentScope.entries.all { consent(a, it) }) RegistrationState.READY else RegistrationState.CONSENT_REQUIRED)
     put(a.copy(profile = profile))
     return profile
@@ -64,7 +67,7 @@ internal fun Room.updateSettings(actor: String, r: UpdateSettingsRequest): Parti
     val a = account(actor)
     checkVersion(r.meta, v)
     stamp()
-    val settings = a.settings.copy(version = v, notifyRequests = r.notifyRequests, notifyGreetings = r.notifyGreetings,
+    val settings = a.settings.copy(version = v, notifyRequests = r.notifyRequests,
         receiveRequestsWhileDriving = r.receiveRequestsWhileDriving)
     put(a.copy(settings = settings))
     return settings
@@ -156,18 +159,20 @@ internal fun Room.deleteAccount(actor: String, r: DeleteAccountRequest): Command
     revoke(actor, null, ConnectionEndReason.SELF_LEFT, accountDeleted = true)
     put(a.copy(active = false, deleted = true, discovery = DiscoveryMode.OFF, discoverySince = null, presenceLeaseDeadline = null,
         settings = a.settings.copy(version = v, consents = emptyList()),
-        profile = a.profile.copy(version = v, registration = RegistrationState.PROFILE_REQUIRED,
+        profile = a.profile.copy(version = v, registration = RegistrationState.PROFILE_REQUIRED, contacts = ContactIds(),
             publicProfile = a.profile.publicProfile.copy(version = v, nickname = "가상 프로필", avatar = AvatarId.DAWN,
                 interests = emptySet(), signature = null))))
     locations.remove(actor)
-    state = state.copy(encounters = state.encounters.filterValues { it.owner != actor },
+    state = state.copy(afterRequests = state.afterRequests.mapValues { (_, request) ->
+        if (actor in setOf(request.sender, request.recipient)) request.copy(submittedContacts = null) else request
+    }, encounters = state.encounters.filterValues { it.owner != actor },
         afterConnections = state.afterConnections.mapValues { (_, connection) ->
-            if (actor in setOf(connection.first, connection.second)) connection.copy(version = v,
+            if (actor in setOf(connection.first, connection.second)) connection.copy(version = v, firstContacts = null, secondContacts = null,
                 firstReason = AfterCloseReason.ACCOUNT_DELETED, secondReason = AfterCloseReason.ACCOUNT_DELETED)
             else connection
         },
-        messages = state.messages.filterValues { it.author != actor },
-        greetings = state.greetings.filterValues { it.author != actor },
-        blocks = state.blocks.filterValues { it.owner != actor }, commands = state.commands.filterNot { it.actor == actor })
+        blocks = state.blocks.filterValues { it.owner != actor }, commands = state.commands.filterNot { it.actor == actor }.map { command ->
+            command.copy(result = EngineJson.encodeToJsonElement<AppResult<CommandReceipt>>(AppResult.Failure(AppError.AlreadyClosed)))
+        })
     return CommandReceipt(r.meta.commandId, v)
 }

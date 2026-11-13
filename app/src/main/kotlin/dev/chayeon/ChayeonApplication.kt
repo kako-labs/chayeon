@@ -114,7 +114,7 @@ class ChayeonApplication : Application(), VehicleGraphOwner, VoiceServiceOwner {
     }
     val publisher by lazy { SignaturePublisher(graph, sessionEnding, publicationLock, scope,
         vehicleGraph.gateInput.permission.map { it.accountId }.distinctUntilChanged()) }
-    val events by lazy { AppEvents(graph, AppNotifications(this), scope, socialGraph.messageSignals,
+    val events by lazy { AppEvents(graph, AppNotifications(this), scope, socialGraph.requestSignals,
         socialGraph.recordingSettings.map { it is LoadState.Ready }) }
 
     override fun onCreate() {

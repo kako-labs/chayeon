@@ -23,12 +23,10 @@ data class HistoryUiState(
     val encounter: LoadState<Encounter?> = LoadState.Loading(),
     val requests: LoadState<List<AfterRequest>> = LoadState.Loading(),
     val relationships: LoadState<List<AfterConnection>> = LoadState.Loading(),
-    val messages: LoadState<List<AfterMessage>> = LoadState.Loading(),
     val blocks: LoadState<List<Block>> = LoadState.Loading(),
     val connection: LoadState<Connection?> = LoadState.Loading(),
     val discovery: DiscoveryState = DiscoveryState(),
     val commands: Map<String, CommandState> = emptyMap(),
-    val sendCommands: Map<String, String> = emptyMap(),
     val draft: ProfileDraft = ProfileDraft("", AvatarId.DAWN, emptySet()),
     val draftLoaded: Boolean = false,
     val draftError: String? = null,
@@ -38,22 +36,24 @@ data class HistoryUiState(
     val roomCode: String = "",
     val selectedRelationshipId: String? = null,
     val targetEncounterId: String? = null,
-    val messageDrafts: Map<String, String> = emptyMap(),
-    val outbox: List<PendingAfterMessage> = emptyList(),
+    val shareContacts: ContactIds = ContactIds(),
+    val contactsLoaded: Boolean = false,
+    val saveContactsToProfile: Boolean = false,
+    val contactError: String? = null,
+    val targetPeerId: String? = null,
     val safetyPeer: PublicProfile? = null,
-    val selectedReason: ReportReason = ReportReason.UNPLEASANT_MESSAGE,
+    val selectedReason: ReportReason = ReportReason.UNPLEASANT_CONTACT,
     val confirmation: HistoryConfirmation? = null,
     val remainingMillis: Map<String, Long?> = emptyMap(),
     val microphoneGranted: Boolean = false,
+    val homeSuppressed: Boolean = false,
 ) {
     val requiredConsentsGranted: Boolean get() = policy?.let { settings.hasRequiredConsents(it.consentDocumentVersion) } == true
     val policy: ParticipationPolicy? get() = (session as? SessionState.Active)?.session?.policy
-    fun command(key: String) = commands[sendCommands[key] ?: key] ?: CommandState()
+    fun command(key: String) = commands[key] ?: CommandState()
     val myProfile: MyProfile? get() = profile.valueOrNull()
     val selectedRelationship: AfterConnection? get() = relationships.valueOrNull()?.firstOrNull { it.id == selectedRelationshipId }
 }
-
-data class PendingAfterMessage(val request: SendAfterMessageRequest, val delivery: DeliveryState = DeliveryState.SENDING)
 
 enum class ConfirmationKind { DELETE_ENCOUNTER, WITHDRAW, END_RELATIONSHIP, BLOCK, UNBLOCK, DISCOVERY_OFF, LEAVE, DELETE_RECORDS, SIGN_OUT, DELETE_ACCOUNT }
 data class HistoryConfirmation(val kind: ConfirmationKind, val targetId: String = "", val title: String, val body: String, val commandKey: String, val actionLabel: String = kind.actionLabel)
@@ -120,7 +120,7 @@ open class HistoryViewModel(protected val deps: HistoryDeps) : ViewModel() {
 
     protected fun commandState(key: String) = commandStates.value[key] ?: CommandState()
 
-    protected fun busy(key: String) = commandStates.value[content.value.sendCommands[key] ?: key]?.running == true
+    protected fun busy(key: String) = commandStates.value[key]?.running == true
 
     protected fun command(key: String, allowExit: Boolean = false, run: suspend () -> AppResult<*>, success: (Any?) -> Unit = {}) {
         if (busy(key) || commandStates.value[key]?.completed == true) return
@@ -129,7 +129,7 @@ open class HistoryViewModel(protected val deps: HistoryDeps) : ViewModel() {
     }
 
     fun retry(alias: String) {
-        val key = content.value.sendCommands[alias] ?: alias
+        val key = alias
         val operation = pending[key] ?: return
         if (busy(key) || commandStates.value[key]?.completed == true) return
         commandStates.update { it + (key to CommandState(running = true)) }

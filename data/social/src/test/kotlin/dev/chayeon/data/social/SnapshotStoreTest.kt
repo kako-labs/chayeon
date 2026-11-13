@@ -78,40 +78,6 @@ class SnapshotStoreTest {
         assertNotNull(store.state.value.anchor)
     }
 
-    @Test fun `greeting retries preserve command and message identity and reject changed body`() {
-        val generation = store.begin("session-a")
-        val original = SendGreetingRequest(CommandMeta("first-command"), "connection", "client-message", PresetCode.HELLO)
-        assertEquals(original, store.greeting(generation, original, DeliveryState.SENDING))
-        store.greeting(generation, original, DeliveryState.FAILED)
-        val retry = original.copy(meta = CommandMeta("new-command"))
-        assertEquals(original, store.greeting(generation, retry, DeliveryState.SENDING))
-        assertNull(store.greeting(generation, retry.copy(code = PresetCode.TAKE_CARE), DeliveryState.SENDING))
-        assertEquals(1, store.state.value.pendingGreetings.size)
-        store.begin(null)
-        assertTrue(store.state.value.pendingGreetings.isEmpty())
-    }
-
-    @Test fun `after message retries reject changed text and preserve both identifiers`() {
-        val generation = store.begin("session-a")
-        val original = SendAfterMessageRequest(CommandMeta("first-command"), "after", "client-message", AfterMessageContent.Text("반가워요"))
-        store.afterMessage(generation, original, DeliveryState.SENDING)
-        store.afterMessage(generation, original, DeliveryState.FAILED)
-        val retry = original.copy(meta = CommandMeta("new-command"))
-        assertEquals(original, store.afterMessage(generation, retry, DeliveryState.SENDING))
-        assertNull(store.afterMessage(generation, retry.copy(content = AfterMessageContent.Text("다른 내용이에요")), DeliveryState.SENDING))
-        assertEquals(1, store.state.value.pendingAfterMessages.size)
-    }
-
-    @Test fun `authoritative messages replace their optimistic counterparts`() {
-        val generation = store.begin("session-a")
-        val request = SendAfterMessageRequest(CommandMeta("send"), "after", "client-message", AfterMessageContent.Text("반가워요"))
-        store.afterMessage(generation, request, DeliveryState.SENDING)
-        val message = store.state.value.pendingAfterMessages.single().message.copy(id = "server-message", version = 2, delivery = DeliveryState.SENT)
-        store.accept(store.beginRequest(generation)!!, snapshot(2).copy(afterMessages = listOf(message)))
-        assertTrue(store.state.value.pendingAfterMessages.isEmpty())
-        assertEquals(listOf(message), ready().afterMessages)
-    }
-
     private fun ready(): SyncSnapshot = (store.state.value.data as LoadState.Ready).value
     private fun snapshot(version: Long) = SyncSnapshot("session-a", version, 1_000)
     private fun candidate() = Candidate("peer", 1, PublicProfile("peer", 1, "가상 상대", AvatarId.SEA,

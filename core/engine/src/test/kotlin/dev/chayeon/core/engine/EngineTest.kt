@@ -43,15 +43,15 @@ class EngineTest {
         val f = Fixture(); f.join("a"); f.join("b")
         val c = f.connect(); f.engine.leaveConnection("a", LeaveConnectionRequest(f.meta(), c)).ok()
         val encounter = f.snap("a").encounters.single().id
-        val expired = f.engine.requestAfter("a", RequestAfterRequest(f.meta(), encounter)).ok()
+        val expired = f.engine.requestAfter("a", RequestAfterRequest(f.meta(), encounter, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))).ok()
         f.advance(f.policy.afterTtlMillis)
         assertEquals(AfterRequestStatus.EXPIRED, f.snap("a").afterRequests.single().status)
-        assertEquals(AppError.Expired, f.engine.respondAfter("b", RespondAfterRequest(f.meta(), expired.id, RequestDecision.ACCEPT)).error())
+        assertEquals(AppError.Expired, f.engine.respondAfter("b", RespondAfterRequest(f.meta(), expired.id, RequestDecision.ACCEPT, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))).error())
         assertEquals(AfterEligibility.COOLDOWN, f.snap("a").encounters.single().afterEligibility)
         f.advance(f.policy.afterCooldownMillis)
-        val declined = f.engine.requestAfter("a", RequestAfterRequest(f.meta(), encounter)).ok()
+        val declined = f.engine.requestAfter("a", RequestAfterRequest(f.meta(), encounter, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))).ok()
         f.engine.respondAfter("b", RespondAfterRequest(f.meta(), declined.id, RequestDecision.DECLINE)).ok()
-        assertEquals(AppError.AlreadyClosed, f.engine.respondAfter("b", RespondAfterRequest(f.meta(), declined.id, RequestDecision.ACCEPT)).error())
+        assertEquals(AppError.AlreadyClosed, f.engine.respondAfter("b", RespondAfterRequest(f.meta(), declined.id, RequestDecision.ACCEPT, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))).error())
         assertEquals(AfterEligibility.COOLDOWN, f.snap("a").encounters.single().afterEligibility)
         assertTrue(f.snap("b").afterConnections.isEmpty())
     }
@@ -96,8 +96,8 @@ class EngineTest {
         f.engine.deleteEncounter("a", DeleteEncounterRequest(f.meta(), f.snap("a").encounters.single().id)).ok()
         val theirs = f.snap("b").encounters.single()
         assertEquals(AfterEligibility.AVAILABLE, theirs.afterEligibility)
-        val requested = f.engine.requestAfter("b", RequestAfterRequest(f.meta(), theirs.id)).ok()
-        f.engine.respondAfter("a", RespondAfterRequest(f.meta(), requested.id, RequestDecision.ACCEPT)).ok()
+        val requested = f.engine.requestAfter("b", RequestAfterRequest(f.meta(), theirs.id, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))).ok()
+        f.engine.respondAfter("a", RespondAfterRequest(f.meta(), requested.id, RequestDecision.ACCEPT, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))).ok()
         assertTrue(f.snap("a").encounters.isEmpty())
         assertEquals(1, f.snap("a").afterConnections.size)
     }
@@ -128,7 +128,7 @@ class EngineTest {
         assertEquals(sparse.engine.exportState(), frequent.engine.exportState())
     }
 
-    @Test fun `blocking closes pending requests and after conversations without leaking the block`() {
+    @Test fun `blocking closes pending requests and after relationships without leaking the block`() {
         val f = Fixture(); f.join("a"); f.join("b")
         val r = f.request()
         val blocked = f.engine.blockPeer("b", BlockPeerRequest(f.meta(), f.snap("a").profile!!.id)).ok()
@@ -136,12 +136,11 @@ class EngineTest {
         assertEquals(AppError.PeerUnavailable, f.engine.respondConnection("b", RespondConnectionRequest(f.meta(), r.id, RequestDecision.ACCEPT)).error())
         f.engine.unblockPeer("b", UnblockPeerRequest(f.meta(), blocked.id)).ok()
         val c = f.connect(); f.engine.leaveConnection("a", LeaveConnectionRequest(f.meta(), c)).ok()
-        val after = f.engine.requestAfter("a", RequestAfterRequest(f.meta(), f.snap("a").encounters.single().id)).ok()
-        val ac = f.engine.respondAfter("b", RespondAfterRequest(f.meta(), after.id, RequestDecision.ACCEPT)).ok().afterConnectionId!!
+        val after = f.engine.requestAfter("a", RequestAfterRequest(f.meta(), f.snap("a").encounters.single().id, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))).ok()
+        val ac = f.engine.respondAfter("b", RespondAfterRequest(f.meta(), after.id, RequestDecision.ACCEPT, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))).ok().afterConnectionId!!
         f.engine.blockPeer("a", BlockPeerRequest(f.meta(), f.snap("b").profile!!.id)).ok()
         assertEquals(AfterCloseReason.BLOCKED, f.snap("a").afterConnections.single().closeReason)
         assertEquals(AfterCloseReason.PEER_LEFT, f.snap("b").afterConnections.single().closeReason)
-        assertEquals(AppError.AlreadyClosed, f.engine.sendAfterMessage("b", SendAfterMessageRequest(f.meta(), ac, "late", AfterMessageContent.Preset(PresetCode.HELLO))).error())
     }
 
     @Test fun `cached discovery cannot replay retracted signatures or blocked candidates`() {
@@ -209,7 +208,6 @@ class EngineTest {
         val c = f.engine.respondConnection("b", RespondConnectionRequest(f.meta(), r.id, RequestDecision.ACCEPT)).ok().connectionId!!
         assertEquals(AppError.PeerUnavailable, f.engine.leaveConnection("c", LeaveConnectionRequest(f.meta(), c)).error())
         assertTrue(f.snap("c").connections.isEmpty())
-        assertTrue(f.snap("c").greetings.isEmpty())
     }
 
     @Test fun `blocking revokes both directions projects neutral reason and cannot revive`() {
@@ -223,7 +221,6 @@ class EngineTest {
         assertNull(f.snap("a").connections.single().peer.signature)
         f.engine.unblockPeer("a", UnblockPeerRequest(f.meta(), b.id)).ok()
         assertEquals(ConnectionStatus.ENDED, f.snap("a").connections.single().status)
-        assertEquals(AppError.AlreadyClosed, f.engine.sendGreeting("b", SendGreetingRequest(f.meta(), c, "late", PresetCode.HELLO)).error())
         assertEquals(1, f.snap("a").encounters.size)
         assertEquals(1, f.snap("b").encounters.size)
     }
@@ -240,19 +237,16 @@ class EngineTest {
         assertEquals(1, f.snap("b").encounters.size)
     }
 
-    @Test fun `titles chemistry presets and all projections track current public visibility`() {
+    @Test fun `titles chemistry and all projections track current public visibility`() {
         val f = Fixture(); f.join("a"); f.join("b"); f.signature("a"); f.signature("b")
         assertEquals("GENTLE_RIDE", f.snap("a").discovery.candidates.single().profile.signature!!.title)
         assertEquals(1, f.snap("a").discovery.candidates.single().chemistry.lines.size)
         val body = RequestConnectionRequest(f.meta(), f.snap("b").profile!!.id)
         val request = f.engine.requestConnection("a", body).ok()
         val c = f.engine.respondConnection("b", RespondConnectionRequest(f.meta(), request.id, RequestDecision.ACCEPT)).ok().connectionId!!
-        assertTrue(PresetCode.ADMIRE_GENTLE_RIDE in f.snap("a").connections.single().availablePresets)
-        assertEquals(AppError.Restricted, f.engine.sendGreeting("a", SendGreetingRequest(f.meta(), c, "invalid", PresetCode.ADMIRE_TIRE_CARE)).error())
         f.engine.publishSignature("b", PublishSignatureRequest(f.meta(), null)).ok()
         assertNull(f.engine.requestConnection("a", body).ok().peer.signature)
         assertTrue(f.snap("a").connections.single().chemistry.lines.isEmpty())
-        assertFalse(PresetCode.ADMIRE_GENTLE_RIDE in f.snap("a").connections.single().availablePresets)
         assertNull(f.snap("a").connectionRequests.single().peer.signature)
         f.engine.leaveConnection("a", LeaveConnectionRequest(f.meta(), c)).ok()
         assertNull(f.snap("a").encounters.single().peer.signature)
@@ -297,27 +291,7 @@ class EngineTest {
         assertEquals(AppError.PeerUnavailable, restored.respondConnection("b", RespondConnectionRequest(f.meta(), r.id, RequestDecision.ACCEPT)).error())
     }
 
-    @Test fun `after consent cooldown message validation and closing are enforced`() {
-        val f = Fixture(); f.join("a"); f.join("b")
-        val c = f.connect(); f.engine.leaveConnection("a", LeaveConnectionRequest(f.meta(), c)).ok()
-        val encounter = f.snap("a").encounters.single().id
-        val first = f.engine.requestAfter("a", RequestAfterRequest(f.meta(), encounter)).ok()
-        f.engine.withdrawAfter("a", WithdrawAfterRequest(f.meta(), first.id)).ok()
-        assertEquals(AfterEligibility.COOLDOWN, f.snap("a").encounters.single().afterEligibility)
-        assertEquals(AppError.AlreadyClosed, f.engine.respondAfter("b", RespondAfterRequest(f.meta(), first.id, RequestDecision.ACCEPT)).error())
-        f.advance(f.policy.afterCooldownMillis)
-        val after = f.engine.requestAfter("a", RequestAfterRequest(f.meta(), encounter)).ok()
-        val ac = f.engine.respondAfter("b", RespondAfterRequest(f.meta(), after.id, RequestDecision.ACCEPT)).ok().afterConnectionId!!
-        listOf("", "   ", "text\nline", "x".repeat(501), "hidden\u202Etext").forEach { text ->
-            assertEquals(AppError.Restricted, f.engine.sendAfterMessage("a", SendAfterMessageRequest(f.meta(), ac, f.meta().commandId, AfterMessageContent.Text(text))).error())
-        }
-        val message = SendAfterMessageRequest(f.meta(), ac, "stable-message", AfterMessageContent.Text("다시 만나서 반가워요"))
-        assertEquals(f.engine.sendAfterMessage("a", message), f.engine.sendAfterMessage("a", message.copy(meta = f.meta())))
-        assertEquals(1, f.snap("b").afterMessages.size)
-        f.engine.endAfterConnection("a", EndAfterConnectionRequest(f.meta(), ac)).ok()
-        assertEquals(AfterEligibility.UNAVAILABLE, f.snap("a").encounters.single().afterEligibility)
-        assertEquals(AppError.AlreadyClosed, f.engine.sendAfterMessage("b", message.copy(meta = f.meta(), clientMessageId = "new")).error())
-    }
+
 
     @Test fun `store failure rolls back mutation and does not publish a revision`() {
         var fail = false
@@ -346,7 +320,6 @@ class EngineTest {
         requestDemo("demo-forest"); f.advance(f.policy.requestTtlMillis)
         assertTrue(f.snap("a").connectionRequests.any { it.status == ConnectionRequestStatus.EXPIRED })
         requestDemo("demo-slow"); f.advance(4000); f.advance(1000)
-        assertEquals(PresetCode.ADMIRE_GENTLE_RIDE, f.snap("a").greetings.single().code)
         f.advance(11_000)
         assertEquals(ConnectionStatus.CHECKING, f.snap("a").connections.single().status)
         f.advance(4_000)
@@ -354,7 +327,7 @@ class EngineTest {
         f.advance(24_000)
         assertEquals(ConnectionEndReason.DISTANCE, f.snap("a").connections.single().endReason)
         val encounter = f.snap("a").encounters.single()
-        val after = f.engine.requestAfter("a", RequestAfterRequest(f.meta(), encounter.id)).ok()
+        val after = f.engine.requestAfter("a", RequestAfterRequest(f.meta(), encounter.id, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))).ok()
         f.advance(4000)
         assertEquals(AfterRequestStatus.ACCEPTED, f.snap("a").afterRequests.single { it.id == after.id }.status)
     }

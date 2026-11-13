@@ -17,9 +17,8 @@ internal class TestGraph(vehicleConsole: VehicleConsole = EmptyVehicleConsole())
     val settings = MutableStateFlow<LoadState<ParticipationSettings>>(LoadState.Ready(ParticipationSettings("settings", 0), 0))
     val requests = MutableStateFlow<LoadState<List<ConnectionRequest>>>(LoadState.Ready(emptyList(), 0))
     val connection = MutableStateFlow<LoadState<Connection?>>(LoadState.Ready(null, 0))
-    val greetings = MutableStateFlow<LoadState<List<ConnectionGreeting>>>(LoadState.Ready(emptyList(), 0))
+    val afterRequests = MutableStateFlow<LoadState<List<AfterRequest>>>(LoadState.Ready(emptyList(), 0))
     val afterConnections = MutableStateFlow<LoadState<List<AfterConnection>>>(LoadState.Ready(emptyList(), 0))
-    val afterMessages = MutableStateFlow<LoadState<List<AfterMessage>>>(LoadState.Ready(emptyList(), 0))
     val discovery = MutableStateFlow(DiscoveryState())
     val signatures = MutableStateFlow<LoadState<MySignature>>(LoadState.Ready(MySignature(), 0))
     val recaps = MutableStateFlow<LoadState<List<TripRecap>>>(LoadState.Ready(emptyList(), 0))
@@ -58,16 +57,11 @@ internal class TestGraph(vehicleConsole: VehicleConsole = EmptyVehicleConsole())
         object : ConnectionRepository by EmptyConnectionRepository() {
             override val requests = this@TestGraph.requests
             override val connection = this@TestGraph.connection
-            override fun observeGreetings(connectionId: String) = greetings
         },
         EmptyEncounterRepository(), object : AfterRepository by EmptyAfterRepository() {
             override val connections = afterConnections
-            override fun observeMessages(afterConnectionId: String) = afterMessages.map { state ->
-                when (state) {
-                    is LoadState.Ready -> LoadState.Ready(state.value.filter { it.afterConnectionId == afterConnectionId }, state.version)
-                    else -> state
-                }
-            }
+            override val requests = afterRequests
+
         }, EmptySafetyRepository(),
         object : DrivingStateProvider { override val drivingState = driving },
         object : SignatureRepository by EmptySignatureRepository() {

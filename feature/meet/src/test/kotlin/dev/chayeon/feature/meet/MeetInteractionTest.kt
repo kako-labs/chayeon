@@ -256,19 +256,15 @@ class MeetInteractionTest {
         assertEquals(1, accepts)
     }
 
-    @Test fun parkedCallHasNoGreetingThreadComposerOrPresetActions() {
+    @Test fun parkedCallShowsVoiceAndConversationTopics() {
         val deps = FakeMeetDeps()
         deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3)
-        deps.messages.value = LoadState.Ready(listOf(ConnectionGreeting("legacy", 4, "connection", "client",
-            MessageAuthor.PEER, PresetCode.HELLO, 120_000, DeliveryState.SENT)), 4)
         showConnected(keep(ConnectedViewModel(deps)))
         compose.onNodeWithText("통화 중").assertIsDisplayed()
         compose.onNodeWithText("이야깃거리").assertExists()
-        listOf("주고받은 인사", "인사 보내기", "다시 보내기", PresetCode.HELLO.label).forEach {
+        listOf("주고받은 인사", "인사 보내기", "다시 보내기", "안녕하세요").forEach {
             compose.onAllNodesWithText(it).assertCountEquals(0)
         }
-        assertTrue(deps.greetingCommands.isEmpty())
-        assertTrue(deps.greetingObservations.isEmpty())
     }
 
     @Test fun checkingCallKeepsOnlyVoiceAndSafetyControls() {
@@ -287,16 +283,12 @@ class MeetInteractionTest {
     @Test fun policyTransitionHidesTopicsAndSafetyLeavingCallControls() {
         val deps = FakeMeetDeps()
         deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3)
-        deps.messages.value = LoadState.Ready(listOf(ConnectionGreeting("peer-message", 3, "connection", "peer-client",
-            MessageAuthor.PEER, PresetCode.NICE_TO_MEET_YOU, 120_000, DeliveryState.SENT)), 3)
         val model = keep(ConnectedViewModel(deps))
         showConnected(model)
         compose.onNodeWithText("이야깃거리").assertExists()
         for (policy in listOf(DrivingPolicy.RESTRICTED, DrivingPolicy.UNKNOWN)) {
             compose.runOnIdle { deps.drivingState.value = MeetFixtures.parked.copy(policy = policy, gear = Gear.DRIVE) }
             compose.waitUntil(timeoutMillis = 5_000) { model.uiState.value.driving.policy == policy }
-            compose.onAllNodesWithText(PresetCode.NICE_TO_MEET_YOU.label).assertCountEquals(0)
-            compose.onAllNodesWithText(PresetCode.HELLO.label).assertCountEquals(0)
             compose.onNodeWithText("주고받은 인사").assertDoesNotExist()
             compose.onNodeWithText("차단·신고").assertDoesNotExist()
             compose.onNodeWithText("통화 끊기").assertIsEnabled()
@@ -304,7 +296,6 @@ class MeetInteractionTest {
         compose.onNodeWithText("통화 끊기").performClick()
         compose.waitUntil(timeoutMillis = 5_000) { deps.leaveCommands.size == 1 }
         assertEquals(MeetFixtures.connection.id, deps.leaveCommands.single().connectionId)
-        assertTrue(deps.greetingCommands.isEmpty())
     }
 
     @Test fun homeProtectionHidesAnAlreadySeenConnectionUntilParkingAgain() {

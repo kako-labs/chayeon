@@ -23,15 +23,14 @@ object HistoryDestination {
     const val PROFILE_EDIT = "history/profile-edit"
     const val CONSENT = "history/consent"
     const val HOME_ZONE = "history/home-zone"
-    const val ENCOUNTERS = "history/encounters"
-    const val ENCOUNTER = "history/encounters/{encounterId}"
+    const val RELATIONSHIPS = "history/relationships"
+    const val PERSON = "history/person/{peerId}"
     const val AFTER_REQUEST = "history/after-request/{encounterId}"
-    const val AFTER_CONNECTIONS = "history/after"
     const val SAFETY = "history/safety/{peerProfileId}"
     const val BLOCKS = "history/blocks"
     const val CLEANUP = "history/cleanup"
 
-    fun encounter(encounterId: String) = "history/encounters/$encounterId"
+    fun person(peerId: String) = "history/person/$peerId"
     fun afterRequest(encounterId: String) = "history/after-request/$encounterId"
     fun safety(peerProfileId: String) = "history/safety/$peerProfileId"
 }
@@ -97,25 +96,24 @@ fun NavGraphBuilder.historyGraph(
         HomeZoneScreen(state, chrome, model::setHome, model::selectRadius, model::askClear,
             model::clear, model::dismissClear, { model.back(::back) })
     }
-    composable(HistoryDestination.ENCOUNTERS) {
-        val model: EncountersViewModel = viewModel { EncountersViewModel(deps) }
+    composable(HistoryDestination.RELATIONSHIPS) {
+        val model: RelationshipsViewModel = viewModel { RelationshipsViewModel(deps) }
         val state by model.uiState.collectAsStateWithLifecycle()
-        EncountersScreen(state, chrome,
-            { id -> model.navigate { open(HistoryDestination.encounter(id)) } },
+        RelationshipsScreen(state, chrome,
+            { id -> model.navigate { open(HistoryDestination.person(id)) } },
             { id -> model.navigate { open(HistoryDestination.afterRequest(id)) } },
             { model.navigate { onExit(HistoryExit.OpenMeet) } })
     }
-    composable(HistoryDestination.ENCOUNTER) { entry ->
-        val id = entry.arguments?.getString("encounterId").orEmpty()
-        val model: EncounterDetailViewModel = viewModel { EncounterDetailViewModel(deps, id) }
+    composable(HistoryDestination.PERSON) { entry ->
+        val id = entry.arguments?.getString("peerId").orEmpty()
+        val model: RelationshipsViewModel = viewModel { RelationshipsViewModel(deps, id) }
         val state by model.uiState.collectAsStateWithLifecycle()
-        LaunchedEffect(state.command("delete").completed, state.driving.policy) {
-            if (state.command("delete").completed && state.driving.policy == DrivingPolicy.ALLOWED) back()
-        }
-        EncounterDetailScreen(state, chrome,
-            { model.navigate { open(HistoryDestination.afterRequest(id)) } },
+        ViewedContent(chrome, state.driving.policy, requestId = state.person?.request?.id)
+        PersonScreen(state, chrome,
+            { encounter -> model.navigate { open(HistoryDestination.afterRequest(encounter)) } },
             { peer -> model.navigate { open(HistoryDestination.safety(peer)) } },
-            model::askDelete, model::delete, model::dismissConfirmation, model::retry, { model.navigate(::back) })
+            model::askDelete, model::askEnd, model::confirmAction, model::dismissConfirmation, model::retry,
+            { model.navigate(::back) })
     }
     composable(HistoryDestination.AFTER_REQUEST) { entry ->
         val id = entry.arguments?.getString("encounterId").orEmpty()
@@ -123,17 +121,12 @@ fun NavGraphBuilder.historyGraph(
         val state by model.uiState.collectAsStateWithLifecycle()
         ViewedContent(chrome, state.driving.policy, requestId = state.requests.valueOrNull()?.firstOrNull { it.encounterId == id }?.id)
         AfterRequestScreen(state, chrome, model::request, model::respond, model::askWithdraw,
-            { model.navigate { open(HistoryDestination.AFTER_CONNECTIONS) } },
+            { model.navigate {
+                val peerId = state.encounter.valueOrNull()?.peer?.id ?: state.requests.valueOrNull()?.filter { it.encounterId == id }?.maxByOrNull { it.createdAtEpochMillis }?.peer?.id
+                peerId?.let { open(HistoryDestination.person(it)) }
+            } },
             { peer -> model.navigate { open(HistoryDestination.safety(peer)) } },
-            model::retry, model::withdraw, model::dismissConfirmation, { model.navigate(::back) })
-    }
-    composable(HistoryDestination.AFTER_CONNECTIONS) {
-        val model: AfterConnectionsViewModel = viewModel { AfterConnectionsViewModel(deps) }
-        val state by model.uiState.collectAsStateWithLifecycle()
-        AfterConnectionsScreen(state, chrome, model::select,
-            { id -> model.navigate { open(HistoryDestination.afterRequest(id)) } }, model::setText, model::sendText, model::sendPreset,
-            model::retryMessage, model::retry, model::askEnd,
-            { peer -> model.navigate { open(HistoryDestination.safety(peer)) } }, model::endRelationship, model::dismissConfirmation)
+            model::retry, model::withdraw, model::dismissConfirmation, { model.navigate(::back) }, model::setContacts, model::setSaveToProfile)
     }
     composable(HistoryDestination.SAFETY) { entry ->
         val id = entry.arguments?.getString("peerProfileId").orEmpty()

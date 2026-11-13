@@ -64,6 +64,65 @@ private suspend fun <T> race(first: suspend () -> T, second: suspend () -> T): L
 }
 
 class ServerTest {
+    @Test fun mutualContactExchangeKeepsEveryPendingResponsePrivateAndClosesWithoutReplay() = testApplication {
+        val registry = RoomRegistry(fakeRules, demoEnabled = false)
+        application { chayeonModule(registry) }
+        val api = Api(client)
+        val a = api.enter(PersonaCode.ACCOUNT_A)
+        val b = api.enter(PersonaCode.ACCOUNT_B)
+        api.ready(a); api.ready(b)
+        val connection = api.connect(a, b)
+        api.post<LeaveConnectionRequest, LeaveConnectionResponse>(a, ApiRoutes.LEAVE_CONNECTION, LeaveConnectionRequest(meta(), connection)).result.ok()
+        val mine = ContactIds(instagramId = UUID.randomUUID().toString().replace("-", "").take(24))
+        val theirs = ContactIds(kakaoTalkId = UUID.randomUUID().toString().replace("-", "").take(16))
+        val request = RequestAfterRequest(meta(), api.sync(a).encounters.single().id, mine)
+        val pending = api.post<RequestAfterRequest, RequestAfterResponse>(a, ApiRoutes.REQUEST_AFTER, request).result.ok()
+        api.sync(a); api.sync(b)
+        assertTrue(api.responses.none { it.second.contains(mine.instagramId!!) })
+        val empty = api.post<RespondAfterRequest, RespondAfterResponse>(b, ApiRoutes.RESPOND_AFTER,
+            RespondAfterRequest(meta(), pending.id, RequestDecision.ACCEPT)).result
+        assertEquals(AppResult.Failure(AppError.Restricted), empty)
+        val accepted = api.post<RespondAfterRequest, RespondAfterResponse>(b, ApiRoutes.RESPOND_AFTER,
+            RespondAfterRequest(meta(), pending.id, RequestDecision.ACCEPT, theirs)).result.ok()
+        assertTrue(api.responses.none { it.second.contains(mine.instagramId!!) || it.second.contains(theirs.kakaoTalkId!!) })
+        assertEquals(theirs, api.sync(a).afterConnections.single().sharedContacts)
+        assertEquals(mine, api.sync(b).afterConnections.single().sharedContacts)
+        val end = EndAfterConnectionRequest(meta(), accepted.afterConnectionId!!)
+        api.post<EndAfterConnectionRequest, EndAfterConnectionResponse>(a, ApiRoutes.END_AFTER_CONNECTION, end).result.ok()
+        val cached = api.post<EndAfterConnectionRequest, EndAfterConnectionResponse>(a, ApiRoutes.END_AFTER_CONNECTION, end).result.ok()
+        assertNull(cached.sharedContacts)
+        assertNull(api.sync(b).afterConnections.single().sharedContacts)
+        for (route in listOf("/v1/after/message", "/v1/connection/greeting")) {
+            assertEquals(HttpStatusCode.NotFound, client.post(route) { bearerAuth(a.accessToken!!) }.status)
+        }
+    }
+
+    @Test fun acceptingAndWithdrawingAnAfterRequestCannotPartiallyExchangeContacts() = testApplication {
+        val registry = RoomRegistry(fakeRules, demoEnabled = false)
+        application { chayeonModule(registry) }
+        val api = Api(client)
+        val a = api.enter(PersonaCode.ACCOUNT_A); val b = api.enter(PersonaCode.ACCOUNT_B)
+        api.ready(a); api.ready(b)
+        val connection = api.connect(a, b)
+        api.post<LeaveConnectionRequest, LeaveConnectionResponse>(a, ApiRoutes.LEAVE_CONNECTION, LeaveConnectionRequest(meta(), connection)).result.ok()
+        val mine = ContactIds(instagramId = UUID.randomUUID().toString().replace("-", "").take(24))
+        val theirs = ContactIds(instagramId = UUID.randomUUID().toString().replace("-", "").take(24))
+        val pending = api.post<RequestAfterRequest, RequestAfterResponse>(a, ApiRoutes.REQUEST_AFTER,
+            RequestAfterRequest(meta(), api.sync(a).encounters.single().id, mine)).result.ok()
+        val results = race(
+            { api.post<RespondAfterRequest, RespondAfterResponse>(b, ApiRoutes.RESPOND_AFTER, RespondAfterRequest(meta(), pending.id, RequestDecision.ACCEPT, theirs)).result },
+            { api.post<WithdrawAfterRequest, WithdrawAfterResponse>(a, ApiRoutes.WITHDRAW_AFTER, WithdrawAfterRequest(meta(), pending.id)).result },
+        )
+        assertEquals(1, results.count { it is AppResult.Success })
+        val first = api.sync(a).afterConnections
+        val second = api.sync(b).afterConnections
+        assertEquals(first.isEmpty(), second.isEmpty())
+        if (first.isNotEmpty()) {
+            assertEquals(theirs, first.single().sharedContacts)
+            assertEquals(mine, second.single().sharedContacts)
+        }
+    }
+
     @Test fun defaultModuleEnforcesSixtySecondPresenceLeaseWithoutExposingItsDeadline() = testApplication {
         lateinit var registry: RoomRegistry
         application { chayeonModule(); registry = attributes[roomRegistryKey] }
@@ -287,13 +346,10 @@ class ServerTest {
             requested
         }
         val c = api.accept(b, request.id).ok().connectionId!!
-        api.post<SendGreetingRequest, SendGreetingResponse>(a, ApiRoutes.SEND_GREETING, SendGreetingRequest(meta(), c, "greeting", PresetCode.HELLO)).result.ok()
         api.post<LeaveConnectionRequest, LeaveConnectionResponse>(a, ApiRoutes.LEAVE_CONNECTION, LeaveConnectionRequest(meta(), c)).result.ok()
         val encounter = api.sync(a).encounters.single().id
-        val after = api.post<RequestAfterRequest, RequestAfterResponse>(a, ApiRoutes.REQUEST_AFTER, RequestAfterRequest(meta(), encounter)).result.ok()
-        val ac = api.post<RespondAfterRequest, RespondAfterResponse>(b, ApiRoutes.RESPOND_AFTER, RespondAfterRequest(meta(), after.id, RequestDecision.ACCEPT)).result.ok().afterConnectionId!!
-        api.post<SendAfterMessageRequest, SendAfterMessageResponse>(a, ApiRoutes.SEND_AFTER_MESSAGE,
-            SendAfterMessageRequest(meta(), ac, "after-message", AfterMessageContent.Text("다시 만나서 반가워요"))).result.ok()
+        val after = api.post<RequestAfterRequest, RequestAfterResponse>(a, ApiRoutes.REQUEST_AFTER, RequestAfterRequest(meta(), encounter, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))).result.ok()
+        val ac = api.post<RespondAfterRequest, RespondAfterResponse>(b, ApiRoutes.RESPOND_AFTER, RespondAfterRequest(meta(), after.id, RequestDecision.ACCEPT, ContactIds(instagramId = java.util.UUID.randomUUID().toString().replace("-", "").take(24)))).result.ok().afterConnectionId!!
         api.sync(b)
         val forbidden = setOf("latitude", "longitude", "coordinates", "distance", "trajectory", "speed", "metrics", "sampleCount", "validTripCount", "rawSignal", "vin", "crn", "plate")
         fun inspect(value: JsonElement) {

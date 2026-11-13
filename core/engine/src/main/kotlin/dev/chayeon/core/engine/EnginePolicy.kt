@@ -15,7 +15,6 @@ data class EnginePolicy(
     val maximumInterests: Int = 5,
     val nicknameMinLength: Int = 2,
     val nicknameMaxLength: Int = 12,
-    val maximumMessageLength: Int = 500,
     val maximumCommandIdLength: Int = 128,
     val maximumCachedCommands: Int = 512,
     val consentDocumentVersion: String = "2026-11-03",
@@ -28,7 +27,7 @@ data class EnginePolicy(
         require(enterRadiusMeters > 0 && exitRadiusMeters > enterRadiusMeters)
         require(exitGraceMillis > 0 && statusUnknownGraceMillis > 0 && locationFreshnessMillis > 0)
         require(nicknameMinLength > 0 && nicknameMaxLength >= nicknameMinLength && maximumInterests > 0)
-        require(maximumMessageLength > 0 && maximumCommandIdLength > 0 && maximumCachedCommands > 0)
+        require(maximumCommandIdLength > 0 && maximumCachedCommands > 0)
     }
 
     fun participation(version: Long) = ParticipationPolicy(

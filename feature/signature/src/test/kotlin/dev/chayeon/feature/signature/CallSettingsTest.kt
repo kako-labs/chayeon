@@ -13,7 +13,7 @@ class CallSettingsTest {
     @Test fun settingDefaultsOffAndPreservesOtherChoicesAndCannotChangeInDrive() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val deps = SignatureTestDeps()
-        deps.profileRepository.settings.value = LoadState.Ready(ParticipationSettings("settings", 3, notifyRequests = false, notifyGreetings = false), 3)
+        deps.profileRepository.settings.value = LoadState.Ready(ParticipationSettings("settings", 3, notifyRequests = false), 3)
         val store = ViewModelStore()
         val model = MyProfileViewModel(deps).also { store.put("profile", it) }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { model.uiState.collect() }
@@ -24,7 +24,6 @@ class CallSettingsTest {
             val request = deps.profileRepository.settingsCalls.single()
             assertTrue(request.receiveRequestsWhileDriving)
             assertFalse(request.notifyRequests)
-            assertFalse(request.notifyGreetings)
             for (policy in listOf(DrivingPolicy.RESTRICTED, DrivingPolicy.UNKNOWN)) {
                 deps.drivingStateProvider.drivingState.value = DrivingState(policy = policy)
                 runCurrent(); model.setReceiveRequestsWhileDriving(false); runCurrent()

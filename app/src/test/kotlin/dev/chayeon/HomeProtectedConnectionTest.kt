@@ -23,9 +23,7 @@ class HomeProtectedConnectionTest {
             override suspend fun leave(request: LeaveConnectionRequest): AppResult<Connection> {
                 calls += "leave"; return AppResult.Failure(AppError.Unknown)
             }
-            override suspend fun sendGreeting(request: SendGreetingRequest): AppResult<ConnectionGreeting> {
-                calls += "greeting"; return AppResult.Failure(AppError.Unknown)
-            }
+
         }
         val guarded = HomeProtectedConnectionRepository(raw, home)
         for (status in listOf(HomeZoneStatus.INSIDE, HomeZoneStatus.LOCATION_UNKNOWN, HomeZoneStatus.PERMISSION_OFF)) {
@@ -37,8 +35,7 @@ class HomeProtectedConnectionTest {
         guarded.respond(RespondConnectionRequest(CommandMeta("decline"), "request", RequestDecision.DECLINE))
         guarded.cancel(CancelConnectionRequest(CommandMeta("cancel"), "request"))
         guarded.leave(LeaveConnectionRequest(CommandMeta("leave"), "connection"))
-        guarded.sendGreeting(SendGreetingRequest(CommandMeta("greeting"), "connection", "message", PresetCode.HELLO))
-        assertEquals(listOf("DECLINE", "cancel", "leave", "greeting"), calls)
+        assertEquals(listOf("DECLINE", "cancel", "leave"), calls)
         home.state.value = home.state.value.copy(status = HomeZoneStatus.OUTSIDE)
         guarded.requestConnection(RequestConnectionRequest(CommandMeta("outside"), "peer"))
         guarded.respond(RespondConnectionRequest(CommandMeta("outside-accept"), "request", RequestDecision.ACCEPT))

@@ -41,7 +41,7 @@ class SocialGraph(
     val discoveryRepository: DiscoveryRepository = SocialDiscoveryRepository(coordinator)
     val connectionRepository: ConnectionRepository = SocialConnectionRepository(coordinator, canStartConnection)
     val encounterRepository: EncounterRepository = SocialEncounterRepository(coordinator)
-    val afterRepository: AfterRepository = SocialAfterRepository(coordinator)
+    val afterRepository: AfterRepository = SocialAfterRepository(coordinator, canStartConnection)
     val safetyRepository: SafetyRepository = SocialSafetyRepository(coordinator)
     val serverTimeProvider: ServerTimeProvider = SocialServerTimeProvider(coordinator)
 
@@ -54,16 +54,13 @@ class SocialGraph(
         }
     }
 
-    // Only opaque event identifiers leave this service channel; no message or profile content.
-    val messageSignals = coordinator.store.state.map { state ->
+    // Only opaque event identifiers leave this service channel; no contact or profile content.
+    val requestSignals = coordinator.store.state.map { state ->
         val snapshot = (state.data as? LoadState.Ready)?.value
         buildList {
             if (snapshot?.settings?.notifyRequests == true) {
                 addAll(snapshot.connectionRequests.filter { it.direction == RequestDirection.INCOMING && it.status == ConnectionRequestStatus.PENDING }.map { it.id })
                 addAll(snapshot.afterRequests.filter { it.direction == RequestDirection.INCOMING && it.status == AfterRequestStatus.PENDING }.map { it.id })
-            }
-            if (snapshot?.settings?.notifyGreetings == true) {
-                addAll(snapshot.afterMessages.filter { it.author == MessageAuthor.PEER }.map { it.id })
             }
         }
     }.distinctUntilChanged()

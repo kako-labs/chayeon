@@ -43,6 +43,7 @@ roborazzi { outputDir.set(file("src/test/screenshots")) }
 
 dependencies {
     implementation(project(":core:model"))
+    implementation(libs.zxing.core)
     implementation(libs.core.ktx)
     implementation(libs.coroutines.android)
     implementation(libs.serialization.json)

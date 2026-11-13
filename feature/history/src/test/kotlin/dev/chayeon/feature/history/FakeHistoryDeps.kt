@@ -31,7 +31,6 @@ internal class FakeHistoryDeps : HistoryDeps {
     val encounterState = MutableStateFlow<LoadState<Encounter?>>(LoadState.Ready(HistoryFixtures.encounter, 1))
     val requestsState = MutableStateFlow<LoadState<List<AfterRequest>>>(LoadState.Ready(listOf(HistoryFixtures.request), 1))
     val relationshipsState = MutableStateFlow<LoadState<List<AfterConnection>>>(LoadState.Ready(listOf(HistoryFixtures.relationship), 1))
-    val messagesState = MutableStateFlow<LoadState<List<AfterMessage>>>(LoadState.Ready(emptyList(), 1))
     val blocksState = MutableStateFlow<LoadState<List<Block>>>(LoadState.Ready(emptyList(), 1))
     val signatureState = MutableStateFlow<LoadState<MySignature>>(LoadState.Ready(MySignature(), 1))
     val recapsState = MutableStateFlow<LoadState<List<TripRecap>>>(LoadState.Ready(emptyList(), 1))
@@ -76,11 +75,9 @@ internal class FakeHistoryDeps : HistoryDeps {
     override val connectionRepository = object : ConnectionRepository {
         override val requests = connectionRequests
         override val connection = connectionState
-        override fun observeGreetings(connectionId: String): Flow<LoadState<List<ConnectionGreeting>>> = flowOf(LoadState.Ready(emptyList(), 1))
         override suspend fun requestConnection(request: RequestConnectionRequest): AppResult<ConnectionRequest> = AppResult.Failure(AppError.Unknown)
         override suspend fun respond(request: RespondConnectionRequest): AppResult<ConnectionRequest> = AppResult.Failure(AppError.Unknown)
         override suspend fun cancel(request: CancelConnectionRequest): AppResult<ConnectionRequest> = AppResult.Failure(AppError.Unknown)
-        override suspend fun sendGreeting(request: SendGreetingRequest): AppResult<ConnectionGreeting> = AppResult.Failure(AppError.Unknown)
         override suspend fun leave(request: LeaveConnectionRequest): AppResult<Connection> = result(request, HistoryFixtures.connection)
     }
     override val encounterRepository = object : EncounterRepository {
@@ -92,11 +89,9 @@ internal class FakeHistoryDeps : HistoryDeps {
     override val afterRepository = object : AfterRepository {
         override val requests = requestsState
         override val connections = relationshipsState
-        override fun observeMessages(afterConnectionId: String) = messagesState
         override suspend fun requestAfter(request: RequestAfterRequest): AppResult<AfterRequest> = result(request, HistoryFixtures.request)
         override suspend fun respond(request: RespondAfterRequest): AppResult<AfterRequest> = result(request, HistoryFixtures.request)
         override suspend fun withdraw(request: WithdrawAfterRequest): AppResult<AfterRequest> = result(request, HistoryFixtures.request)
-        override suspend fun sendMessage(request: SendAfterMessageRequest): AppResult<AfterMessage> = result(request, HistoryFixtures.message)
         override suspend fun endRelationship(request: EndAfterConnectionRequest): AppResult<AfterConnection> = result(request, HistoryFixtures.relationship)
     }
     override val safetyRepository = object : SafetyRepository {

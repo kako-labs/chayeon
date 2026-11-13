@@ -56,7 +56,7 @@ class ProfileSetupViewModel(deps: HistoryDeps) : HistoryViewModel(deps) {
             val existing = profile.valueOrNull()?.publicProfile
             state.copy(profile = profile,
                 draftLoaded = state.draftLoaded || profile is LoadState.Ready,
-                draft = if (!state.draftLoaded && existing != null) ProfileDraft(existing.nickname, existing.avatar, existing.interests) else state.draft)
+                draft = if (!state.draftLoaded && existing != null) ProfileDraft(existing.nickname, existing.avatar, existing.interests, profile.valueOrNull()?.contacts ?: ContactIds()) else state.draft)
         }
     }
     fun updateDraft(draft: ProfileDraft) = edit {
@@ -69,7 +69,10 @@ class ProfileSetupViewModel(deps: HistoryDeps) : HistoryViewModel(deps) {
     fun save() {
         val state = content.value
         val policy = state.policy ?: return
-        val draft = state.draft.copy(nickname = state.draft.nickname.trim())
+        val draft = state.draft.copy(nickname = state.draft.nickname.trim(), contacts = state.draft.contacts.normalized())
+        if (!draft.contacts.isValid()) {
+            content.update { it.copy(draftError = "아이디 형식을 확인해 주세요") }; return
+        }
         if (draft.nickname.characterCount() !in policy.nicknameMinLength..policy.nicknameMaxLength || draft.interests.size > policy.maximumInterests) {
             content.update { it.copy(draftError = "닉네임은 ${policy.nicknameMinLength}~${policy.nicknameMaxLength}자로 입력해 주세요") }
             return

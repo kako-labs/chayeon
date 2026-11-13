@@ -65,8 +65,6 @@ class ComponentScreenshotTest {
     @Test fun gearStrip() = capture("gear_strip") { Column(verticalArrangement = Arrangement.spacedBy(24.dp)) { GearStrip(Gear.PARK, DrivingPolicy.ALLOWED, true); GearStrip(Gear.DRIVE, DrivingPolicy.RESTRICTED, true); GearStrip(Gear.UNKNOWN, DrivingPolicy.UNKNOWN, false) } }
     @Test fun topBanner() = capture("top_banner") { TopBanner("새 요청이 왔어요. 주차한 뒤 확인하세요.") }
     @Test fun bottomNav() = capture("bottom_nav") { BottomNav(NavigationItem.MEET, true, {}, {}) }
-    @Test fun chatBubbles() = capture("chat_bubble") { Column(verticalArrangement = Arrangement.spacedBy(20.dp)) { ChatBubble("반가워요", false); ChatBubble("깜빡이 매너가 멋져요", true) } }
-    @Test fun presetButton() = capture("preset_button") { PresetButton("잠시 후 다시 이야기해요", {}) }
     @Test fun threadReach() = capture("thread_reach") { ThreadView(ThreadStage.REACH, animateTransition = false) }
     @Test fun threadConnected() = capture("thread_connected") { ThreadView(ThreadStage.CONNECTED, animateTransition = false) }
     @Test fun threadEnded() = capture("thread_ended") { ThreadView(ThreadStage.ENDED, animateTransition = false) }
@@ -87,9 +85,11 @@ class ComponentScreenshotTest {
     @Test fun stateRequestExpired() = capture("state_request_expired") { StateCard(ExperienceState.REQUEST_EXPIRED, Modifier.fillMaxWidth(), {}) }
     @Test fun stateRequestCancelled() = capture("state_request_cancelled") { StateCard(ExperienceState.REQUEST_CANCELLED, Modifier.fillMaxWidth(), {}) }
     @Test fun statePeerUnavailable() = capture("state_peer_unavailable") { StateCard(ExperienceState.PEER_UNAVAILABLE, Modifier.fillMaxWidth(), {}) }
-    @Test fun stateMessageSendFailed() = capture("state_message_send_failed") { StateCard(ExperienceState.MESSAGE_SEND_FAILED, Modifier.fillMaxWidth(), {}) }
     @Test fun stateConnectionChecking() = capture("state_connection_checking") { StateCard(ExperienceState.CONNECTION_CHECKING, Modifier.fillMaxWidth(), {}) }
     @Test fun stateAfterDeclined() = capture("state_after_declined") { StateCard(ExperienceState.AFTER_DECLINED, Modifier.fillMaxWidth(), {}) }
     @Test fun stateAfterExpired() = capture("state_after_expired") { StateCard(ExperienceState.AFTER_EXPIRED, Modifier.fillMaxWidth(), {}) }
     @Test fun stateAfterWithdrawn() = capture("state_after_withdrawn") { StateCard(ExperienceState.AFTER_WITHDRAWN, Modifier.fillMaxWidth(), {}) }
+    @Test fun bottomNavIncomingAfter() = capture("bottom_nav_incoming_after") {
+        BottomNav(NavigationItem.RELATIONSHIPS, true, {}, {}, incomingAfter = true)
+    }
 }

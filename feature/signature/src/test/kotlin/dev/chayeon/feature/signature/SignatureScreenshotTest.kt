@@ -1,6 +1,8 @@
 package dev.chayeon.feature.signature
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.onNodeWithTag
 import com.github.takahirom.roborazzi.captureRoboImage
 import dev.chayeon.core.model.*
@@ -71,10 +73,14 @@ class SignatureScreenshotTest {
                 }
             }
         }
+        if (screen == "profile" && variant == "privacy") {
+            compose.onNodeWithText("사진과 차량 정보는 포함하지 않아요. 연락처 ID는 서로 애프터를 수락한 뒤에만 공유해요.").performScrollTo()
+        }
         compose.onNodeWithTag("signature-screen").captureRoboImage("src/test/screenshots/${screen}_$variant.png")
     }
     @Test fun profile_incoming_on() = capture("profile", "incoming_on")
     @Test fun profile_incoming_off() = capture("profile", "incoming_off")
+    @Test fun profile_privacy() = capture("profile", "privacy")
     @Test fun profile_populated() = capture("profile", "populated")
     @Test fun profile_loading() = capture("profile", "loading")
     @Test fun profile_empty() = capture("profile", "empty")

@@ -65,7 +65,7 @@ data class DrivingState(
     val source: DataSource = DataSource.SYNTHETIC,
 ) : VersionedEntity
 
-/** These names map one-to-one to the eighteen approved state cards. */
+/** These names map one-to-one to the approved state cards. */
 @Serializable
 enum class ExperienceState {
     DISCOVERY_LOADING,
@@ -81,7 +81,6 @@ enum class ExperienceState {
     REQUEST_EXPIRED,
     REQUEST_CANCELLED,
     PEER_UNAVAILABLE,
-    MESSAGE_SEND_FAILED,
     CONNECTION_CHECKING,
     AFTER_DECLINED,
     AFTER_EXPIRED,

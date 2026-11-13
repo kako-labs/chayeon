@@ -4,7 +4,6 @@ import dev.chayeon.core.model.AvatarId
 import dev.chayeon.core.model.ConnectionEndReason
 import dev.chayeon.core.model.DataSource
 import dev.chayeon.core.model.InterestId
-import dev.chayeon.core.model.PresetCode
 import dev.chayeon.core.model.ProfileKind
 import dev.chayeon.core.model.ReportReason
 import dev.chayeon.core.model.TraitId
@@ -53,30 +52,8 @@ val InterestId.label: String get() = when (this) {
     InterestId.HIKING -> "등산"
 }
 
-val PresetCode.label: String get() = when (this) {
-    PresetCode.HELLO -> "안녕하세요"
-    PresetCode.NICE_TO_MEET_YOU -> "반가워요"
-    PresetCode.GOOD_EVENING -> "좋은 저녁이에요"
-    PresetCode.SHARED_INTERESTS -> "관심사가 비슷하네요"
-    PresetCode.TALK_LATER -> "잠시 후 다시 이야기해요"
-    PresetCode.TAKE_CARE -> "조심히 가세요"
-    PresetCode.NICE_TO_MEET_AGAIN -> "다시 만나서 반가워요"
-    PresetCode.ADMIRE_GENTLE_RIDE -> "함께 타면 편안할 것 같아요"
-    PresetCode.ADMIRE_EARLY_BRAKE -> "여유롭게 멈추는 습관이 멋져요"
-    PresetCode.ADMIRE_SIGNAL_MANNERS -> "깜빡이 매너가 멋져요"
-    PresetCode.ADMIRE_STEADY_PACE -> "한결같은 주행이 멋져요"
-    PresetCode.ADMIRE_BELT_FIRST -> "안전부터 챙기는 모습이 좋아요"
-    PresetCode.SHARE_LONG_ROAD -> "저도 긴 드라이브를 좋아해요"
-    PresetCode.SHARE_NIGHT_DRIVE -> "저도 밤 드라이브를 좋아해요"
-    PresetCode.ADMIRE_TIRE_CARE -> "미리 살피는 모습이 좋아요"
-    PresetCode.ADMIRE_ENERGY_PLANNER -> "미리 채워 두는 배려가 좋아요"
-    PresetCode.ADMIRE_BATTERY_KIND -> "아껴 쓰는 마음이 좋아요"
-    PresetCode.ADMIRE_FLUID_READY -> "작은 것도 챙기는 모습이 좋아요"
-    PresetCode.ADMIRE_CABIN_CARE -> "공기까지 신경 쓰는 마음이 좋아요"
-}
-
 val ReportReason.label: String get() = when (this) {
-    ReportReason.UNPLEASANT_MESSAGE -> "불쾌한 메시지"
+    ReportReason.UNPLEASANT_CONTACT -> "불쾌한 연락"
     ReportReason.UNWANTED_APPROACH -> "원치 않는 접근"
     ReportReason.IMPERSONATION -> "사칭 의심"
     ReportReason.POSSIBLE_MINOR -> "미성년자로 보임"
@@ -86,7 +63,7 @@ val ReportReason.label: String get() = when (this) {
 data class ConnectionEndPresentation(val title: String, val body: String, val label: String, val tag: String = "연결 종료")
 
 fun ConnectionEndReason.presentation(peerNickname: String): ConnectionEndPresentation {
-    val tail = "스친 인연에 시각과 기간만 남겨요. 위치와 경로는 남기지 않아요."
+    val tail = "인연 기록에 시각과 기간만 남겨요. 위치와 경로는 남기지 않아요."
     return when (this) {
         ConnectionEndReason.DISTANCE -> ConnectionEndPresentation("서로 멀어져서 통화가 끝났어요", tail, "멀어짐")
         ConnectionEndReason.PEER_LEFT -> ConnectionEndPresentation("$peerNickname 님이 통화를 마쳤어요", tail, "상대가 나감")
