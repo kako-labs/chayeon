@@ -158,9 +158,12 @@ internal class AutoConnectCoordinator(
         }
         snapshot.connections.filter { it.status == ConnectionStatus.ENDED && it.id !in next.observedTerminals }.forEach {
             val endedAt = it.endedAtEpochMillis ?: now()
+            // The end time comes from the server clock; the cooldown is compared with the car clock, so it starts
+            // when this car first sees the end. A clock difference can then only lengthen it, never skip it.
+            val seenAt = now()
             next = next.copy(blockedDays = blockedOn(it.peer.id, day(endedAt), next.blockedDays),
                 observedTerminals = next.observedTerminals + it.id,
-                cooldownUntil = maxOf(next.cooldownUntil, endedAt + 10 * 60_000),
+                cooldownUntil = maxOf(next.cooldownUntil, seenAt + 10 * 60_000),
                 pending = next.pending.takeUnless { pending -> pending?.peerId == it.peer.id })
         }
         if (next != memory) save(next)

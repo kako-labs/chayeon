@@ -129,6 +129,26 @@ class AutoConnectCoordinatorTest {
         }
     }
 
+    @Test fun cooldownCountsFromWhenTheCarSawTheEndEvenIfItsClockIsAhead() = runTest {
+        val serverEnd = 1_800_000_000_000L
+        var now = serverEnd + 12 * 60_000
+        val commands = Commands().apply { response = incoming(now) }
+        val coordinator = AutoConnectCoordinator(MutableStateFlow(null), TestDriving(), TestHomeZone(), commands,
+            backgroundScope, MemoryAutoConnectStore(), { now }, { ZoneId.of("UTC") })
+        val ended = Connection("call", 1, "request", peer, ConnectionStatus.ENDED, serverEnd - 60_000, Chemistry(), serverEnd, ConnectionEndReason.SELF_LEFT)
+        val other = peer.copy(id = "other")
+        val next = snapshot().copy(connections = listOf(ended),
+            discovery = snapshot().discovery.copy(candidates = listOf(Candidate(other.id, 1, other, Chemistry(), other.interests))))
+        coordinator.update(next, DrivingPolicy.RESTRICTED, false)
+        assertTrue(commands.sent.isEmpty())
+        now += 599_999
+        coordinator.update(next, DrivingPolicy.RESTRICTED, false)
+        assertTrue(commands.sent.isEmpty())
+        now++
+        coordinator.update(next, DrivingPolicy.RESTRICTED, false)
+        assertEquals("other", commands.sent.single().candidateId)
+    }
+
     @Test fun historicalConnectionNeverOverwritesTodaysDeclineGuard() = runTest {
         val now = 1_800_000_000_000L
         val commands = Commands().apply { response = incoming(now) }
