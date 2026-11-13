@@ -105,7 +105,7 @@ fun TopBanner(text: String, modifier: Modifier = Modifier, icon: ChayeonIcon = C
         .semantics { liveRegion = LiveRegionMode.Polite }.padding(horizontal = ChayeonSpacing.BubbleHorizontal, vertical = ChayeonSpacing.ChipHorizontal),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
         ChayeonIcon(icon, Modifier.size(ChayeonDimensions.UtilityIcon), ChayeonColors.DeepRed)
-        ChayeonText(text, style = ChayeonType.Body, color = ChayeonColors.Ink)
+        ChayeonText(text, style = ChayeonType.Body, color = ChayeonColors.Ink, maxLines = 2)
     }
 }
 

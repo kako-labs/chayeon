@@ -26,14 +26,15 @@ class AppChromeScreenshotTest {
     @get:Rule val compose = createComposeRule()
 
     private fun capture(name: String, selected: NavigationItem = NavigationItem.MEET, policy: DrivingPolicy = DrivingPolicy.ALLOWED,
-        detail: Boolean = false, synthetic: Boolean = false) {
+        detail: Boolean = false, synthetic: Boolean = false, banner: String? = null) {
         compose.setContent { ChayeonTheme(policy, 0f, showSourceLabels = synthetic) {
             ScreenScaffold(scene = Scene.PARKING,
                 contentPadding = PaddingValues(start = ChayeonDimensions.SceneScreenHorizontal, end = ChayeonDimensions.SceneScreenHorizontal,
                     top = ChayeonDimensions.SceneScreenTop, bottom = ChayeonDimensions.SceneScreenBottom), topBar = {
                 Row {
                     AppTopChrome(if (policy == DrivingPolicy.ALLOWED) Gear.PARK else if (policy == DrivingPolicy.RESTRICTED) Gear.DRIVE else Gear.UNKNOWN,
-                        policy, rootTab = !detail, syntheticLocation = synthetic, modifier = Modifier.weight(1f), onDemo = if (synthetic) ({}) else null, backAction = if (detail) ChromeBackAction({}) else null)
+                        policy, rootTab = !detail, syntheticLocation = synthetic, modifier = Modifier.weight(1f), onDemo = if (synthetic) ({}) else null, backAction = if (detail) ChromeBackAction({}) else null,
+                        center = banner?.let { text -> { TopBanner(text, Modifier.padding(horizontal = ChayeonSpacing.Gap)) } })
                 }
             }, bottomBar = { if (!detail && policy == DrivingPolicy.ALLOWED) BottomNav(selected, true, {}, {}, incomingAfterCount = 2) }, primary = {
                 if (policy == DrivingPolicy.ALLOWED) Column(Modifier.fillMaxWidth().padding(top = 40.dp)) {
@@ -52,6 +53,11 @@ class AppChromeScreenshotTest {
     @Test fun unknown() = capture("unknown", policy = DrivingPolicy.UNKNOWN)
     @Test @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
     fun narrowServer() = capture("narrow-server", synthetic = true)
+
+    // Server mode adds the synthetic-location chip; the request banner must stay clear of every status chip.
+    @Test fun serverBanner() = capture("server-banner", synthetic = true, banner = "새 연결 요청이 왔어요 · 확인하기")
+    @Test @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
+    fun narrowServerBanner() = capture("narrow-server-banner", synthetic = true, banner = "새 소식 확인하기")
 
     @Test fun sceneRoutingUsesParkingForSignatureAndKeepsHomeProtectionLocal() {
         assertEquals(Scene.PARKING, appScene(MeetDestination.HOME, false))

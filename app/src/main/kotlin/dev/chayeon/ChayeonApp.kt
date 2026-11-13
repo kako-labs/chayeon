@@ -69,6 +69,34 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
     val chrome = ScreenChrome(showSourceLabels = showSourceLabels, topBar = {
         Column {
             BoxWithConstraints(Modifier.fillMaxWidth().height(ChayeonDimensions.Banner), contentAlignment = Alignment.Center) {
+                val notice = event
+                val narrow = maxWidth < ChayeonSpacing.NarrowBreakpoint
+                val text = notice?.text ?: when {
+                    publicationFailed -> "공개 내용을 반영하지 못했어요. 연결되면 다시 시도해요"
+                    recordingFailed -> "주행 기록을 시작하지 못했어요. 앱을 다시 열어 주세요"
+                    discoveryError -> "발견 상태를 바꾸지 못했어요. 다시 눌러 주세요"
+                    else -> null
+                }
+                val label = when {
+                    driving.policy != DrivingPolicy.ALLOWED -> null
+                    !narrow -> text
+                    notice != null -> "새 소식 확인하기"
+                    publicationFailed -> "공개 내용을 다시 반영해요"
+                    recordingFailed -> "앱을 다시 열어 주세요"
+                    discoveryError -> "발견을 다시 눌러 주세요"
+                    else -> null
+                }
+                // The banner takes only the space between the leading mark and the status chips, so it never covers them.
+                val banner: (@Composable () -> Unit)? = label?.let { shown -> {
+                    TopBanner(shown, Modifier.padding(horizontal = ChayeonSpacing.Gap)
+                        .then(if (notice != null) Modifier.clickable {
+                            guarded {
+                                navController.navigate(notice.route) { launchSingleTop = true }
+                                notice.requestId?.let { navController.currentBackStackEntry?.savedStateHandle?.set("meet.requestId", it) }
+                                events?.acknowledge(notice.id)
+                            }
+                        } else Modifier))
+                } }
                 AppTopChrome(driving.gear, driving.policy,
                     rootTab = route in setOf(MeetDestination.HOME, HistoryDestination.RELATIONSHIPS, SignatureDestination.MY_PROFILE),
                     syntheticLocation = discovery.locationSource == LocationSource.SYNTHETIC,
@@ -79,32 +107,8 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
                             popUpTo(MeetDestination.HOME) { inclusive = false }
                             launchSingleTop = true
                         } }
-                    }) else null)
-                if (driving.policy == DrivingPolicy.ALLOWED) {
-                    val notice = event
-                    val text = notice?.text ?: when {
-                        publicationFailed -> "공개 내용을 반영하지 못했어요. 연결되면 다시 시도해요"
-                        recordingFailed -> "주행 기록을 시작하지 못했어요. 앱을 다시 열어 주세요"
-                        discoveryError -> "발견 상태를 바꾸지 못했어요. 다시 눌러 주세요"
-                        else -> null
-                    }
-                    val narrow = maxWidth < ChayeonSpacing.NarrowBreakpoint
-                    val label = if (!narrow) text else when {
-                        notice != null -> "새 소식 확인하기"
-                        publicationFailed -> "공개 내용을 다시 반영해요"
-                        recordingFailed -> "앱을 다시 열어 주세요"
-                        discoveryError -> "발견을 다시 눌러 주세요"
-                        else -> null
-                    }
-                    if (label != null) TopBanner(label, Modifier.padding(start = if (narrow) ChayeonDimensions.Avatar else ChayeonDimensions.PeerLarge, end = ChayeonDimensions.Knot)
-                        .then(if (notice != null) Modifier.clickable {
-                            guarded {
-                                navController.navigate(notice.route) { launchSingleTop = true }
-                                notice.requestId?.let { navController.currentBackStackEntry?.savedStateHandle?.set("meet.requestId", it) }
-                                events?.acknowledge(notice.id)
-                            }
-                        } else Modifier))
-                }
+                    }) else null,
+                    center = banner)
             }
         }
     }, bottomBar = { selected ->
