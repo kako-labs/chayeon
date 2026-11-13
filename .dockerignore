@@ -1,0 +1,10 @@
+.git
+.gauntlet
+.gradle
+.kotlin
+**/build
+local.properties
+**/*.jks
+**/*.keystore
+.env*
+docs

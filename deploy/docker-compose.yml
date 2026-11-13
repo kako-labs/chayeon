@@ -1,0 +1,38 @@
+services:
+  server:
+    image: ${CHAYEON_SERVER_IMAGE:-chayeon-server:local}
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    environment:
+      HOST: 0.0.0.0
+      PORT: '8080'
+      CHAYEON_TRUST_PROXY: 'true'
+      CHAYEON_ALLOWED_ROOMS: ${CHAYEON_ALLOWED_ROOMS:-default}
+      CHAYEON_ROOM_CAPACITY: ${CHAYEON_ROOM_CAPACITY:-50}
+      CHAYEON_ROOM_ACCOUNT_LIMIT: ${CHAYEON_ROOM_ACCOUNT_LIMIT:-2000}
+      CHAYEON_NEW_ACCOUNTS_PER_HOUR: ${CHAYEON_NEW_ACCOUNTS_PER_HOUR:-5}
+      CHAYEON_MAX_ROOMS: ${CHAYEON_MAX_ROOMS:-64}
+      CHAYEON_IDLE_ROOM_MILLIS: ${CHAYEON_IDLE_ROOM_MILLIS:-1800000}
+      CHAYEON_DATA_DIR: /data
+    volumes:
+      - server_data:/data
+    restart: unless-stopped
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      CHAYEON_DOMAIN: ${CHAYEON_DOMAIN:?Set CHAYEON_DOMAIN}
+    ports:
+      - '${CHAYEON_HTTP_PORT:-80}:80'
+      - '${CHAYEON_HTTPS_PORT:-443}:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - server
+    restart: unless-stopped
+volumes:
+  server_data:
+  caddy_data:
+  caddy_config:

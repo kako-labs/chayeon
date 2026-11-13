@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "label": "합성 주행 · 깜빡이 매너",
+  "source": "SYNTHETIC",
+  "durationMillis": 1200000,
+  "replayWallMillis": 10000,
+  "signals": [
+    "speed",
+    "brake",
+    "steering",
+    "indicator",
+    "cruise",
+    "belt",
+    "clock",
+    "tire",
+    "energy",
+    "chargeLimit",
+    "fluid",
+    "airCleaning"
+  ],
+  "frames": [
+    {
+      "atMillis": 0,
+      "tireKpa": 190,
+      "energyPercent": 10,
+      "chargeLimitPercent": 100,
+      "fluidWarning": true,
+      "airCleaning": false
+    },
+    {
+      "atMillis": 30000,
+      "speedKph": 42,
+      "tireKpa": 190,
+      "energyPercent": 10,
+      "chargeLimitPercent": 100,
+      "fluidWarning": true,
+      "airCleaning": false
+    },
+    {
+      "atMillis": 300000,
+      "speedKph": 42,
+      "indicator": true,
+      "tireKpa": 190,
+      "energyPercent": 65,
+      "chargeLimitPercent": 100,
+      "fluidWarning": true,
+      "airCleaning": true
+    },
+    {
+      "atMillis": 302000,
+      "speedKph": 42,
+      "indicator": true,
+      "steering": 18,
+      "tireKpa": 190,
+      "energyPercent": 65,
+      "chargeLimitPercent": 100,
+      "fluidWarning": true,
+      "airCleaning": true
+    },
+    {
+      "atMillis": 308000,
+      "speedKph": 42,
+      "tireKpa": 190,
+      "energyPercent": 65,
+      "chargeLimitPercent": 100,
+      "fluidWarning": true,
+      "airCleaning": true
+    },
+    {
+      "atMillis": 570000,
+      "speedKph": 42,
+      "brake": true,
+      "tireKpa": 190,
+      "energyPercent": 65,
+      "chargeLimitPercent": 100,
+      "fluidWarning": true,
+      "airCleaning": true
+    },
+    {
+      "atMillis": 600000,
+      "speedKph": 0,
+      "tireKpa": 236,
+      "energyPercent": 65,
+      "chargeLimitPercent": 100,
+      "fluidWarning": false,
+      "airCleaning": true
+    },
+    {
+      "atMillis": 630000,
+      "speedKph": 42,
+      "tireKpa": 236,
+      "energyPercent": 65,
+      "chargeLimitPercent": 100,
+      "fluidWarning": false,
+      "airCleaning": true,
+      "cruise": true
+    },
+    {
+      "atMillis": 900000,
+      "speedKph": 42,
+      "indicator": true,
+      "tireKpa": 236,
+      "energyPercent": 65,
+      "chargeLimitPercent": 80,
+      "fluidWarning": false,
+      "airCleaning": true,
+      "cruise": true
+    },
+    {
+      "atMillis": 902000,
+      "speedKph": 42,
+      "indicator": true,
+      "steering": 20,
+      "tireKpa": 236,
+      "energyPercent": 65,
+      "chargeLimitPercent": 80,
+      "fluidWarning": false,
+      "airCleaning": true,
+      "cruise": true
+    },
+    {
+      "atMillis": 908000,
+      "speedKph": 42,
+      "tireKpa": 236,
+      "energyPercent": 65,
+      "chargeLimitPercent": 80,
+      "fluidWarning": false,
+      "airCleaning": true,
+      "cruise": true
+    },
+    {
+      "atMillis": 1170000,
+      "speedKph": 42,
+      "brake": true,
+      "tireKpa": 236,
+      "energyPercent": 65,
+      "chargeLimitPercent": 80,
+      "fluidWarning": false,
+      "airCleaning": true,
+      "cruise": true
+    },
+    {
+      "atMillis": 1200000,
+      "speedKph": 0,
+      "tireKpa": 236,
+      "energyPercent": 65,
+      "chargeLimitPercent": 80,
+      "fluidWarning": false,
+      "airCleaning": true
+    }
+  ]
+}

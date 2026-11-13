@@ -1,0 +1,97 @@
+[
+  {
+    "id": "demo-slow",
+    "title": "여유롭게 멈추는 드라이버",
+    "traits": [
+      {
+        "trait": "GENTLE_RIDE",
+        "level": "STEADY",
+        "score": 82
+      },
+      {
+        "trait": "EARLY_BRAKE",
+        "level": "SIGNATURE",
+        "score": 94
+      },
+      {
+        "trait": "BELT_FIRST",
+        "level": "VISIBLE",
+        "score": 68
+      }
+    ]
+  },
+  {
+    "id": "demo-sea",
+    "title": "먼 길을 즐기는 드라이버",
+    "traits": [
+      {
+        "trait": "LONG_ROAD",
+        "level": "SIGNATURE",
+        "score": null
+      },
+      {
+        "trait": "ENERGY_PLANNER",
+        "level": "STEADY",
+        "score": 82
+      }
+    ]
+  },
+  {
+    "id": "demo-forest",
+    "title": "미리 채워 두는 드라이버",
+    "traits": [
+      {
+        "trait": "ENERGY_PLANNER",
+        "level": "SIGNATURE",
+        "score": 94
+      }
+    ]
+  },
+  {
+    "id": "demo-jazz",
+    "title": "공기까지 신경 쓰는 드라이버",
+    "traits": [
+      {
+        "trait": "CABIN_CARE",
+        "level": "SIGNATURE",
+        "score": 94
+      },
+      {
+        "trait": "SIGNAL_MANNERS",
+        "level": "STEADY",
+        "score": 82
+      },
+      {
+        "trait": "STEADY_PACE",
+        "level": "STEADY",
+        "score": 82
+      },
+      {
+        "trait": "GENTLE_RIDE",
+        "level": "VISIBLE",
+        "score": 68
+      }
+    ]
+  },
+  {
+    "id": "demo-star",
+    "title": "깜빡이를 잊지 않는 밤 드라이버",
+    "traits": [
+      {
+        "trait": "NIGHT_DRIVE",
+        "level": "SIGNATURE",
+        "score": null
+      },
+      {
+        "trait": "CABIN_CARE",
+        "level": "STEADY",
+        "score": 82
+      },
+      {
+        "trait": "SIGNAL_MANNERS",
+        "level": "SIGNATURE",
+        "score": 94
+      }
+    ]
+  }
+]

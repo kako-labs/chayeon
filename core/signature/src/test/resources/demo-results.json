@@ -1,0 +1,125 @@
+[
+  {
+    "id": "gentle",
+    "title": "함께 타면 편안한 드라이버",
+    "traits": [
+      {
+        "trait": "GENTLE_RIDE",
+        "level": "SIGNATURE",
+        "score": 100
+      },
+      {
+        "trait": "EARLY_BRAKE",
+        "level": "SIGNATURE",
+        "score": 100
+      },
+      {
+        "trait": "STEADY_PACE",
+        "level": "SIGNATURE",
+        "score": 100
+      },
+      {
+        "trait": "BELT_FIRST",
+        "level": "SIGNATURE",
+        "score": 100
+      },
+      {
+        "trait": "TIRE_CARE",
+        "level": "STEADY",
+        "score": 75
+      }
+    ]
+  },
+  {
+    "id": "signal-manners",
+    "title": "깜빡이를 잊지 않는 드라이버",
+    "traits": [
+      {
+        "trait": "GENTLE_RIDE",
+        "level": "SIGNATURE",
+        "score": 100
+      },
+      {
+        "trait": "EARLY_BRAKE",
+        "level": "SIGNATURE",
+        "score": 100
+      },
+      {
+        "trait": "SIGNAL_MANNERS",
+        "level": "SIGNATURE",
+        "score": 100
+      },
+      {
+        "trait": "BELT_FIRST",
+        "level": "SIGNATURE",
+        "score": 100
+      },
+      {
+        "trait": "ENERGY_PLANNER",
+        "level": "STEADY",
+        "score": 75
+      },
+      {
+        "trait": "CABIN_CARE",
+        "level": "STEADY",
+        "score": 75
+      }
+    ]
+  },
+  {
+    "id": "care",
+    "title": "떠나기 전에 살피는 드라이버",
+    "traits": [
+      {
+        "trait": "GENTLE_RIDE",
+        "level": "SIGNATURE",
+        "score": 100
+      },
+      {
+        "trait": "EARLY_BRAKE",
+        "level": "SIGNATURE",
+        "score": 100
+      },
+      {
+        "trait": "SIGNAL_MANNERS",
+        "level": "SIGNATURE",
+        "score": 100
+      },
+      {
+        "trait": "STEADY_PACE",
+        "level": "SIGNATURE",
+        "score": 100
+      },
+      {
+        "trait": "BELT_FIRST",
+        "level": "SIGNATURE",
+        "score": 100
+      },
+      {
+        "trait": "TIRE_CARE",
+        "level": "SIGNATURE",
+        "score": 100
+      },
+      {
+        "trait": "ENERGY_PLANNER",
+        "level": "SIGNATURE",
+        "score": 100
+      },
+      {
+        "trait": "BATTERY_KIND",
+        "level": "SIGNATURE",
+        "score": 100
+      },
+      {
+        "trait": "FLUID_READY",
+        "level": "SIGNATURE",
+        "score": 100
+      },
+      {
+        "trait": "CABIN_CARE",
+        "level": "SIGNATURE",
+        "score": 100
+      }
+    ]
+  }
+]
