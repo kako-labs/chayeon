@@ -11,7 +11,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 interface DemoPeerVoice {
-    suspend fun start(peer: PublicProfile)
+    /** Starts or resumes the script; a return to the same connection continues after the last completed line. */
+    suspend fun start(peer: PublicProfile, connectionId: String)
     fun setFocusAvailable(available: Boolean)
     suspend fun stop()
 }
@@ -64,18 +65,23 @@ class ScriptedDemoPeerVoice(
     private val focus = MutableStateFlow(false)
     private var job: Job? = null
     private var focusInterruptions = 0L
+    // Connection id and the next line to say; a short checking pause must not restart the greeting.
+    private var progress: Pair<String, Int>? = null
 
-    override suspend fun start(peer: PublicProfile) {
+    override suspend fun start(peer: PublicProfile, connectionId: String) {
         stop()
+        val from = progress?.takeIf { it.first == connectionId }?.second ?: 0
+        progress = connectionId to from
         job = scope.launch {
             try {
                 if (!speech.prepare()) return@launch
                 val lines = DemoCallScripts.lines(peer)
-                for ((index, line) in lines.withIndex()) {
+                for ((index, line) in lines.withIndex().drop(from)) {
                     focus.first { it }
                     val interruption = focusInterruptions
                     val startedAt = nowMillis()
                     val completed = speech.speak(line)
+                    if (completed) progress = connectionId to index + 1
                     if (!completed && interruption == focusInterruptions) return@launch
                     if (index < lines.lastIndex) delay((20_000 - (nowMillis() - startedAt)).coerceAtLeast(0))
                 }

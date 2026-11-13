@@ -138,7 +138,7 @@ class VoiceCallController(
                 mutableState.update { it.copy(status = CallStatus.ACTIVE, microphone = MicrophoneStatus.NOT_USED) }
                 demo.setFocusAvailable(audio.focusAvailable.value)
                 audio.focusAvailable.first { it }
-                demo.start(peer ?: PublicProfile("demo", 0, "", AvatarId.DAWN, emptySet(), ProfileKind.DEMO_PEER, null))
+                demo.start(peer ?: PublicProfile("demo", 0, "", AvatarId.DAWN, emptySet(), ProfileKind.DEMO_PEER, null), connectionId)
                 awaitCancellation()
             } else {
                 while (currentCoroutineContext().isActive) {

@@ -30,7 +30,7 @@ class ScriptedDemoPeerVoiceTest {
         val speech = FakeSpeech(this)
         val voice = ScriptedDemoPeerVoice(backgroundScope, speech) { testScheduler.currentTime }
         voice.setFocusAvailable(true)
-        voice.start(peer)
+        voice.start(peer, "connection-1")
         runCurrent()
         assertEquals(1, speech.prepares)
         assertEquals(listOf(0L), speech.times)
@@ -48,7 +48,7 @@ class ScriptedDemoPeerVoiceTest {
             val speech = FakeSpeech(this)
             val voice = ScriptedDemoPeerVoice(backgroundScope, speech) { testScheduler.currentTime }
             voice.setFocusAvailable(true)
-            voice.start(peer); runCurrent()
+            voice.start(peer, "connection-1"); runCurrent()
             assertTrue(speech.playing, reason)
             voice.stop()
             assertFalse(speech.playing, reason)
@@ -63,7 +63,7 @@ class ScriptedDemoPeerVoiceTest {
             val speech = FakeSpeech(this, failure = stage)
             val voice = ScriptedDemoPeerVoice(backgroundScope, speech) { testScheduler.currentTime }
             voice.setFocusAvailable(true)
-            voice.start(peer); runCurrent()
+            voice.start(peer, "connection-1"); runCurrent()
             advanceTimeBy(120_000); runCurrent()
             assertEquals(if (stage == "prepare") 0 else 1, speech.lines.size)
             assertFalse(speech.playing)
@@ -74,7 +74,7 @@ class ScriptedDemoPeerVoiceTest {
     @Test fun focusLossStopsSpeechAndRemainingLinesWaitForFocus() = runTest {
         val speech = FakeSpeech(this)
         val voice = ScriptedDemoPeerVoice(backgroundScope, speech) { testScheduler.currentTime }
-        voice.start(peer); runCurrent()
+        voice.start(peer, "connection-1"); runCurrent()
         assertEquals(1, speech.prepares)
         assertTrue(speech.lines.isEmpty())
         voice.setFocusAvailable(true); runCurrent()
@@ -91,7 +91,7 @@ class ScriptedDemoPeerVoiceTest {
         val speech = FakeSpeech(this)
         val voice = ScriptedDemoPeerVoice(backgroundScope, speech) { testScheduler.currentTime }
         voice.setFocusAvailable(true)
-        voice.start(peer); runCurrent()
+        voice.start(peer, "connection-1"); runCurrent()
         voice.setFocusAvailable(false)
         voice.setFocusAvailable(true)
         runCurrent()
@@ -104,7 +104,7 @@ class ScriptedDemoPeerVoiceTest {
         val speech = FakeSpeech(this, speakMillis = 8_000)
         val voice = ScriptedDemoPeerVoice(backgroundScope, speech) { testScheduler.currentTime }
         voice.setFocusAvailable(true)
-        voice.start(peer); runCurrent()
+        voice.start(peer, "connection-1"); runCurrent()
         advanceTimeBy(40_000); runCurrent()
         assertEquals(listOf(0L, 20_000L, 40_000L), speech.times)
         voice.stop()
@@ -114,10 +114,40 @@ class ScriptedDemoPeerVoiceTest {
         val speech = FakeSpeech(this, warmMillis = 4_500)
         val voice = ScriptedDemoPeerVoice(backgroundScope, speech) { testScheduler.currentTime }
         voice.setFocusAvailable(true)
-        voice.start(peer); runCurrent()
+        voice.start(peer, "connection-1"); runCurrent()
         voice.stop()
         advanceTimeBy(60_000); runCurrent()
         assertTrue(speech.lines.isEmpty())
+    }
+
+    @Test fun returningToTheSameConnectionContinuesInsteadOfGreetingAgain() = runTest {
+        val script = DemoCallScripts.lines(peer)
+        val speech = FakeSpeech(this)
+        val voice = ScriptedDemoPeerVoice(backgroundScope, speech) { testScheduler.currentTime }
+        voice.setFocusAvailable(true)
+        voice.start(peer, "connection-1"); runCurrent()
+        advanceTimeBy(5_000); runCurrent()
+        voice.stop()
+        voice.start(peer, "connection-1"); runCurrent()
+        advanceTimeBy(25_000); runCurrent()
+        assertEquals(script, speech.lines)
+        voice.stop()
+        voice.start(peer, "connection-2"); runCurrent()
+        assertEquals(script.first(), speech.lines.last())
+        voice.stop()
+    }
+
+    @Test fun aLineCutOffByCheckingIsSaidAgainOnReturn() = runTest {
+        val script = DemoCallScripts.lines(peer)
+        val speech = FakeSpeech(this)
+        val voice = ScriptedDemoPeerVoice(backgroundScope, speech) { testScheduler.currentTime }
+        voice.setFocusAvailable(true)
+        voice.start(peer, "connection-1"); runCurrent()
+        advanceTimeBy(1_000); runCurrent()
+        voice.stop()
+        voice.start(peer, "connection-1"); runCurrent()
+        assertEquals(listOf(script[0], script[0]), speech.lines)
+        voice.stop()
     }
 
     private class FakeSpeech(

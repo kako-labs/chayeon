@@ -20,7 +20,7 @@ interface CallService {
 }
 
 object SilentDemoPeerVoice : DemoPeerVoice {
-    override suspend fun start(peer: PublicProfile) = Unit
+    override suspend fun start(peer: PublicProfile, connectionId: String) = Unit
     override fun setFocusAvailable(available: Boolean) = Unit
     override suspend fun stop() = Unit
 }

@@ -433,7 +433,7 @@ class VoiceCallControllerTest {
         val focusEvents = mutableListOf<Boolean>()
         var stops = 0
         var stoppedWithFocus = false
-        override suspend fun start(peer: PublicProfile) { started += peer }
+        override suspend fun start(peer: PublicProfile, connectionId: String) { started += peer }
         override fun setFocusAvailable(available: Boolean) { focusEvents += available }
         override suspend fun stop() { stops++; stoppedWithFocus = audio.focus }
     }
