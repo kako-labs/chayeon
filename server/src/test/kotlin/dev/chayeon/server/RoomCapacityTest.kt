@@ -32,6 +32,15 @@ class RoomCapacityTest {
         assertEquals("돌아온사람", registry.snapshot(header(returned))!!.ok().profile!!.publicProfile.nickname)
     }
 
+    @Test fun storedAccountLimitStopsEndlessNewAccountsEvenWhenSeatsAreFree() {
+        var now = 1_800_000_000_000L
+        val registry = RoomRegistry(defaultRules(), ServerPolicy(roomCapacity = 3, roomAccountLimit = 3), clock = EngineClock { now }, demoEnabled = false)
+        (0 until 3).forEach { enter(registry, it).ok() }
+        now += 1_800_001
+        assertEquals(AppResult.Failure(AppError.Restricted), enter(registry, 3))
+        enter(registry, 0).ok()
+    }
+
     @Test fun signedOutAccountsReleaseSeatsButCannotReturnToAFullRoom() {
         val registry = RoomRegistry(defaultRules(), policy = ServerPolicy(roomCapacity = 1), demoEnabled = false)
         val first = enter(registry, 0).ok()

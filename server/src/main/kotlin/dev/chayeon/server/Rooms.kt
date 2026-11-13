@@ -8,6 +8,8 @@ import java.util.UUID
 
 data class ServerPolicy(
     val roomCapacity: Int = 50,
+    /** Hard cap on stored (non-deleted) accounts per room; idle accounts free seats but still use storage. */
+    val roomAccountLimit: Int = 500,
     val dataDirectory: java.nio.file.Path? = null,
     val trustProxy: Boolean = false,
     /** Header the trusted proxy overwrites with the client address, for example `CF-Connecting-IP` behind a Cloudflare tunnel. */
@@ -22,7 +24,7 @@ data class ServerPolicy(
     val allowedRooms: Set<String> = setOf("default"),
 ) {
     init {
-        require(roomCapacity > 0)
+        require(roomCapacity > 0 && roomAccountLimit >= roomCapacity)
         require(maximumBodyBytes > 0 && maximumRooms > 0 && idleRoomMillis > 0)
         require(pollTimeoutMillis in 1..25_000 && tickIntervalMillis > 0)
         require(maximumRetiredReceipts > 0 && retiredReceiptTtlMillis > 0)
@@ -110,6 +112,8 @@ class RoomRegistry(
         val actor = accounts.values.firstOrNull { !it.deleted && (it.id == secretHash || it.id.startsWith("$secretHash-")) }?.id
             ?: if (secretHash !in accounts) secretHash else "$secretHash-${UUID.randomUUID()}"
         if (!hasSeat(code, actor, accounts))
+            return AppResult.Failure(AppError.Restricted)
+        if (actor !in accounts && accounts.values.count { !it.deleted && !it.id.startsWith("demo-") } >= policy.roomAccountLimit)
             return AppResult.Failure(AppError.Restricted)
         val result = room.engine.enterSession(actor, request.copy(roomCode = code))
         if (result !is AppResult.Success) return result
