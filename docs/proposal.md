@@ -159,7 +159,7 @@
 | 연결 중 음성 (이번 제출) | Android `AudioRecord` / `AudioTrack`, VOICE_COMMUNICATION, 16 kHz mono PCM16 | 구현과 호스트 단위 테스트 대상. 실차 오디오 라우팅·음질은 미확인 |
 | 마이크 권한 | `RECORD_AUDIO`, 선택 권한과 기기 마이크 개인정보 스위치 | 거부·캡처 실패 수신 전용 경로 구현. Pleos 실제 개인정보 스위치 기기 검증은 미확인 |
 | 백그라운드 통화 | `FOREGROUND_SERVICE_MICROPHONE`, microphone 서비스, CATEGORY_CALL. 수신 전용은 mediaPlayback 타입 | 서비스 수명과 알림 action 구현. 장시간 백그라운드·마켓 승인은 미확인 |
-| 음성 중계 | Ktor 인증 WebSocket, 활성 연결 두 당사자만 PCM 중계 | 서버 참가자·종료·제한 테스트 통과. 심사용 서버 배포 구성 제공, Docker 실행 미검증 |
+| 음성 중계 | Ktor 인증 WebSocket, 활성 연결 두 당사자만 PCM 중계 | 서버 참가자·종료·제한 테스트 통과. 심사 기간 공개 서버를 Docker와 Cloudflare 터널로 운영하며, 공개 주소에서 두 계정 음성 양방향과 제3자 거절을 확인 |
 | 자동 연결 안내와 데모 대체 음성 | Pleos TextToSpeech 3.3.1 직접 SDK, `Mode.ON_DEVICE` | 자동 연결의 닉네임·연결 사실 한 번 안내, 데모 상대 클립을 재생하지 못할 때의 대체 발화. 데모 상대의 세 문장은 미리 만든 음성 클립으로 재생. 포커스·종료 수명 유지. 자동 안내의 기기 발화와 실제 지연은 컨트롤러 기기 게이트에서 확인 |
 | 데모 음성 권한 | `pleos.car.permission.TTS_SERVICE` 일반 권한, 보안 그룹 추가 없음 | manifest 선언. App Market 승인과 기기 재생 확인은 미검증 |
 

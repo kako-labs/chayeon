@@ -1,6 +1,6 @@
 # 심사용 서버 배포
 
-팀이 운영할 심사용 서버를 위한 구성입니다. 실제 공개 서버의 가동 여부나 Docker 검증 완료를 뜻하지 않습니다. Docker Engine과 Compose v2, Python 3, 서버를 가리키는 도메인의 DNS A/AAAA, 외부에서 연결 가능한 TCP 80·443이 필요합니다. 도메인 없이 로컬 자체 서명 HTTPS로 확인하려면 아래 검증 스크립트를 사용합니다.
+팀이 운영하는 심사용 서버를 위한 구성입니다. 2026-11-13부터 팀 서버에서 서버 이미지를 Docker로 실행하고 아래 [Cloudflare 터널](#cloudflare-터널로-운영할-때) 방식으로 운영하고 있어요. 공개 주소로 두 계정 음성 왕복과 제3자 거절을 [점검](#공개-서버-점검)했어요. 아래 Caddy Compose 구성은 같은 이미지를 직접 HTTPS로 여는 다른 방법이에요. Docker Engine과 Compose v2, Python 3, 서버를 가리키는 도메인의 DNS A/AAAA, 외부에서 연결 가능한 TCP 80·443이 필요합니다. 도메인 없이 로컬 자체 서명 HTTPS로 확인하려면 아래 검증 스크립트를 사용합니다.
 
 ```sh
 cp deploy/env.example deploy/.env
@@ -64,3 +64,25 @@ docker run --rm --name chayeon-server -p 127.0.0.1:18080:8080 \
 터널 설정의 `ingress`는 운영 주소를 `http://127.0.0.1:18080`으로 보냅니다. Cloudflare가 `CF-Connecting-IP`를 덮어쓰므로 요청 제한이 사용자별로 나뉘어요. 서버 포트를 외부에 직접 열면 이 헤더를 믿으면 안 됩니다.
 
 `cloudflared tunnel route dns`는 기본 설정 파일에 다른 터널이 적혀 있으면 그 터널로 주소를 연결할 수 있어요. 터널 ID를 직접 적고, 필요하면 `--overwrite-dns`로 바로잡으세요.
+
+## 공개 서버 점검
+
+배포나 재시작 뒤에는 공개 주소로 다음을 확인해요. 점검용 계정은 끝나면 스스로 지워요.
+
+```sh
+curl -s -A ktor-client https://<운영 주소>/health
+python3 scripts/public_probe.py <운영 주소>
+```
+
+`public_probe.py`는 SERVER_DEMO 계정 둘을 만들어 동의와 발견을 켜고 서로 연결한 뒤, 음성 WebSocket으로 PCM 프레임 100개씩을 양방향으로 보내요. 제3의 계정이 같은 연결의 음성에 들어오지 못하는지(403)도 확인하고, 세 계정을 모두 삭제해요. 정상 결과는 다음과 같아요.
+
+```text
+voice frames: A->B 100/100, B->A 100/100
+outsider voice: upgrade refused: HTTP/1.1 403 Forbidden
+probe accounts deleted
+```
+
+- 일부 엣지 프록시(Cloudflare 봇 차단)는 기본 Python User-Agent를 403으로 막아요. 스크립트와 위 `curl`은 앱과 같은 `ktor-client`를 써요.
+- 같은 주소에서 새 계정은 시간당 `CHAYEON_NEW_ACCOUNTS_PER_HOUR`(기본 5)개까지예요. 점검 한 번에 3개를 쓰므로 반복할 때 주의하세요.
+- 앱으로 확인하려면 공개 주소로 빌드한 릴리스 APK를 설치하고 첫 화면에서 `두 대로 연결(서버)`을 골라 프로필을 만든 뒤, 홈에 근처 사람이 보이는지 확인하고 `기록과 계정 정리`에서 계정을 삭제해요.
+

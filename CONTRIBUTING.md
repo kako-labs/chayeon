@@ -46,22 +46,23 @@ Gradle 자체의 홈과 프로젝트 밖 설정은 바꾸지 않습니다.
 ```sh
 python3 scripts/dev.py server
 docker build -f server/Dockerfile -t chayeon-server .
-python3 scripts/dev.py emulator
+python3 scripts/dev.py emulator --port 5570 --grpc 8590
 python3 scripts/dev.py drive gentle
+python3 scripts/dev.py e2e --skip-build --apk apk/chayeon-release.apk
+python3 scripts/dev.py e2e --server
 python3 scripts/dev.py release
+python3 scripts/public_probe.py <운영 주소>
 ```
 
-서버 실행 골격은 `/health`만 제공합니다. 사회 기능 라우트는 서버 담당자가 구현합니다.
-Android SDK 없이 `-Pchayeon.serverOnly=true`로 서버와 순수 Kotlin 모듈만 포함합니다.
-앱의 서버 주소는 `-Pchayeon.serverUrl=https://…`로 빌드에 넣으며 기본값은 빈 문자열입니다.
-release 도구는 서명되지 않은 APK를 Git에서 제외된 `apk/`에 만듭니다.
+- **서버:** `server`는 로컬에서 전체 서버(REST 명령, `/v1/sync` 긴 폴링, `/v1/voice` WebSocket)를 실행합니다. Android SDK 없이 `-Pchayeon.serverOnly=true`로 서버와 순수 Kotlin 모듈만 빌드합니다. 운영은 [배포 안내](deploy/README.md)를 따릅니다.
+- **서버 주소:** 앱의 서버 주소는 빌드할 때 넣습니다. `CHAYEON_SERVER_URL=https://… python3 scripts/dev.py release` 또는 `-Pchayeon.serverUrl=https://…`이며, 비우면 서버 모드 없이 `혼자 둘러보기`로 시작합니다.
+- **release:** R8을 적용한 APK를 Git에서 제외된 `apk/`에 만들고, `build/signing/`에 생성한 로컬 일회용 키로 서명합니다. `scripts/audit_apk.py`가 서명, 시험용 클래스 제외, 디버그 불가, 평문 통신 제한을 검사합니다.
+- **에뮬레이터:** Pleos AVD 이름은 `Pleos_Connect_v2_0`이고 이미지는 Pleos SDK Update Site에서 따로 설치합니다. `emulator`는 `-no-snapshot -no-boot-anim -gpu host -netdelay none -netspeed full`로 띄우며 기본은 창 없이(`--visible`로 화면 표시) 소리는 켭니다. adb Activity 명령은 Pleos 사용자 `--user 10`을 씁니다.
+  - 종단 도구와 영상 키트는 `emulator-5570`(`--port 5570`)을 씁니다. 화면·소리 녹화는 gRPC가 필요하므로 `--grpc 8590`을 붙입니다.
+  - 맥을 재부팅한 직후 띄운 에뮬레이터는 DNS를 받지 못해 모든 도메인이 풀리지 않을 수 있습니다. 앱에는 "연결이 끊겨 처리 결과를 확인하지 못했어요"가 뜹니다. 기기 재부팅이나 비행기 모드로는 고쳐지지 않으므로 `adb -s emulator-5570 emu kill` 뒤 `--dns 1.1.1.1,8.8.8.8`을 붙여 다시 띄웁니다.
+  - 동시에 무거운 빌드와 종단 검증을 돌리면 에뮬레이터가 불안정해질 수 있습니다. 순서대로 실행합니다.
+- **차량 신호:** `drive`는 포트 8088을 전달하고 Virtual Console 세션을 갱신하면서 `fixtures/drive`의 합성 주행(`gentle`, `early-brake`, `signal-manners`, `care`, `unsupported`)을 넣습니다. Virtual Console HTTP는 에뮬레이터에서 관찰한 동작이며 공식 지원 API가 아닙니다.
+- **종단 검증:** `e2e`는 실행 중인 Pleos 에뮬레이터 한 대에 사용자 10으로 정상 설치하고 실제 UI를 조작합니다. 기본은 debug, `--apk`는 지정 APK, `--with-real-drive`는 210초 실제 신호 주행, `--server`는 로컬 서버와 HTTP 상대를 띄워 두 계정 통화를 확인합니다. 화면과 결과는 `build/e2e/`에 남습니다. 에뮬레이터를 시작하거나 끄지 않습니다.
+- **공개 서버 점검:** `public_probe.py`는 공개 주소에서 두 계정 음성 왕복과 제3자 거절을 확인하고 점검 계정을 지웁니다.
 
-Pleos AVD 이름은 `Pleos_Connect_v2_0`입니다. 이미지는 Pleos SDK Update Site에서 별도 설치합니다.
-에뮬레이터는 `-no-snapshot -no-audio -no-boot-anim -gpu host -netdelay none -netspeed full`로 실행하며,
-기본은 `-no-window`이고 `--visible`로 화면을 띄웁니다. adb Activity 명령은 Pleos 사용자 `--user 10`을 씁니다.
-`drive`는 포트 8088을 전달하고 Virtual Console 세션을 갱신하면서 합성 신호를 넣습니다.
-지원 시나리오는 `park`, `drive`, `neutral`, `reverse`, `gentle`, `stop-and-go`입니다.
-Virtual Console HTTP는 에뮬레이터에서 관찰한 동작이며 공식 지원 API가 아닙니다.
-`e2e`는 담당 기능이 구현되기 전까지 설명과 종료 코드 2를 반환합니다. 성공으로 간주하지 않습니다.
-
-실차, App Market 권한 승인, 포그라운드 서비스 장시간 유지, APK 서명·배포는 별도 검증이 필요합니다.
+실차, App Market 권한 승인, 포그라운드 서비스 장시간 유지, 마켓 배포 서명은 별도 검증이 필요합니다.

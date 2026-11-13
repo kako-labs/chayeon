@@ -151,13 +151,21 @@ def setup_sdk():
     )
 
 
-def emulator(visible=False):
+def emulator(visible=False, port=None, grpc=None, dns=None):
     executable = sdk_tool("emulator", "emulator")
     if not executable:
         print("emulator를 찾지 못했어요. setup-sdk를 실행하세요.", file=sys.stderr)
         return 1
-    flags = ["-avd", "Pleos_Connect_v2_0", "-no-snapshot", "-no-audio", "-no-boot-anim",
+    # Audio stays on: calls and the demo partner's voice must play to be checked on the device.
+    flags = ["-avd", "Pleos_Connect_v2_0", "-no-snapshot", "-no-boot-anim",
              "-gpu", "host", "-netdelay", "none", "-netspeed", "full"]
+    if port:
+        flags += ["-port", str(port)]
+    if grpc:
+        flags += ["-grpc", str(grpc)]
+    if dns:
+        # An emulator started before the host network is ready can come up without DNS.
+        flags += ["-dns-server", dns]
     if not visible:
         flags.append("-no-window")
     return subprocess.call([executable, *flags], env=execution_environment(android=True))
@@ -311,6 +319,9 @@ def main():
     e2e_parser.add_argument("--serial")
     emulator_parser = commands.add_parser("emulator")
     emulator_parser.add_argument("--visible", action="store_true")
+    emulator_parser.add_argument("--port", type=int, help="console port, for example 5570 (serial emulator-5570)")
+    emulator_parser.add_argument("--grpc", type=int, help="gRPC port for screen and audio capture, for example 8590")
+    emulator_parser.add_argument("--dns", help="comma-separated DNS servers, for example 1.1.1.1,8.8.8.8")
     drive_parser = commands.add_parser("drive")
     drive_parser.add_argument("scenario", choices=["gentle", "early-brake", "signal-manners", "care", "unsupported"])
     drive_parser.add_argument("--console-url", default="http://127.0.0.1:8088")
@@ -330,7 +341,7 @@ def main():
     if args.command == "drive":
         return drive(args.scenario, args.console_url, args.serial, args.duration_seconds)
     if args.command == "emulator":
-        return emulator(args.visible)
+        return emulator(args.visible, args.port, args.grpc, args.dns)
     if doctor(android=args.command != "server"):
         return 1
     if args.command == "server":

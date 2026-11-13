@@ -1,6 +1,6 @@
 # 아키텍처
 
-차연은 Android 앱과 서버를 함께 두는 모노레포입니다. Gradle 루트는 하나입니다.
+차연은 Android 앱과 서버를 함께 두는 모노레포입니다. Gradle 루트는 하나입니다. 처음 읽는다면 [기술 개요](technical-overview.md)부터 보세요.
 
 ## 구조
 
@@ -137,7 +137,7 @@ stateDiagram-v2
 - **시연 공간:** 공간마다 격리됩니다. `혼자 둘러보기`는 앱 안에서 같은 엔진을 실행하고, 서버 모드도 공간마다 `시연용 가상 상대`를 둡니다.
 - **위치:** 이번 앱 릴리스는 합성 presence로 근접을 판정해요. 기기 위치는 집 보호 비교에만 쓰고 서버로 보내지 않아요. 엔진의 기존 위치 입력 계약은 유지해요. 어떤 응답에도 좌표, 거리, 방향을 넣지 않습니다. 로그에도 남기지 않습니다.
 - **빌드:** `-Pchayeon.serverOnly=true`이면 Android 모듈 없이 서버만 빌드합니다. Dockerfile을 제공합니다.
-- **배포:** 팀 운영 심사용 서버 구성을 `deploy/`에 제공합니다. 실제 배포와 Docker 런타임 검증은 별도입니다. 앱은 `chayeon.serverUrl` 값이 있을 때만 서버 모드를 보여줍니다.
+- **배포:** 팀 운영 심사용 서버 구성을 `deploy/`에 제공합니다. 심사 기간에는 팀 서버에서 서버 이미지를 Docker로 실행하고 Cloudflare 터널로 HTTPS·WebSocket을 열어 운영합니다(2026-11-13부터). 두 계정 음성 왕복과 제3자 거절을 공개 주소로 점검했습니다. Caddy Compose 경로는 `deploy/verify.sh`로 따로 확인합니다. 앱은 `chayeon.serverUrl` 값이 있을 때만 서버 모드를 보여줍니다.
 
 ## 차량 연동
 
@@ -242,7 +242,7 @@ Application 소유 `HomeZoneCoordinator` 한곳만 presence를 전송해요. `pr
 
 마이크를 사용할 수 없으면 수신만 유지해요. Android 14에서 RECORD_AUDIO 없이 microphone 타입 서비스를 시작할 수 없으므로 수신 전용·데모 상대 통화는 mediaPlayback 타입을 사용하고, 녹음 가능한 통화에는 microphone 타입을 함께 사용해요. 알림은 CATEGORY_CALL이며 통화 끊기 action이 같은 leave 경로를 실행해요. 실차 오디오 라우팅과 Pleos 백그라운드 유지·권한 승인은 별도 검증 대상이에요.
 
-데모 상대의 음성은 `data:voice`의 `ScriptedDemoPeerVoice` → `DemoSpeechEngine`(`BundledClipSpeechEngine`)에서 처리해요. 각 문장은 `res/raw`의 미리 만든 클립을 `AndroidClipPlayer`(MediaPlayer, VOICE_COMMUNICATION)로 재생하고, 클립이 없거나 재생하지 못하면 `PleosSpeechEngine`이 대신 말해요. 자동 연결 안내는 `PleosSpeechEngine`만 써요. Pleos TextToSpeech 3.3.1을 직접 호출하고 `Mode.ON_DEVICE`만 사용해요. 일반 권한 `pleos.car.permission.TTS_SERVICE`만 선언하며 보안 그룹은 추가하지 않아요. SOLO 또는 `ProfileKind.DEMO_PEER`이면 서버 모드에서도 음성 WebSocket·마이크를 열지 않아요. Pleos SDK는 대체 발화가 처음 필요할 때 준비하고, 포커스 아래에서 세 문장을 순서대로 재생하며, 시작 시각 기준 약 20초 간격을 둬요. 실제 소리 시작을 검증하지 못하므로 SDK 시작 콜백으로 발화 UI를 바꾸지 않아요. 종료·보호·포커스 상실은 재생을 멈춰요.
+데모 상대의 음성은 `data:voice`의 `ScriptedDemoPeerVoice` → `DemoSpeechEngine`(`BundledClipSpeechEngine`)에서 처리해요. 각 문장은 `res/raw`의 미리 만든 클립을 `AndroidClipPlayer`(MediaPlayer, VOICE_COMMUNICATION)로 재생하고, 클립이 없거나 재생하지 못하면 `PleosSpeechEngine`이 대신 말해요. 자동 연결 안내는 `PleosSpeechEngine`만 써요. Pleos TextToSpeech 3.3.1을 직접 호출하고 `Mode.ON_DEVICE`만 사용해요. 일반 권한 `pleos.car.permission.TTS_SERVICE`만 선언하며 보안 그룹은 추가하지 않아요. SOLO 또는 `ProfileKind.DEMO_PEER`이면 서버 모드에서도 음성 WebSocket·마이크를 열지 않아요. Pleos SDK는 대체 발화가 처음 필요할 때 준비하고, 포커스 아래에서 세 문장을 순서대로 재생하며, 시작 시각 기준 약 20초 간격을 둬요. 실제 소리 시작을 검증하지 못하므로 SDK 시작 콜백으로 발화 UI를 바꾸지 않아요. 종료·보호·포커스 상실은 재생을 멈춰요. 같은 연결이 CHECKING에서 CONNECTED로 돌아오면 `ScriptedDemoPeerVoice`가 연결 ID별 진행을 기억해 마지막으로 끝까지 말한 문장 다음부터 이어 가요. 말하던 중 끊긴 문장은 다시 말하고, 새 연결은 처음부터 시작해요.
 
 ## 인연과 연락처 경계
 
@@ -254,6 +254,20 @@ Application 소유 `HomeZoneCoordinator` 한곳만 presence를 전송해요. `pr
 `AutoConnectCoordinator`는 Application에서 동작하며 화면의 주행 제한을 풀지 않아요. `SocialGraph.autoConnectSnapshot`은 개인 연락처와 주행 근거를 제외한 서비스 전용 상태를 제공해요. 조정기는 AUTO 설정·공개 점수 조건·공통 관심사·현재 주행 정책·집 보호를 평가하고 기존 요청/수락 명령에 자동 실행 표시를 붙여요. `data:social`은 실제 전송과 재시도 직전에 현재 정책·설정·조건·차단·활성 연결을 다시 확인하고, 엔진은 저장된 AUTO 동의와 공개 조건을 검사해요. 서버가 상대를 골라 주지는 않아요.
 
 계정별 `PrivateAutoConnectStore`는 백업 제외 영역에 당일 상대별 재시도 금지, 통화 종료 후 10분 대기, 재시도용 멱등 명령, 안내한 연결 ID를 원자적으로 저장해요. 저장을 확인할 수 없으면 자동 실행을 막아요. 점수는 `core:signature`에서만 계산하고 개인 근거는 `data:vehicle`에만 보관해요. 새 모듈이나 의존 방향을 추가하지 않았어요. 자동 통화는 요청 출처가 포함된 스냅샷으로 확인한 뒤 기존 `data:voice`의 Pleos ON_DEVICE 음성으로 연결 사실만 한 번 알려요.
+
+조정기는 1초 ticker와 스냅샷·주행 정책·집 보호 변화로 평가하며 순서는 다음과 같아요.
+
+| 단계 | 규칙 |
+|---|---|
+| 실행 조건 | RESTRICTED, 집 보호 아님, AUTO, 발견 ON, ENDED가 아닌 연결 없음, `now() ≥ cooldownUntil`, 저장소 정상 |
+| 받은 요청 | 만료 전 PENDING 받은 요청 중 조건을 만족하는 사람을 자동 수락(초과 조건 수 → 겹친 관심사 수 → id 순). 시도 사이 5초 이상 |
+| 보낸 요청 | 보낸 PENDING 요청이 있으면 기다림. 자동 요청은 동시에 하나 |
+| 후보 선택 | 조건 만족, 당일 제외 아님, 재시도 대기 지남, `requestAvailableAt` 지남. 같은 정렬로 한 명. 명령 ID를 저장해 재시도를 멱등으로 만듦 |
+| 서버 거절 | 네트워크·알 수 없음이 아닌 실패(예: 서로 동시에 요청)는 그 사람만 60초 뒤 재시도. 하루 제외로 바꾸지 않음 |
+| 당일 제외 | DECLINED·CANCELLED·EXPIRED·UNAVAILABLE 요청의 상대(받은 요청 포함), ENDED 연결의 상대(종료일 기준) |
+| 10분 대기 | ENDED 연결을 이 기기가 처음 본 시각부터 10분. 서버 시계와 차이가 나도 대기가 짧아지지 않음 |
+
+혼자 둘러보기에서는 재즈한잔이 시작 직후 요청을 보내므로, 받지 않고 만료되면 그날 자동 연결 대상에서 빠져요. 의도한 규칙이에요.
 
 ## 설치별 계정과 심사용 운영
 

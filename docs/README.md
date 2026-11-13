@@ -2,13 +2,29 @@
 
 ## 저장소 문서
 
+### 기획과 제품
+
 - [기획서](proposal.md): 공식 접수양식의 8개 항목에 맞춘 내용
-- [아키텍처](architecture.md): 저장소 구조, 모듈, 계약, 차량 환경 조건
-- [공통 계약](contracts.md): 상태 규칙, 공개 경계, 서버 경로
-- [드라이브 시그니처](product/drive-signature.md): 특성, 근거 기준, 칭호, 매듭, 궁합
+- [제품 결정 기록](product/decisions.md): 방향을 바꾼 결정과 이유
+- [드라이브 시그니처](product/drive-signature.md): 특성, 점수 계산, 근거 기준, 칭호, 매듭, 궁합
 - [경험 명세](product/experience-spec.md): 화면, 움직임, 주행 정책, 문구
 - [품질 기준](product/quality-bar.md): 출시 판단 기준
-- [디자인 시안](design/README.md): 채택한 디자인 방향, 화면 목록, 색과 글자 기준, 3D 에셋
+
+### 기술
+
+- [기술 개요](technical-overview.md): 시스템 구성, 핵심 흐름, 안전·개인정보 경계, Pleos SDK 사용, 저장 위치, 검증, 한계
+- [아키텍처](architecture.md): 모듈과 의존 방향, 계약, 상태 전이, 서버, 차량 연동, 집 보호, 통화, 자동 연결
+- [공통 계약](contracts.md): 엔진 규칙, 서버 경로, 화면별 계약, 음성·연락처·자동 연결 계약
+- [배포 안내](../deploy/README.md): 심사용 서버 운영, 환경 변수, 제한, 백업, 공개 서버 점검
+- [함께 개발하기](../CONTRIBUTING.md): 검증 명령, 에뮬레이터, 종단 검증, 릴리스
+- [앱 통합 기록](../app/INTEGRATION.md): 기능별 통합과 검증 기록
+- 모듈 안내: [core:ui](../core/ui/README.md), [data:vehicle](../data/vehicle/README.md), [data:voice](../data/voice/README.md), [feature:signature](../feature/signature/README.md)
+
+### 디자인
+
+- [디자인 시안](design/README.md): 채택한 디자인 방향, 화면 목록, 색과 글자 기준
+- UI v2 보고: [공용 기반](design/ui-v2-foundation.md), [만남 화면](design/ui-v2-meet.md), [프로필·인연 화면](design/ui-v2-profile.md)
+- 생성 에셋: [이미지와 프롬프트](design/assets-v2.md), [가상 상대 음성 클립](design/voice-assets.md)
 
 아래 링크는 내부용입니다. Notion에는 실명이 있으므로 제출 자료에 넣지 않습니다.
 
