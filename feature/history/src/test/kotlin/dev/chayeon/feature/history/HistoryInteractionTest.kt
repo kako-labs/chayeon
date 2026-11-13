@@ -206,7 +206,7 @@ class HistoryInteractionTest {
         compose.onNodeWithText("이전").assertDoesNotExist()
         val left = compose.onNodeWithTag("onboarding-left").fetchSemanticsNode().boundsInRoot
         val right = compose.onNodeWithTag("onboarding-right").fetchSemanticsNode().boundsInRoot
-        assertEquals(left.left, bounds.left, 1f)
+        assertEquals(right.left, bounds.left, 1f)
         assertEquals(right.right, bounds.right, 1f)
         listOf(HistoryScreen.PROFILE_SETUP, HistoryScreen.CONSENT).forEach { next ->
             compose.runOnIdle { screen = next }

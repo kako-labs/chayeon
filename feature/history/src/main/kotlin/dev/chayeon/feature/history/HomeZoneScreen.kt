@@ -78,18 +78,18 @@ class HomeZoneViewModel(private val deps: HistoryDeps) : ViewModel() {
 fun HomeZoneScreen(state: HomeZoneUiState, chrome: ScreenChrome, onSet: (LocationSource) -> Unit,
     onRadius: (HomeZoneRadius) -> Unit, onAskClear: () -> Unit, onClear: () -> Unit, onDismiss: () -> Unit, onBack: () -> Unit) {
     val idle = state.operation == null
-    HistoryFrame(HistoryUiState(driving = state.driving), chrome, "집 보호 구역", "집 근처에서는 잠시 쉬어가요", onBack, tab = NavigationItem.PROFILE,
+    HistoryFrame(HistoryUiState(driving = state.driving), chrome, "집 보호 구역", "집 근처에서는 잠시 쉬어가요", onBack, tab = NavigationItem.PROFILE, scene = Scene.HOME,
         primary = {
-            HeroPanel(Modifier.fillMaxWidth()) { ContentColumn {
-                IconOrb(ChayeonIcon.LOCK, variant = OrbVariant.GLASS)
-                GradientText("집 근처에서는\n나를 찾을 수 없어요", style = ChayeonType.Title)
+            GlassPanel(Modifier.fillMaxWidth()) { ContentColumn {
+                Mascot(MascotPose.SLEEP, Modifier.fillMaxWidth().height(ChayeonDimensions.HeroKnot))
+                GradientText("집 근처에서는\n나를 찾을 수 없어요", style = ChayeonType.CallTitle)
                 ChayeonText("이어져 있던 사람에게는 멀어져서 끝난 것과 똑같이 보여요", color = ChayeonColors.Secondary)
                 InfoRow(ChayeonIcon.LOCK, "집 위치는 이 차에만 저장되고 서버로 보내지 않아요")
                 ChayeonText("집을 정하지 않아도 참여할 수 있어요. 로그아웃하거나 계정을 지우면 이 차의 집 위치도 지워요.", style = ChayeonType.Secondary)
             } }
         }, secondary = {
             ContentColumn {
-                GlassCard(Modifier.fillMaxWidth()) { ContentColumn {
+                GlassPanel(Modifier.fillMaxWidth()) { ContentColumn {
                     SectionTitle("지금 상태")
                     if (LocalSourceLabels.current && state.home.source == LocationSource.SYNTHETIC) StatusChip("합성 위치 · 가상 집", variant = StatusVariant.PLAIN)
                     ChayeonText(when (state.home.status) {
@@ -107,7 +107,7 @@ fun HomeZoneScreen(state: HomeZoneUiState, chrome: ScreenChrome, onSet: (Locatio
                         HomeZoneStatus.PERMISSION_OFF -> "위치 권한과 차량 데이터·위치·공개 범위의 위치 사용 동의를 확인해 주세요. 그동안 발견을 쉬어요"
                     }, style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
                 } }
-                GlassCard(Modifier.fillMaxWidth()) { ContentColumn {
+                GlassPanel(Modifier.fillMaxWidth()) { ContentColumn {
                     SectionTitle("보호할 범위")
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
                         HomeZoneRadius.entries.forEach { radius ->
@@ -115,17 +115,17 @@ fun HomeZoneScreen(state: HomeZoneUiState, chrome: ScreenChrome, onSet: (Locatio
                                 radius == state.selectedRadius, { onRadius(radius) }, Modifier.weight(1f), enabled = idle)
                         }
                     }
-                    JellyButton(if (state.operation == "set") "위치를 확인하고 있어요" else "지금 위치를 집으로 정하기",
+                    HistoryButton(if (state.operation == "set") "위치를 확인하고 있어요" else "지금 위치를 집으로 정하기",
                         { onSet(LocationSource.DEVICE) }, Modifier.fillMaxWidth(), enabled = idle && state.locationConsentGranted == true)
                     if (state.locationConsentGranted != true) ChayeonText(
                         if (state.locationConsentGranted == null) "위치 사용 동의를 확인하고 있어요" else "위치 사용에 동의하면 집을 정할 수 있어요",
                         style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
                     if (state.syntheticEnabled) {
                         ChayeonText(if (LocalSourceLabels.current) "실제 위치가 없을 때만 가상 집을 정할 수 있어요" else "집을 정하고 보호 상태를 살펴봐요", style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
-                        JellyButton(if (LocalSourceLabels.current) "합성 위치로 집 정하기" else "집 보호 시작하기", { onSet(LocationSource.SYNTHETIC) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = idle)
+                        HistoryButton(if (LocalSourceLabels.current) "합성 위치로 집 정하기" else "집 보호 시작하기", { onSet(LocationSource.SYNTHETIC) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = idle)
                     }
                     if (state.error) TopBanner("위치를 정하지 못했어요. 권한과 위치 서비스를 확인한 뒤 다시 시도해 주세요")
-                    if (state.home.radius != null) JellyButton("집 지우기", onAskClear, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = idle)
+                    if (state.home.radius != null) HistoryButton("집 지우기", onAskClear, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = idle)
                 } }
             }
         })

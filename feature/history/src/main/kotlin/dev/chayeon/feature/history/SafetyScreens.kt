@@ -15,25 +15,25 @@ fun SafetyScreen(state: HistoryUiState, chrome: ScreenChrome, peerProfileId: Str
     val target = peer.safetyName
     HistoryFrame(state, chrome, "차단·신고", "${target}에 대한 조치예요", onBack, headerPeer = peer, equalPanelHeights = true,
         primary = {
-            GlassCard(Modifier.fillMaxWidth().fillMaxHeight()) { ContentColumn {
+            GlassPanel(Modifier.fillMaxWidth().fillMaxHeight()) { ContentColumn {
                 if (peer == null || target == "이 상대") ChayeonText("상대의 공개 프로필을 확인할 수 없어요. 이 화면을 연 상대에게 조치해요.", style = ChayeonType.Secondary)
                 GradientText("차단하면", style = ChayeonType.Title)
                 InfoRow(ChayeonIcon.CHECK, "서로의 카드와 요청이 사라져요")
                 InfoRow(ChayeonIcon.CHECK, "일시 연결과 이어진 관계도 닫혀요")
                 InfoRow(ChayeonIcon.CHECK, "상대에게 이유를 알리지 않아요")
                 InfoRow(ChayeonIcon.LOCK, "해제해도 이전 관계는 돌아오지 않아요")
-                JellyButton(if (blocked || state.command("block").completed) "차단했어요" else "$target 차단", onBlock,
+                HistoryButton(if (blocked || state.command("block").completed) "차단했어요" else "$target 차단", onBlock,
                     Modifier.fillMaxWidth(), JellyVariant.WHITE, enabled = !blocked && !state.command("block").completed && !state.command("block").running)
                 CommandFeedback(state.command("block"), { onRetry("block") })
-                JellyButton("차단한 사람 보기", onBlocks, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
+                HistoryButton("차단한 사람 보기", onBlocks, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
             } }
         }, secondary = {
-            GlassCard(Modifier.fillMaxWidth().fillMaxHeight()) { ContentColumn {
+            GlassPanel(Modifier.fillMaxWidth().fillMaxHeight()) { ContentColumn {
                 GradientText("신고 이유", style = ChayeonType.Title)
                 ReportReason.entries.forEach { reason ->
                     GelRadioRow(reason.label, reason == state.selectedReason, { onReason(reason) }, enabled = !state.command("report").running)
                 }
-                JellyButton("$target 신고 보내기", onReport, Modifier.fillMaxWidth(), enabled = !state.command("report").running && !state.command("report").completed)
+                HistoryButton("$target 신고 보내기", onReport, Modifier.fillMaxWidth(), enabled = !state.command("report").running && !state.command("report").completed)
                 CommandFeedback(state.command("report"), { onRetry("report") }, "신고를 접수했어요")
                 ChayeonText("시연에서는 접수 내용만 저장해요. 운영 검토와 조치는 아직 제공하지 않아요.", style = ChayeonType.Secondary)
                 state.policy?.reportRetentionDays?.let { ChayeonText("신고 기록은 ${it}일 동안 제한 보관해요.", style = ChayeonType.Secondary) }
@@ -50,9 +50,9 @@ fun BlocksScreen(state: HistoryUiState, chrome: ScreenChrome, onUnblock: (Block)
             Loaded(state.blocks, "차단한 사람이 없어요") { blocks ->
                 ContentColumn {
                     blocks.forEach { block ->
-                        GlassCard { ContentColumn {
+                        GlassPanel { ContentColumn {
                             PeerHeader(block.peer, size = PeerHeaderSize.SMALL)
-                            JellyButton("${block.peer.nickname} 님 차단 해제", { onUnblock(block) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY,
+                            HistoryButton("${block.peer.nickname} 님 차단 해제", { onUnblock(block) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY,
                                 enabled = !state.command("unblock:${block.id}").running)
                             CommandFeedback(state.command("unblock:${block.id}"), { onRetry("unblock:${block.id}") })
                         } }
@@ -60,7 +60,7 @@ fun BlocksScreen(state: HistoryUiState, chrome: ScreenChrome, onUnblock: (Block)
                 }
             }
         }, secondary = {
-            HeroPanel { ContentColumn {
+            GlassPanel { ContentColumn {
                 IconOrb(ChayeonIcon.LOCK)
                 SectionTitle("만남의 범위는 내가 정해요", subtitle = "차단한 사람에게 이유는 전달되지 않아요. 차단을 해제하면 서로 다시 발견될 수 있어요.")
             } }
@@ -104,7 +104,7 @@ private fun CleanupRow(state: HistoryUiState, kind: ConfirmationKind, id: String
     onAsk: (ConfirmationKind, String) -> Unit, onRetry: (String) -> Unit, peer: PublicProfile? = null) {
     val copy = cleanupCopy(kind, state.policy?.reportRetentionDays)
     val key = "cleanup:$kind:$id"
-    GlassCard(Modifier.fillMaxWidth()) {
+    GlassPanel(Modifier.fillMaxWidth()) {
         BoxWithConstraints {
             val narrow = maxWidth < ChayeonSpacing.NarrowBreakpoint
             if (narrow) ContentColumn {
@@ -130,5 +130,5 @@ private fun CleanupRow(state: HistoryUiState, kind: ConfirmationKind, id: String
 @Composable
 private fun CleanupButton(label: String, state: CommandState, enabled: Boolean, kind: ConfirmationKind, onClick: () -> Unit) {
     val destructive = kind in setOf(ConfirmationKind.END_RELATIONSHIP, ConfirmationKind.DELETE_RECORDS, ConfirmationKind.DELETE_ACCOUNT)
-    JellyButton(if (state.running) "처리 중" else label, onClick, Modifier.fillMaxWidth(), if (destructive) JellyVariant.DANGER else JellyVariant.SECONDARY, enabled = enabled && !state.running)
+    HistoryButton(if (state.running) "처리 중" else label, onClick, Modifier.fillMaxWidth(), if (destructive) JellyVariant.DANGER else JellyVariant.SECONDARY, enabled = enabled && !state.running)
 }

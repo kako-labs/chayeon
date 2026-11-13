@@ -19,31 +19,31 @@ fun AfterRequestScreen(state: HistoryUiState, chrome: ScreenChrome, onRequest: (
     val actions: @Composable () -> Unit = {
         AdaptiveActions(
             first = {
-                if (incoming && peer != null) JellyButton("차단·신고", { onSafety(peer.id) }, Modifier.fillMaxWidth(), JellyVariant.DANGER)
-                else JellyButton("돌아가기", onBack, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
+                if (incoming && peer != null) HistoryButton("차단·신고", { onSafety(peer.id) }, Modifier.fillMaxWidth(), JellyVariant.DANGER)
+                else HistoryButton("돌아가기", onBack, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
             },
             second = {
                 when (request?.status) {
-                    AfterRequestStatus.ACCEPTED -> JellyButton("이어진 인연 보기", onConnected, Modifier.fillMaxWidth())
+                    AfterRequestStatus.ACCEPTED -> HistoryButton("이어진 인연 보기", onConnected, Modifier.fillMaxWidth())
                     AfterRequestStatus.PENDING -> {
                         if (incoming) Row(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
-                            JellyButton("거절", { onRespond(request.id, RequestDecision.DECLINE) }, Modifier.weight(1f), JellyVariant.SECONDARY, enabled = !state.command("respond:${request.id}").running)
-                            JellyButton("수락하고 이어가기", { onRespond(request.id, RequestDecision.ACCEPT) }, Modifier.weight(2f), enabled = !state.homeSuppressed && state.shareContacts.normalized().isValid(requireAtLeastOne = true) && !state.command("respond:${request.id}").running)
-                        } else JellyButton("신청 철회", { onWithdraw(request.id) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = !state.command("withdraw:${request.id}").running)
+                            HistoryButton("거절", { onRespond(request.id, RequestDecision.DECLINE) }, Modifier.weight(1f), JellyVariant.SECONDARY, enabled = !state.command("respond:${request.id}").running)
+                            HistoryButton("수락하고 이어가기", { onRespond(request.id, RequestDecision.ACCEPT) }, Modifier.weight(2f), enabled = !state.homeSuppressed && state.shareContacts.normalized().isValid(requireAtLeastOne = true) && !state.command("respond:${request.id}").running)
+                        } else HistoryButton("신청 철회", { onWithdraw(request.id) }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = !state.command("withdraw:${request.id}").running)
                     }
                     else -> if (state.requests is LoadState.Ready && encounter?.afterEligibility == AfterEligibility.AVAILABLE) {
-                        JellyButton(if (request == null) "애프터 신청 보내기" else "새 애프터 신청 보내기", onRequest, Modifier.fillMaxWidth(), enabled = state.shareContacts.normalized().isValid(requireAtLeastOne = true) && !state.command("request").running)
+                        HistoryButton(if (request == null) "애프터 신청 보내기" else "새 애프터 신청 보내기", onRequest, Modifier.fillMaxWidth(), enabled = state.shareContacts.normalized().isValid(requireAtLeastOne = true) && !state.command("request").running)
                     }
                 }
             },
         )
     }
-    HistoryFrame(state, chrome, if (incoming) "받은 애프터 신청" else "애프터 신청", "서로 고른 아이디로 마음을 이어가요", onBack, bottom = actions, ratio = 1.5f, secondaryFirstWhenNarrow = true,
+    HistoryFrame(state, chrome, if (incoming) "받은 애프터 신청" else "애프터 신청", "서로 고른 아이디로 마음을 이어가요", onBack, bottom = actions, ratio = 1f, secondaryFirstWhenNarrow = true,
         primary = {
             ContentColumn {
                 if (state.requests is LoadState.Failed) Loaded(state.requests) {}
                 else if (peer == null) Loaded(state.encounter, "이 기록은 더 이상 없어요") {}
-                else HeroPanel { Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+                else Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
                     GradientText(when {
                         request?.status == AfterRequestStatus.ACCEPTED -> "서로의 마음이 이어졌어요"
@@ -58,6 +58,7 @@ fun AfterRequestScreen(state: HistoryUiState, chrome: ScreenChrome, onRequest: (
                         incoming -> "수락하면 내가 고른 아이디도 상대에게 보여요. 거절 이유는 전달되지 않아요."
                         else -> "상대도 아이디를 골라 수락하면 서로에게 보여요. 거절 이유는 전달되지 않아요."
                     }, style = ChayeonType.Body)
+                    Mascot(MascotPose.KNOT, Modifier.fillMaxWidth().height(ChayeonDimensions.HeroKnot))
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
                         state.myProfile?.publicProfile?.let { mine -> AfterAvatar(mine, Modifier.weight(.5f)) }
                         ThreadView(if (request?.status == AfterRequestStatus.ACCEPTED) ThreadStage.AFTER_CONNECTED else ThreadStage.AFTER_PENDING,
@@ -68,7 +69,7 @@ fun AfterRequestScreen(state: HistoryUiState, chrome: ScreenChrome, onRequest: (
                     InterestRow(peer.interests)
                     encounter?.let { StatusChip("${encounterDuration(it)} 함께했어요") }
                     if (request?.status == AfterRequestStatus.PENDING) ResponseCountdown(state.remainingMillis[request.id], totalMillis = request.expiresAtEpochMillis - request.createdAtEpochMillis)
-                } }
+                }
                 when (request?.status) {
                     AfterRequestStatus.DECLINED -> StateCard(ExperienceState.AFTER_DECLINED)
                     AfterRequestStatus.EXPIRED -> StateCard(ExperienceState.AFTER_EXPIRED)
@@ -92,13 +93,13 @@ fun AfterRequestScreen(state: HistoryUiState, chrome: ScreenChrome, onRequest: (
                     TopBanner("집 근처에서 쉬는 동안에는 수락할 수 없어요", icon = ChayeonIcon.LOCK)
                 if (peer != null && ((incoming && request?.status == AfterRequestStatus.PENDING) ||
                     (request?.status != AfterRequestStatus.PENDING && request?.status != AfterRequestStatus.ACCEPTED && encounter?.afterEligibility == AfterEligibility.AVAILABLE))) {
-                    GlassCard { ContactSelection(state, onContacts, onSaveToProfile) }
+                    GlassPanel { ContactSelection(state, onContacts, onSaveToProfile) }
                 }
                 if (peer != null) {
                     PeerChemistry(request?.chemistry ?: encounter?.chemistry ?: Chemistry(), state.myProfile?.publicProfile, peer)
-                    if (!incoming) JellyButton("차단·신고", { onSafety(peer.id) }, Modifier.fillMaxWidth(), JellyVariant.DANGER)
+                    if (!incoming) HistoryButton("차단·신고", { onSafety(peer.id) }, Modifier.fillMaxWidth(), JellyVariant.DANGER)
                 }
-                GlassCard { ContentColumn {
+                GlassPanel { ContentColumn {
                     InfoRow(ChayeonIcon.LOCK, "수락 전에는 아이디가 보이지 않아요")
                     InfoRow(ChayeonIcon.CLOCK, "거절되거나 만료되면 잠시 기다려요")
                 } }

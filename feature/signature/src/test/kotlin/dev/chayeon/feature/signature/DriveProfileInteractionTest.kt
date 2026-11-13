@@ -35,6 +35,17 @@ class DriveProfileInteractionTest {
         compose.onAllNodes(hasText("취향은 점수 없이 보여요", substring = true)).assertCountEquals(2)
     }
 
+    @Test fun profileSettingsButtonRevealsExistingSettingsActions() {
+        var opened = false
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+            MyProfileScreen(MyProfileUiState(f.driving, f.ready(f.profile), f.ready(f.signature)),
+                previewChrome(), {}, {}, {}, {}, onDrivingSettings = { opened = true })
+        } }
+        compose.onNodeWithText("설정").performClick()
+        compose.onNodeWithText("주행 중 연결").assertIsDisplayed().performClick()
+        assertTrue(opened)
+    }
+
     @Test fun buildingUsesActualTripCountsAndNeverDisplaysAScore() {
         val building = f.signature.copy(evidence = f.signature.evidence.map { it.copy(validTripCount = 1, score = null, recentTrips = it.recentTrips.take(1)) }, publicSignature = null)
         compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {

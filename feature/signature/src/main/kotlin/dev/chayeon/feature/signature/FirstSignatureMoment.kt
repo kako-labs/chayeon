@@ -68,7 +68,9 @@ internal fun FirstSignatureMoment(
         if (!allowed) awaitPointerEventScope {
             while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
         }
-    }, showSourceLabels = chrome.showSourceLabels, topBar = chrome.topBar, primary = {
+    }, showSourceLabels = chrome.showSourceLabels, scene = Scene.DAWN,
+        contentPadding = PaddingValues(horizontal = ChayeonDimensions.SceneScreenHorizontal, vertical = ChayeonDimensions.SceneScreenBottom),
+        topBar = chrome.topBar, primary = {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val wide = maxWidth >= ChayeonSpacing.NarrowBreakpoint && constraints.hasBoundedHeight
             val scroll = rememberScrollState()
@@ -121,21 +123,21 @@ internal fun FirstSignatureMoment(
                 state.error?.let { SignatureFailure(it, "주행 요약을 반영하지 못했어요", onRetry) }
                 MomentPart(fraction(traits.size + 1)) {
                     if (wide) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-                        JellyButton("상대에게 어떻게 보일지 고르기", onVisibility,
+                        SignatureButton("상대에게 어떻게 보일지 고르기", onVisibility,
                             Modifier.weight(1.5f).testTag("recap-open-visibility"), enabled = allowed && !busy && fraction(traits.size + 1) > 0f)
-                        JellyButton("내 시그니처 보기", onSignature, Modifier.weight(1f).testTag("recap-open-signature"),
+                        SignatureButton("내 시그니처 보기", onSignature, Modifier.weight(1f).testTag("recap-open-signature"),
                             JellyVariant.SECONDARY, enabled = allowed && !busy && fraction(traits.size + 1) > 0f)
                     } else Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
-                        JellyButton("상대에게 어떻게 보일지 고르기", onVisibility,
+                        SignatureButton("상대에게 어떻게 보일지 고르기", onVisibility,
                             Modifier.fillMaxWidth().testTag("recap-open-visibility"), enabled = allowed && !busy && fraction(traits.size + 1) > 0f)
-                        JellyButton("내 시그니처 보기", onSignature, Modifier.fillMaxWidth().testTag("recap-open-signature"),
+                        SignatureButton("내 시그니처 보기", onSignature, Modifier.fillMaxWidth().testTag("recap-open-signature"),
                             JellyVariant.SECONDARY, enabled = allowed && !busy && fraction(traits.size + 1) > 0f)
                     }
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
                     ChayeonText("공개는 내가 골라요. 내 주행 수치는 나에게만 보여요.", Modifier.weight(1f), ChayeonType.Minimum, ChayeonColors.Secondary)
-                    if (recap.source == DataSource.VEHICLE) JellyButton(if (state.excluding) "주행을 빼고 있어요" else "내가 운전하지 않았어요", onExclude,
+                    if (recap.source == DataSource.VEHICLE) SignatureButton(if (state.excluding) "주행을 빼고 있어요" else "내가 운전하지 않았어요", onExclude,
                         Modifier.testTag("exclude-trip"), JellyVariant.SECONDARY, enabled = allowed && !state.excluding && !state.markingSeen)
                 }
             }
