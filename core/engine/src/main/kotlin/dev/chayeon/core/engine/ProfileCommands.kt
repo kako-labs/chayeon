@@ -8,12 +8,11 @@ internal fun Room.enterSession(actor: String, r: EnterSessionRequest): Session {
     ensure(state.accounts[actor]?.deleted != true, AppError.NotAuthorized)
     val old = state.accounts[actor]?.takeUnless { it.deleted }
     stamp()
-    val session = Session(ids.next(), v, actor, r.mode, r.persona, r.roomCode, null, null, policy.participation(v))
+    val session = Session(ids.next(), v, actor, r.mode, r.roomCode, null, null, policy.participation(v))
     val profile = old?.profile ?: run {
         val profileId = ids.next()
         MyProfile(profileId, v, PublicProfile(profileId, v,
-            if (r.persona == PersonaCode.ACCOUNT_A) "새벽드라이브" else "노을산책",
-            if (r.persona == PersonaCode.ACCOUNT_A) AvatarId.DAWN else AvatarId.SLOW,
+            "", AvatarId.DAWN,
             emptySet(), ProfileKind.VIRTUAL_PROFILE, null), RegistrationState.PROFILE_REQUIRED)
     }
     put(old?.copy(session = session, active = true,

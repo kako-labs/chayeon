@@ -5,8 +5,6 @@ import dev.chayeon.core.model.AppResult
 import dev.chayeon.core.model.CommandReceipt
 import dev.chayeon.core.model.DeleteAccountRequest
 import dev.chayeon.core.model.EnterSessionRequest
-import dev.chayeon.core.model.LoadState
-import dev.chayeon.core.model.Persona
 import dev.chayeon.core.model.Session
 import dev.chayeon.core.model.SessionMode
 import dev.chayeon.core.model.SessionRepository
@@ -21,8 +19,6 @@ class EmptySessionRepository(serverAvailable: Boolean = false) : SessionReposito
     )
 
     override val session: Flow<SessionState> = flowOf(SessionState.SignedOut())
-
-    override val personas: Flow<LoadState<List<Persona>>> = flowOf(LoadState.Ready(emptyList(), 0))
 
     override suspend fun enter(request: EnterSessionRequest): AppResult<Session> =
         AppResult.Failure(AppError.NotAuthorized)

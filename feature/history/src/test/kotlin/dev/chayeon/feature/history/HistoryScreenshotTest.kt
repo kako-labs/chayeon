@@ -197,8 +197,14 @@ class HistoryScreenshotTest {
 
     @Test fun firstRunSoloOnly() = capture(HistoryScreen.FIRST_RUN, ScreenScenario.POPULATED,
         HistoryFixtures.state.copy(modes = setOf(SessionMode.SOLO)), "solo")
-    @Test fun firstRunServerRoom() = capture(HistoryScreen.FIRST_RUN, ScreenScenario.POPULATED,
-        HistoryFixtures.state.copy(selectedMode = SessionMode.SERVER_DEMO, roomCode = "DEMO-ROOM"), "server")
+    @Test fun firstRunServerMode() = capture(HistoryScreen.FIRST_RUN, ScreenScenario.POPULATED,
+        HistoryFixtures.state.copy(selectedMode = SessionMode.SERVER_DEMO), "server")
+    @Test fun firstRunRoomFull() = capture(HistoryScreen.FIRST_RUN, ScreenScenario.POPULATED,
+        HistoryFixtures.state.copy(selectedMode = SessionMode.SERVER_DEMO,
+            session = SessionState.Failed(AppError.Restricted),
+            commands = mapOf("enter" to CommandState(error = AppError.Restricted))), "room_full")
+    @Test fun profileSetupSoloEmpty() = capture(HistoryScreen.PROFILE_SETUP, ScreenScenario.EMPTY,
+        screenState(HistoryScreen.PROFILE_SETUP, ScreenScenario.EMPTY).copy(modes = setOf(SessionMode.SOLO)), "solo_empty")
     private fun consentReadyState(discoveryOn: Boolean) = HistoryFixtures.state.copy(
         settings = LoadState.Ready(HistoryFixtures.settings.copy(consents = ConsentScope.entries.map {
             ConsentRecord(it.name, 1, it, ConsentStatus.GRANTED, HistoryFixtures.policy.consentDocumentVersion, 1)

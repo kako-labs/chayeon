@@ -67,8 +67,8 @@ class SocialRequestSignalsTest {
     private fun seedConversation(): Seeded {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val engine = ChayeonEngine(rules = rules, store = PrivateEngineStore(context), demoEnabled = false)
-        val session = success(engine.enterSession("account_a", EnterSessionRequest(CommandMeta("enter-a"), SessionMode.SOLO, PersonaCode.ACCOUNT_A)))
-        success(engine.enterSession("account_b", EnterSessionRequest(CommandMeta("enter-b"), SessionMode.SOLO, PersonaCode.ACCOUNT_B)))
+        val session = success(engine.enterSession("account_a", EnterSessionRequest(CommandMeta("enter-a"), SessionMode.SOLO)))
+        success(engine.enterSession("account_b", EnterSessionRequest(CommandMeta("enter-b"), SessionMode.SOLO)))
         for (actor in listOf("account_a", "account_b")) {
             success(engine.saveProfile(actor, SaveProfileRequest(CommandMeta("profile-$actor"),
                 ProfileDraft(if (actor == "account_a") "새벽드라이브" else "노을산책", AvatarId.DAWN, setOf(InterestId.JAZZ)))))

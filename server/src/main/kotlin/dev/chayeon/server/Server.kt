@@ -37,7 +37,7 @@ fun defaultRules(): SignatureRules {
 }
 
 internal fun productionRegistry(clock: dev.chayeon.core.engine.EngineClock = dev.chayeon.core.engine.EngineClock(System::currentTimeMillis)) =
-    RoomRegistry(defaultRules(), clock = clock, enginePolicy = EnginePolicy(presenceLeaseMillis = 60_000))
+    RoomRegistry(defaultRules(), policy = environmentPolicy(), clock = clock, enginePolicy = EnginePolicy(presenceLeaseMillis = 60_000))
 
 internal val roomRegistryKey = AttributeKey<RoomRegistry>("room-registry")
 
@@ -68,7 +68,9 @@ fun Application.chayeonModule(registry: RoomRegistry = productionRegistry()) {
     routing {
         voiceRoutes(registry)
         get("/health") { call.respondText("{\"status\":\"ready\"}", ContentType.Application.Json) }
+        get("/ready") { call.respondText("{\"status\":\"ready\"}", ContentType.Application.Json) }
         post(ApiRoutes.ENTER_SESSION) {
+            if (!call.admitted(registry, "entry")) { call.failure(AppError.Restricted, HttpStatusCode.TooManyRequests); return@post }
             val body = call.readBody(registry.policy.maximumBodyBytes)
             val request = try { wire.decodeFromString<EnterSessionRequest>(body) } catch (_: Exception) {
                 call.failure(AppError.Restricted, HttpStatusCode.BadRequest); return@post
@@ -77,6 +79,7 @@ fun Application.chayeonModule(registry: RoomRegistry = productionRegistry()) {
         }
         COMMAND_ROUTES.forEach { route ->
             post(route) {
+                if (!call.admitted(registry, "http")) { call.failure(AppError.Restricted, HttpStatusCode.TooManyRequests); return@post }
                 val header = call.request.header(HttpHeaders.Authorization)
                 if (!registry.canExecute(header, route)) { call.failure(AppError.NotAuthorized, HttpStatusCode.Unauthorized); return@post }
                 val body = call.readBody(registry.policy.maximumBodyBytes)
@@ -86,6 +89,7 @@ fun Application.chayeonModule(registry: RoomRegistry = productionRegistry()) {
             }
         }
         get(ApiRoutes.SYNC) {
+            if (!call.admitted(registry, "http")) { call.failure(AppError.Restricted, HttpStatusCode.TooManyRequests); return@get }
             val header = call.request.header(HttpHeaders.Authorization)
             val auth = registry.authorize(header)
             if (auth == null) { call.failure(AppError.NotAuthorized, HttpStatusCode.Unauthorized); return@get }
@@ -106,7 +110,7 @@ fun Application.chayeonModule(registry: RoomRegistry = productionRegistry()) {
     }
 }
 
-private suspend fun ApplicationCall.failure(error: AppError, status: HttpStatusCode) =
+internal suspend fun ApplicationCall.failure(error: AppError, status: HttpStatusCode) =
     respondText(wire.encodeToString(SyncResponse(AppResult.Failure(error))), ContentType.Application.Json, status)
 
 private suspend fun ApplicationCall.readBody(limit: Int): String {
@@ -134,8 +138,19 @@ internal val COMMAND_ROUTES = listOf(
     ApiRoutes.BLOCK_PEER, ApiRoutes.UNBLOCK_PEER, ApiRoutes.REPORT_PEER,
 )
 
+internal fun environmentPolicy(env: Map<String, String> = System.getenv()): ServerPolicy = ServerPolicy(
+    roomCapacity = env["CHAYEON_ROOM_CAPACITY"]?.toInt() ?: 50,
+    maximumRooms = env["CHAYEON_MAX_ROOMS"]?.toInt() ?: 64,
+    idleRoomMillis = env["CHAYEON_IDLE_ROOM_MILLIS"]?.toLong() ?: 1_800_000,
+    dataDirectory = env["CHAYEON_DATA_DIR"]?.takeIf { it.isNotBlank() }?.let(java.nio.file.Path::of),
+    trustProxy = env["CHAYEON_TRUST_PROXY"] == "true",
+    clientIpHeader = env["CHAYEON_CLIENT_IP_HEADER"]?.takeIf { it.isNotBlank() } ?: "X-Chayeon-Client-IP",
+)
+
 fun main() {
-    val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
+    val port = System.getenv("PORT")?.toInt() ?: 8080
+    require(port in 1..65535)
     val host = System.getenv("HOST") ?: "0.0.0.0"
+    require(host.isNotBlank())
     embeddedServer(CIO, host = host, port = port) { chayeonModule() }.start(wait = true)
 }

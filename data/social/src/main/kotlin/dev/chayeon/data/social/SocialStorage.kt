@@ -8,9 +8,11 @@ import dev.chayeon.core.model.Session
 import java.io.File
 import java.io.FileNotFoundException
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import dev.chayeon.core.engine.EngineJson
 
 internal val socialJson = EngineJson
+private val storedJson = Json(EngineJson) { ignoreUnknownKeys = true }
 
 interface SessionStorage {
     fun read(): Session?
@@ -25,7 +27,7 @@ private data class StoredSession(val scope: String?, val session: Session)
 class PrivateSessionStorage(context: Context, name: String, private val scope: String? = null) : SessionStorage {
     private val file = PrivateJsonFile(context, name)
     override fun read(): Session? = file.read()?.let { raw ->
-        val stored = socialJson.decodeFromString(StoredSession.serializer(), raw)
+        val stored = storedJson.decodeFromString(StoredSession.serializer(), raw)
         if (stored.scope == scope) stored.session else { file.clear(); null }
     }
     override fun write(session: Session) = file.write(socialJson.encodeToString(StoredSession.serializer(), StoredSession(scope, session)))
@@ -34,7 +36,7 @@ class PrivateSessionStorage(context: Context, name: String, private val scope: S
 
 class PrivateEngineStore(context: Context) : EngineStore {
     private val file = PrivateJsonFile(context, "engine.json")
-    override fun load(): EngineState? = file.read()?.let { socialJson.decodeFromString(EngineState.serializer(), it) }
+    override fun load(): EngineState? = file.read()?.let { storedJson.decodeFromString(EngineState.serializer(), it) }
     override fun save(state: EngineState) = file.write(socialJson.encodeToString(EngineState.serializer(), state))
     fun clear() = file.clear()
 }

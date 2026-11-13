@@ -32,6 +32,49 @@ def defined_classes(data):
     return [types[struct.unpack_from("<I", data, class_offset + index * 32)[0]] for index in range(class_count)]
 
 
+def validate_network_security(tree):
+    """Check compiled aapt2 XML structure, including the global cleartext policy."""
+    roots = []
+    stack = []
+    for line in tree.splitlines():
+        indent = len(line) - len(line.lstrip())
+        content = line.strip()
+        element = re.fullmatch(r"E: ([\w-]+)(?: \(line=\d+\))?", content)
+        if element:
+            while stack and stack[-1][0] >= indent:
+                stack.pop()
+            node = {"name": element.group(1), "attributes": {}, "children": [], "text": []}
+            (stack[-1][1]["children"] if stack else roots).append(node)
+            stack.append((indent, node))
+        elif content.startswith("A:") and stack:
+            name, separator, value = content[2:].strip().partition("=")
+            if not separator or name in stack[-1][1]["attributes"]:
+                raise AssertionError("네트워크 보안 속성을 확인해 주세요")
+            stack[-1][1]["attributes"][name] = value
+        elif content.startswith("T:") and stack:
+            value = content[2:].strip()
+            if len(value) >= 2 and value[0] in {"'", '"'} and value[-1] == value[0]:
+                value = value[1:-1]
+            stack[-1][1]["text"].append(value)
+        elif content:
+            raise AssertionError("네트워크 보안 XML 형식을 확인해 주세요")
+    valid = len(roots) == 1 and roots[0]["name"] == "network-security-config"
+    children = roots[0]["children"] if valid else []
+    base = [node for node in children if node["name"] == "base-config"]
+    configurations = [node for node in children if node["name"] == "domain-config"]
+    valid = (valid and len(children) == 2 and len(base) == len(configurations) == 1
+             and base[0]["attributes"] == {"cleartextTrafficPermitted": "false"}
+             and not base[0]["children"]
+             and configurations[0]["attributes"] == {"cleartextTrafficPermitted": "true"})
+    domains = configurations[0]["children"] if configurations else []
+    valid = (valid and len(domains) == 3
+             and all(node["name"] == "domain" and node["attributes"] == {"includeSubdomains": "false"}
+                     and not node["children"] and len(node["text"]) == 1 for node in domains)
+             and {node["text"][0] for node in domains if node["text"]} == {"localhost", "127.0.0.1", "::1"})
+    if not valid:
+        raise AssertionError("릴리스 cleartext 예외가 localhost 범위를 벗어나요")
+
+
 def audit(apk):
     apk = Path(apk).resolve()
     tools = "build-tools/" + dev.properties(dev.ROOT / "config/android-test.properties")["buildTools"]
@@ -58,14 +101,13 @@ def audit(apk):
     if path is None:
         raise AssertionError("네트워크 보안 설정이 없어요")
     security = subprocess.check_output([aapt, "dump", "xmltree", str(apk), "--file", path.group(1)], text=True)
-    if 'cleartextTrafficPermitted=false' not in security or 'E: domain-config' in security:
-        raise AssertionError("기본 릴리스가 cleartext를 허용해요")
+    validate_network_security(security)
     result = {"bytes": apk.stat().st_size, "sha256": hashlib.sha256(apk.read_bytes()).hexdigest(), "definedClasses": len(classes), "testOrProbeClasses": forbidden,
-              "signatureVerified": True, "debuggable": False, "carDrivingStatePermission": False, "cleartext": False}
+              "signatureVerified": True, "debuggable": False, "carDrivingStatePermission": False, "cleartext": "localhost-only"}
     target = dev.ROOT / "build/release-audit.json"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(result, indent=2), encoding="utf-8")
-    print("PASS release audit: signed, no test/probe classes, non-debuggable, cleartext denied", flush=True)
+    print("PASS release audit: signed, no test/probe classes, non-debuggable, cleartext localhost only", flush=True)
     return 0
 
 

@@ -36,9 +36,9 @@ private class Api(val client: HttpClient) {
         synchronized(responses) { responses += session?.accountId to text }
         return json.decodeFromString(text)
     }
-    suspend fun enter(persona: PersonaCode, room: String = "room"): Session =
+    suspend fun enter(install: TestInstall, room: String = "room"): Session =
         post<EnterSessionRequest, EnterSessionResponse>(null, ApiRoutes.ENTER_SESSION,
-            EnterSessionRequest(meta(), SessionMode.SERVER_DEMO, persona, room, "test-install-secret".repeat(3))).result.ok()
+            EnterSessionRequest(meta(), SessionMode.SERVER_DEMO, room, install.name + "test-install-secret".repeat(3))).result.ok()
     suspend fun ready(session: Session) {
         post<SaveProfileRequest, SaveProfileResponse>(session, ApiRoutes.SAVE_PROFILE,
             SaveProfileRequest(meta(), ProfileDraft("가상프로필", AvatarId.DAWN, setOf(InterestId.JAZZ)))).result.ok()
@@ -67,7 +67,7 @@ class ServerTest {
     @Test fun publicTraitScoresAreValidatedAtTheHttpBoundary() = testApplication {
         application { chayeonModule(RoomRegistry(fakeRules, demoEnabled = false)) }
         val api = Api(client)
-        val session = api.enter(PersonaCode.ACCOUNT_A)
+        val session = api.enter(TestInstall.ACCOUNT_A)
         api.ready(session)
         suspend fun publish(trait: PublicTrait) = api.post<PublishSignatureRequest, PublishSignatureResponse>(
             session, ApiRoutes.PUBLISH_SIGNATURE, PublishSignatureRequest(meta(), PublicSignature(
@@ -88,8 +88,8 @@ class ServerTest {
         val registry = RoomRegistry(fakeRules, demoEnabled = false)
         application { chayeonModule(registry) }
         val api = Api(client)
-        val a = api.enter(PersonaCode.ACCOUNT_A)
-        val b = api.enter(PersonaCode.ACCOUNT_B)
+        val a = api.enter(TestInstall.ACCOUNT_A)
+        val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b)
         val connection = api.connect(a, b)
         api.post<LeaveConnectionRequest, LeaveConnectionResponse>(a, ApiRoutes.LEAVE_CONNECTION, LeaveConnectionRequest(meta(), connection)).result.ok()
@@ -121,7 +121,7 @@ class ServerTest {
         val registry = RoomRegistry(fakeRules, demoEnabled = false)
         application { chayeonModule(registry) }
         val api = Api(client)
-        val a = api.enter(PersonaCode.ACCOUNT_A); val b = api.enter(PersonaCode.ACCOUNT_B)
+        val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b)
         val connection = api.connect(a, b)
         api.post<LeaveConnectionRequest, LeaveConnectionResponse>(a, ApiRoutes.LEAVE_CONNECTION, LeaveConnectionRequest(meta(), connection)).result.ok()
@@ -147,7 +147,7 @@ class ServerTest {
         lateinit var registry: RoomRegistry
         application { chayeonModule(); registry = attributes[roomRegistryKey] }
         val api = Api(client)
-        val session = api.enter(PersonaCode.ACCOUNT_A)
+        val session = api.enter(TestInstall.ACCOUNT_A)
         val engine = registry.authorize("Bearer ${session.accessToken}")!!.second
         assertEquals(60_000L, engine.policy.presenceLeaseMillis)
         val deadline = engine.exportState().accounts.getValue(session.accountId).presenceLeaseDeadline!!
@@ -163,7 +163,7 @@ class ServerTest {
         val registry = RoomRegistry(fakeRules, ServerPolicy(tickIntervalMillis = 10), EngineClock(clock::get),
             EnginePolicy(presenceLeaseMillis = 60_000), demoEnabled = false)
         application { chayeonModule(registry) }
-        val api = Api(client); val a = api.enter(PersonaCode.ACCOUNT_A); val b = api.enter(PersonaCode.ACCOUNT_B)
+        val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b); api.connect(a, b)
         clock.addAndGet(30_000)
         val before = api.sync(b)
@@ -188,7 +188,7 @@ class ServerTest {
 
     @Test fun blockedPeerProfileEditsDoNotWakeLongPoll() = testApplication {
         application { chayeonModule(RoomRegistry(fakeRules, ServerPolicy(pollTimeoutMillis = 2_000), demoEnabled = false)) }
-        val api = Api(client); val a = api.enter(PersonaCode.ACCOUNT_A); val b = api.enter(PersonaCode.ACCOUNT_B)
+        val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b); api.connect(a, b)
         api.post<BlockPeerRequest, BlockPeerResponse>(a, ApiRoutes.BLOCK_PEER,
             BlockPeerRequest(meta(), api.sync(b).profile!!.id)).result.ok()
@@ -212,10 +212,10 @@ class ServerTest {
         val clock = AtomicLong(1_000_000)
         val registry = RoomRegistry(fakeRules, ServerPolicy(maximumRooms = 1, idleRoomMillis = 1000), EngineClock(clock::get), demoEnabled = false)
         application { chayeonModule(registry) }
-        val api = Api(client); val old = api.enter(PersonaCode.ACCOUNT_A)
+        val api = Api(client); val old = api.enter(TestInstall.ACCOUNT_A)
         clock.addAndGet(1000); registry.tick()
         assertEquals(HttpStatusCode.Unauthorized, client.get(ApiRoutes.SYNC) { bearerAuth(old.accessToken!!) }.status)
-        val next = api.enter(PersonaCode.ACCOUNT_A, "next")
+        val next = api.enter(TestInstall.ACCOUNT_A, "next")
         assertNotEquals(old.id, next.id)
     }
 
@@ -223,7 +223,7 @@ class ServerTest {
         application { chayeonModule(RoomRegistry(fakeRules, demoEnabled = false)) }
         val api = Api(client)
         for (delete in listOf(false, true)) {
-            val a = api.enter(PersonaCode.ACCOUNT_A, if (delete) "delete" else "signout")
+            val a = api.enter(TestInstall.ACCOUNT_A, if (delete) "delete" else "signout")
             val request = SignOutRequest(meta())
             val route = if (delete) ApiRoutes.DELETE_ACCOUNT else ApiRoutes.SIGN_OUT
             val first = api.post<SignOutRequest, SignOutResponse>(a, route, request)
@@ -237,7 +237,7 @@ class ServerTest {
     @Test fun `two recipients accepting the same sender cannot both connect`() = testApplication {
         val registry = RoomRegistry(fakeRules)
         application { chayeonModule(registry) }
-        val api = Api(client); val a = api.enter(PersonaCode.ACCOUNT_A); val b = api.enter(PersonaCode.ACCOUNT_B)
+        val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b)
         val engine = registry.authorize("Bearer ${a.accessToken}")!!.second
         val ra = engine.requestConnection("demo-slow", RequestConnectionRequest(meta(), api.sync(a).profile!!.id)).ok()
@@ -261,8 +261,8 @@ class ServerTest {
     @Test fun `rooms are isolated and forbidden records are indistinguishable from missing records`() = testApplication {
         application { chayeonModule(RoomRegistry(fakeRules, demoEnabled = false)) }
         val api = Api(client)
-        val a = api.enter(PersonaCode.ACCOUNT_A); val b = api.enter(PersonaCode.ACCOUNT_B)
-        val stranger = api.enter(PersonaCode.ACCOUNT_A, "other")
+        val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
+        val stranger = api.enter(TestInstall.ACCOUNT_A, "other")
         listOf(a, b, stranger).forEach { api.ready(it) }
         assertTrue(api.sync(stranger).discovery.candidates.isEmpty())
         val request = api.request(a, b)
@@ -278,7 +278,7 @@ class ServerTest {
 
     @Test fun `double accept with real concurrency establishes exactly one connection`() = testApplication {
         application { chayeonModule(RoomRegistry(fakeRules, demoEnabled = false)) }
-        val api = Api(client); val a = api.enter(PersonaCode.ACCOUNT_A); val b = api.enter(PersonaCode.ACCOUNT_B)
+        val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b)
         val r = api.request(a, b)
         val results = race({ api.accept(b, r.id) }, { api.accept(b, r.id) })
@@ -289,7 +289,7 @@ class ServerTest {
 
     @Test fun `accept versus cancel has one terminal winner under real concurrency`() = testApplication {
         application { chayeonModule(RoomRegistry(fakeRules, demoEnabled = false)) }
-        val api = Api(client); val a = api.enter(PersonaCode.ACCOUNT_A); val b = api.enter(PersonaCode.ACCOUNT_B)
+        val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b)
         val r = api.request(a, b)
         val results = race({ api.accept(b, r.id) }, {
@@ -305,7 +305,7 @@ class ServerTest {
         val clock = AtomicLong(1_000_000)
         val registry = RoomRegistry(fakeRules, clock = EngineClock(clock::get), demoEnabled = false)
         application { chayeonModule(registry) }
-        val api = Api(client); val a = api.enter(PersonaCode.ACCOUNT_A); val b = api.enter(PersonaCode.ACCOUNT_B)
+        val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b)
         val r = api.request(a, b)
         race({ api.accept(b, r.id) }, { clock.set(r.expiresAtEpochMillis); registry.tick(); api.accept(b, r.id) })
@@ -319,7 +319,7 @@ class ServerTest {
     @Test fun `two accounts accepting different incoming requests concurrently do not overwrite each other`() = testApplication {
         val registry = RoomRegistry(fakeRules)
         application { chayeonModule(registry) }
-        val api = Api(client); val a = api.enter(PersonaCode.ACCOUNT_A); val b = api.enter(PersonaCode.ACCOUNT_B)
+        val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b)
         val engine = registry.authorize("Bearer ${a.accessToken}")!!.second
         val ra = engine.requestConnection("demo-slow", RequestConnectionRequest(meta(), api.sync(a).profile!!.id)).ok()
@@ -331,7 +331,7 @@ class ServerTest {
 
     @Test fun `duplicate commands reordered versions and block revocation converge`() = testApplication {
         application { chayeonModule(RoomRegistry(fakeRules, demoEnabled = false)) }
-        val api = Api(client); val a = api.enter(PersonaCode.ACCOUNT_A); val b = api.enter(PersonaCode.ACCOUNT_B)
+        val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b)
         val command = RequestConnectionRequest(meta(), api.sync(b).profile!!.id)
         val first = api.post<RequestConnectionRequest, RequestConnectionResponse>(a, ApiRoutes.REQUEST_CONNECTION, command)
@@ -351,7 +351,7 @@ class ServerTest {
     @Test fun `long poll wakes on change and full scenario responses contain no private data`() = testApplication {
         val registry = RoomRegistry(fakeRules, demoEnabled = false)
         application { chayeonModule(registry) }
-        val api = Api(client); val a = api.enter(PersonaCode.ACCOUNT_A); val b = api.enter(PersonaCode.ACCOUNT_B)
+        val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b)
         listOf(a, b).forEach { s ->
             api.post<UpdateLocationRequest, UpdateLocationResponse>(s, ApiRoutes.UPDATE_LOCATION,
@@ -390,14 +390,14 @@ class ServerTest {
     @Test fun `body and room limits are bounded and deleted account token is revoked`() = testApplication {
         val registry = RoomRegistry(fakeRules, ServerPolicy(maximumBodyBytes = 1024, maximumRooms = 1), demoEnabled = false)
         application { chayeonModule(registry) }
-        val api = Api(client); val a = api.enter(PersonaCode.ACCOUNT_A)
+        val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A)
         val response = client.post(ApiRoutes.SAVE_PROFILE) { bearerAuth(a.accessToken!!); setBody("x".repeat(1025)) }
         assertEquals(HttpStatusCode.PayloadTooLarge, response.status)
         assertEquals(AppResult.Failure(AppError.Restricted), api.post<EnterSessionRequest, EnterSessionResponse>(null, ApiRoutes.ENTER_SESSION,
-            EnterSessionRequest(meta(), SessionMode.SERVER_DEMO, PersonaCode.ACCOUNT_A, "extra", "test-install-secret".repeat(3))).result)
+            EnterSessionRequest(meta(), SessionMode.SERVER_DEMO, "extra", "test-install-secret".repeat(3))).result)
         api.post<DeleteAccountRequest, DeleteAccountResponse>(a, ApiRoutes.DELETE_ACCOUNT, DeleteAccountRequest(meta())).result.ok()
         assertEquals(HttpStatusCode.Unauthorized, client.get(ApiRoutes.SYNC) { bearerAuth(a.accessToken!!) }.status)
-        val fresh = api.enter(PersonaCode.ACCOUNT_A)
+        val fresh = api.enter(TestInstall.ACCOUNT_A)
         assertNotEquals(a.accountId, fresh.accountId)
         assertTrue(api.sync(fresh).connections.isEmpty())
     }

@@ -5,7 +5,6 @@ import kotlinx.coroutines.flow.Flow
 /** Implementations reject non-increasing revisions and clear private local data before sign-out completes. */
 interface SessionRepository {
     val session: Flow<SessionState>
-    val personas: Flow<LoadState<List<Persona>>>
     val availableModes: Flow<Set<SessionMode>>
     suspend fun enter(request: EnterSessionRequest): AppResult<Session>
     suspend fun signOut(request: SignOutRequest): AppResult<CommandReceipt>

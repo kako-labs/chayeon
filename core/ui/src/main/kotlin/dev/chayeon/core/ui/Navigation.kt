@@ -71,7 +71,7 @@ fun GearStrip(gear: Gear, policy: DrivingPolicy, syntheticLocation: Boolean, mod
 }
 
 @Composable
-fun StepIndicator(current: Int, modifier: Modifier = Modifier, steps: List<String> = listOf("계정", "프로필", "공개 범위")) {
+fun StepIndicator(current: Int, modifier: Modifier = Modifier, steps: List<String> = listOf("시작", "프로필", "공개 범위")) {
     Row(modifier.semantics { contentDescription = "참여 준비 ${current + 1} / ${steps.size} 단계" }, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
         steps.forEachIndexed { index, title ->
             val active = current == index

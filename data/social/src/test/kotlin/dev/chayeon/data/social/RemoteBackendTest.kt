@@ -17,6 +17,23 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class RemoteBackendTest {
+    @Test fun omittedRoomUsesTheSameInstallationSecretAsExplicitDefaultRoom() = runTest {
+        val sent = mutableListOf<EnterSessionRequest>()
+        val backend = RemoteBackend("https://example.test", MemorySessionStorage(), HttpClient(MockEngine {
+            sent += socialJson.decodeFromString(EnterSessionRequest.serializer(), (it.body as TextContent).text)
+            respond(socialJson.encodeToString(EnterSessionResponse.serializer(),
+                EnterSessionResponse(AppResult.Success(SocialCoordinatorTest.testSession(SessionMode.SERVER_DEMO)))),
+                HttpStatusCode.OK, jsonHeaders)
+        }), secretStorage = MemoryClientSecretStorage())
+        try {
+            assertTrue(backend.enter(EnterSessionRequest(CommandMeta("default"), SessionMode.SERVER_DEMO)) is AppResult.Success)
+            backend.clearLocalData()
+            assertTrue(backend.enter(EnterSessionRequest(CommandMeta("explicit"), SessionMode.SERVER_DEMO, "default")) is AppResult.Success)
+            assertNull(sent[0].roomCode)
+            assertEquals(sent[0].clientSecret, sent[1].clientSecret)
+        } finally { backend.close() }
+    }
+
     @Test fun installSecretSurvivesTokenCleanupAndIsScopedToServerAndRoom() = runTest {
         val storage = MemorySessionStorage()
         val secrets = MemoryClientSecretStorage()
@@ -27,7 +44,7 @@ class RemoteBackendTest {
                 EnterSessionResponse(AppResult.Success(SocialCoordinatorTest.testSession(SessionMode.SERVER_DEMO)))),
                 HttpStatusCode.OK, jsonHeaders)
         }), secretStorage = secrets)
-        val request = EnterSessionRequest(CommandMeta("enter"), SessionMode.SERVER_DEMO, PersonaCode.ACCOUNT_A, "room")
+        val request = EnterSessionRequest(CommandMeta("enter"), SessionMode.SERVER_DEMO, "room")
         val first = backend()
         first.enter(request)
         first.clearLocalData()
@@ -118,7 +135,7 @@ class RemoteBackendTest {
             respond(socialJson.encodeToString(EnterSessionResponse.serializer(), EnterSessionResponse(AppResult.Success(session))),
                 HttpStatusCode.OK, jsonHeaders)
         }), secretStorage = MemoryClientSecretStorage())
-        val result = backend.enter(EnterSessionRequest(CommandMeta("enter"), SessionMode.SERVER_DEMO, PersonaCode.ACCOUNT_A, "room"))
+        val result = backend.enter(EnterSessionRequest(CommandMeta("enter"), SessionMode.SERVER_DEMO, "room"))
         assertEquals(AppResult.Success(session), result)
         assertEquals(session, storage.value)
         assertEquals(AppResult.Success(session), backend.restoreSession())

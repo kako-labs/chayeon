@@ -24,9 +24,9 @@ private class VoiceFixture(
     val clock = AtomicLong(1_000_000)
     val registry = RoomRegistry(defaultRules(), clock = EngineClock(clock::get),
         enginePolicy = EnginePolicy(presenceLeaseMillis = 60_000), demoEnabled = demoEnabled, voiceStateReader = voiceStateReader)
-    val a = enter(PersonaCode.ACCOUNT_A)
-    val b = enter(PersonaCode.ACCOUNT_B)
-    val stranger = enter(PersonaCode.ACCOUNT_A, "other")
+    val a = enter(TestInstall.ACCOUNT_A)
+    val b = enter(TestInstall.ACCOUNT_B)
+    val stranger = enter(TestInstall.ACCOUNT_A, "other")
     val engine = registry.authorize(header(a))!!.second
     lateinit var id: String
     init {
@@ -37,8 +37,8 @@ private class VoiceFixture(
             engine.setDiscovery(session.accountId, SetDiscoveryRequest(voiceMeta(), DiscoveryMode.ON)).value()
         }
     }
-    fun enter(persona: PersonaCode, room: String = "voice") = registry.enter(EnterSessionRequest(
-        voiceMeta(), SessionMode.SERVER_DEMO, persona, room, "voice-test-secret".repeat(3))).value()
+    fun enter(install: TestInstall, room: String = "voice") = registry.enter(EnterSessionRequest(
+        voiceMeta(), SessionMode.SERVER_DEMO, room, install.name + "voice-test-secret".repeat(3))).value()
     fun connect(): String {
         val request = engine.requestConnection(a.accountId, RequestConnectionRequest(voiceMeta(), engine.exportState().accounts.getValue(b.accountId).profile.id)).value()
         id = engine.respondConnection(b.accountId, RespondConnectionRequest(voiceMeta(), request.id, RequestDecision.ACCEPT)).value().connectionId!!
@@ -56,7 +56,7 @@ private class VoiceFixture(
             "delete" -> registry.execute(header(a), ApiRoutes.DELETE_ACCOUNT, EngineJson.encodeToString(DeleteAccountRequest(voiceMeta())))
             "logout" -> registry.execute(header(a), ApiRoutes.SIGN_OUT, EngineJson.encodeToString(SignOutRequest(voiceMeta())))
             "lease" -> { clock.addAndGet(60_001); registry.tick() }
-            "revoked" -> enter(PersonaCode.ACCOUNT_A)
+            "revoked" -> enter(TestInstall.ACCOUNT_A)
             else -> error("Unknown test path")
         }
     }

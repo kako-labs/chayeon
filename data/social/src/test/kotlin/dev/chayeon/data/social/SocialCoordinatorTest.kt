@@ -175,7 +175,7 @@ class SocialCoordinatorTest {
             })), retryDelayMillis = 1, secretStorage = MemoryClientSecretStorage())
             val coordinator = SocialCoordinator(mapOf(SessionMode.SERVER_DEMO to backend), backgroundScope,
                 { AppResult.Success(Unit) }, { 10 }, allowedProvider())
-            coordinator.enter(EnterSessionRequest(CommandMeta("enter"), SessionMode.SERVER_DEMO, PersonaCode.ACCOUNT_A, "room"))
+            coordinator.enter(EnterSessionRequest(CommandMeta("enter"), SessionMode.SERVER_DEMO, "room"))
             var outside = true
             var checks = 0
             val repository = SocialConnectionRepository(coordinator) { checks++; outside }
@@ -224,7 +224,7 @@ class SocialCoordinatorTest {
             })), retryDelayMillis = 1, secretStorage = MemoryClientSecretStorage())
             val coordinator = SocialCoordinator(mapOf(SessionMode.SERVER_DEMO to backend), backgroundScope,
                 { AppResult.Success(Unit) }, { 10 }, allowedProvider())
-            coordinator.enter(EnterSessionRequest(CommandMeta("enter"), SessionMode.SERVER_DEMO, PersonaCode.ACCOUNT_A, "room"))
+            coordinator.enter(EnterSessionRequest(CommandMeta("enter"), SessionMode.SERVER_DEMO, "room"))
             var outside = true
             var checks = 0
             val repository = SocialAfterRepository(coordinator) { checks++; outside }
@@ -482,9 +482,9 @@ class SocialCoordinatorTest {
         assertEquals(0, secondBackend.restoreCalls)
         assertNotNull(storage.read())
         hookFails = false
-        val recovered = second.enter(enter().copy(meta = CommandMeta("new-account"), persona = PersonaCode.ACCOUNT_B))
+        val recovered = second.enter(enter().copy(meta = CommandMeta("new-account")))
         assertTrue(recovered is AppResult.Success)
-        assertEquals(PersonaCode.ACCOUNT_B, (recovered as AppResult.Success).value.persona)
+        assertEquals(SessionMode.SOLO, (recovered as AppResult.Success).value.mode)
         assertNull(storage.read())
         assertEquals(0, secondBackend.bodies.size)
         assertEquals(3, hookCalls)
@@ -611,7 +611,7 @@ class SocialCoordinatorTest {
 
     private fun provider(flow: Flow<DrivingState>) = object : DrivingStateProvider { override val drivingState = flow }
     private fun allowedProvider() = provider(flowOf(DrivingState(policy = DrivingPolicy.ALLOWED)))
-    private fun enter() = EnterSessionRequest(CommandMeta("enter"), SessionMode.SOLO, PersonaCode.ACCOUNT_A)
+    private fun enter() = EnterSessionRequest(CommandMeta("enter"), SessionMode.SOLO)
     private fun save() = SaveProfileRequest(CommandMeta("save"), ProfileDraft("새벽드라이브", AvatarId.DAWN, emptySet()))
 
     private class FakeBackend : SocialBackend {
@@ -627,7 +627,7 @@ class SocialCoordinatorTest {
         var handler: suspend (String, String) -> String = { _, _ -> receipt() }
         override suspend fun restoreSession(): AppResult<Session?> { restoreCalls++; return AppResult.Success(restoredSession) }
         override suspend fun enter(request: EnterSessionRequest): AppResult<Session> =
-            AppResult.Success(testSession().copy(persona = request.persona, accountId = request.persona.name.lowercase()))
+            AppResult.Success(testSession())
         override suspend fun execute(session: Session, route: String, body: String, canExecute: suspend () -> Boolean): String {
             beforeExecute()
             if (!canExecute()) throw SocialRestrictedException()
@@ -645,7 +645,7 @@ class SocialCoordinatorTest {
 
     companion object {
         fun testSession(mode: SessionMode = SessionMode.SOLO) = Session("session", 1, "account_a", mode,
-            PersonaCode.ACCOUNT_A, null, if (mode == SessionMode.SERVER_DEMO) "test-credential" else null, null,
+            null, if (mode == SessionMode.SERVER_DEMO) "test-credential" else null, null,
             ParticipationPolicy("policy", 1, 5, 2, 12, null, "1"))
         fun profile() = MyProfile("profile", 1, PublicProfile("profile", 1, "새벽드라이브", AvatarId.DAWN,
             emptySet(), ProfileKind.VIRTUAL_PROFILE, null), RegistrationState.READY)

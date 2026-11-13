@@ -11,7 +11,6 @@ class FirstRunViewModel(deps: HistoryDeps) : HistoryViewModel(deps) {
         observeSession()
         observeProfile()
         observe(deps.sessionRepository.availableModes) { state, modes -> state.copy(modes = modes) }
-        observe(deps.sessionRepository.personas) { state, personas -> state.copy(personas = personas) }
     }
 
     fun markResumed() { content.update { it.copy(resumeHandled = true) } }
@@ -22,23 +21,17 @@ class FirstRunViewModel(deps: HistoryDeps) : HistoryViewModel(deps) {
             content.update { it.copy(selectedMode = mode) }
         }
     }
-    fun selectPersona(persona: PersonaCode) = edit {
-        if (!busy("enter")) { resetCommand("enter"); content.update { it.copy(selectedPersona = persona) } }
+    fun enterSoloIfNeeded() {
+        val state = content.value
+        if (state.modes == setOf(SessionMode.SOLO) && state.session is SessionState.SignedOut &&
+            commandState("enter").error == null && !busy("enter") &&
+            uiState.value.driving.policy == DrivingPolicy.ALLOWED) enter()
     }
-    fun setRoomCode(room: String) = edit {
-        if (!busy("enter") && room.characterCount() <= 32) {
-            resetCommand("enter")
-            content.update { it.copy(roomCode = room, draftError = null) }
-        }
-    }
+
     fun enter() {
         val state = content.value
-        if (state.selectedMode == SessionMode.SERVER_DEMO && !state.roomCode.trim().matches(Regex("[A-Za-z0-9_-]{4,32}"))) {
-            content.update { it.copy(draftError = "방 코드는 영문, 숫자, 밑줄, 하이픈으로 4~32자 입력해 주세요") }
-            return
-        }
-        val request = EnterSessionRequest(newMeta(), state.selectedMode, state.selectedPersona,
-            state.roomCode.trim().takeIf { state.selectedMode == SessionMode.SERVER_DEMO })
+        if (busy("enter")) return
+        val request = EnterSessionRequest(newMeta(), state.selectedMode)
         command("enter", run = {
             if (request.mode !in deps.sessionRepository.availableModes.first()) AppResult.Failure(AppError.PeerUnavailable)
             else if (deps.drivingStateProvider.drivingState.first().policy != DrivingPolicy.ALLOWED) AppResult.Failure(AppError.Restricted)
@@ -48,6 +41,7 @@ class FirstRunViewModel(deps: HistoryDeps) : HistoryViewModel(deps) {
 }
 
 class ProfileSetupViewModel(deps: HistoryDeps) : HistoryViewModel(deps) {
+    init { observe(deps.sessionRepository.availableModes) { state, modes -> state.copy(modes = modes) } }
     fun consumeSavedNavigation() { resetCommand("save") }
 
     init {

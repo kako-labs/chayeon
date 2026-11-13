@@ -20,6 +20,19 @@ class ContractTest {
     private val json = Json { encodeDefaults = true }
 
     @Test
+    fun `session contracts have no persona selection or response field`() {
+        (requestSerializers() + responseSerializers()).forEach { serializer ->
+            visit(serializer.descriptor, mutableSetOf()) { descriptor ->
+                assertFalse("persona" in elementNames(descriptor))
+                assertFalse(descriptor.serialName.contains("Persona"))
+            }
+        }
+        val request = EnterSessionRequest(CommandMeta("enter"), SessionMode.SERVER_DEMO)
+        assertEquals(null, request.roomCode)
+        assertFalse(json.encodeToString(EnterSessionRequest.serializer(), request).contains("ACCOUNT_"))
+    }
+
+    @Test
     fun `public signature and full snapshot survive round trip without private evidence`() {
         val signature = PublicSignature(
             id = "signature-a", version = 2, title = "미리 멈추는 드라이버",
@@ -139,7 +152,7 @@ class ContractTest {
     @Test
     fun `mutable wire entities always include id and version`() {
         val serializers = listOf(
-            Persona.serializer(), Session.serializer(), ParticipationPolicy.serializer(),
+            Session.serializer(), ParticipationPolicy.serializer(),
             PublicProfile.serializer(), MyProfile.serializer(), ConsentRecord.serializer(),
             ParticipationSettings.serializer(), Candidate.serializer(), DiscoveryState.serializer(),
             PublicSignature.serializer(), VisibilitySettings.serializer(), ConnectionRequest.serializer(),

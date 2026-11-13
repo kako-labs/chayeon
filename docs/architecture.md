@@ -90,7 +90,7 @@ val allowedEdges = mapOf(
 
 | 인터페이스 | 역할 |
 |---|---|
-| `SessionRepository` | 시연 공간 입장, 테스트 계정, 로그아웃, 계정 삭제 |
+| `SessionRepository` | 설치별 프로필 입장, 로그아웃, 계정 삭제 |
 | `ProfileRepository` | 내 프로필, 참여 설정, 공개 시그니처 게시 |
 | `DiscoveryRepository` | 발견 켜기와 끄기, 후보 관찰 |
 | `ConnectionRepository` | 요청, 응답, 취소, 현재 연결 관찰, 통화 끊기(leave). 텍스트 메시지 계약 없음 |
@@ -132,12 +132,12 @@ stateDiagram-v2
 
 ## 서버
 
-- **기술:** Ktor, kotlinx.serialization. 저장은 인터페이스 뒤의 메모리 구현입니다.
+- **기술:** Ktor, kotlinx.serialization. 저장은 기본 메모리이며 `CHAYEON_DATA_DIR` 설정 시 원자적 파일 저장을 사용합니다.
 - **동기화:** 명령은 REST, 상태는 `GET /v1/sync?since=버전` 긴 폴링입니다. 변경이 있으면 바로 응답하고 재접속도 같은 경로로 수렴합니다.
 - **시연 공간:** 공간마다 격리됩니다. `혼자 둘러보기`는 앱 안에서 같은 엔진을 실행하고, 서버 모드도 공간마다 `시연용 가상 상대`를 둡니다.
 - **위치:** 이번 앱 릴리스는 합성 presence로 근접을 판정해요. 기기 위치는 집 보호 비교에만 쓰고 서버로 보내지 않아요. 엔진의 기존 위치 입력 계약은 유지해요. 어떤 응답에도 좌표, 거리, 방향을 넣지 않습니다. 로그에도 남기지 않습니다.
 - **빌드:** `-Pchayeon.serverOnly=true`이면 Android 모듈 없이 서버만 빌드합니다. Dockerfile을 제공합니다.
-- **배포:** 공개 서버 운영은 별도 결정 사항입니다. 앱은 `chayeon.serverUrl` 값이 있을 때만 서버 모드를 보여줍니다.
+- **배포:** 팀 운영 심사용 서버 구성을 `deploy/`에 제공합니다. 실제 배포와 Docker 런타임 검증은 별도입니다. 앱은 `chayeon.serverUrl` 값이 있을 때만 서버 모드를 보여줍니다.
 
 ## 차량 연동
 
@@ -212,9 +212,9 @@ Vehicle SDK는 `https://nexus-playground.pleos.ai/repository/maven-releases/`의
 
 ## 제출 빌드와 종단 검증
 
-- `python3 scripts/dev.py release`는 R8·리소스 축소를 적용한 설치용 APK를 `apk/chayeon-release.apk`에 복사해요. 서버 주소는 비어 있고 `chayeon.demo=true`예요. 네트워크 없이 SOLO 엔진과 가상 상대를 사용할 수 있어요.
+- `python3 scripts/dev.py release`는 R8·리소스 축소를 적용한 설치용 APK를 `apk/chayeon-release.apk`에 복사해요. `CHAYEON_SERVER_URL` 환경 변수로 서버 주소를 주입하며, 생략하면 비어 있고 `chayeon.demo=true`예요. 네트워크 없이 SOLO 엔진과 가상 상대를 사용할 수 있어요.
 - 설치용 서명은 무시된 `build/signing/`에서 로컬 키와 난수 비밀번호를 생성해요. 저장소에 서명 키를 넣지 않아요. 개발용 키이므로 실제 마켓 배포 서명과 달라요.
-- `-Pchayeon.serverUrl=http://10.0.2.2:<port>` 또는 선택한 기기의 `adb reverse`를 쓰는 `http://127.0.0.1:<port>` debug 구성에서만 해당 로컬 호스트의 cleartext를 허용해요. 기본 debug와 release는 cleartext를 거부해요.
+- `-Pchayeon.serverUrl=http://10.0.2.2:<port>` 또는 선택한 기기의 `adb reverse`를 쓰는 `http://127.0.0.1:<port>` debug 구성에서만 해당 로컬 호스트의 cleartext를 허용해요. 기본 debug는 cleartext를 거부하고 release는 localhost·127.0.0.1·::1에만 허용해요. 공개 서버 주소는 HTTPS를 사용해요.
 - `python3 scripts/dev.py e2e`는 자동 감지한 실행 중 에뮬레이터, 사용자 10에 정상 설치하고 실제 UI를 조작해요. `--with-real-drive`는 실제 플랫폼 신호를 3분 이상 입력하는 추가 경로예요. 화면·검증 결과는 무시된 `build/e2e/`에 남아요. 에뮬레이터를 시작하거나 종료하지 않아요.
 - 시연 콘솔은 `BuildConfig.DEMO_CONTROLS_ENABLED`로 열며 디버그 여부에 의존하지 않아요. 주행 시나리오는 `fixtures/drive` 한곳에서 assets와 CLI에 공급해요.
 
@@ -254,3 +254,7 @@ Application 소유 `HomeZoneCoordinator` 한곳만 presence를 전송해요. `pr
 `AutoConnectCoordinator`는 Application에서 동작하며 화면의 주행 제한을 풀지 않아요. `SocialGraph.autoConnectSnapshot`은 개인 연락처와 주행 근거를 제외한 서비스 전용 상태를 제공해요. 조정기는 AUTO 설정·공개 점수 조건·공통 관심사·현재 주행 정책·집 보호를 평가하고 기존 요청/수락 명령에 자동 실행 표시를 붙여요. `data:social`은 실제 전송과 재시도 직전에 현재 정책·설정·조건·차단·활성 연결을 다시 확인하고, 엔진은 저장된 AUTO 동의와 공개 조건을 검사해요. 서버가 상대를 골라 주지는 않아요.
 
 계정별 `PrivateAutoConnectStore`는 백업 제외 영역에 당일 상대별 재시도 금지, 통화 종료 후 10분 대기, 재시도용 멱등 명령, 안내한 연결 ID를 원자적으로 저장해요. 저장을 확인할 수 없으면 자동 실행을 막아요. 점수는 `core:signature`에서만 계산하고 개인 근거는 `data:vehicle`에만 보관해요. 새 모듈이나 의존 방향을 추가하지 않았어요. 자동 통화는 요청 출처가 포함된 스냅샷으로 확인한 뒤 기존 `data:voice`의 Pleos ON_DEVICE 음성으로 연결 사실만 한 번 알려요.
+
+## 설치별 계정과 심사용 운영
+
+계정 선택 없이 설치 하나가 빈 프로필 하나를 만듭니다. 서버는 설치별 비밀 값의 해시와 공간으로 행위자를 결정하며 기본 공간은 `default`입니다. 계정 삭제 후 같은 비밀 값으로 입장해도 삭제된 프로필을 복원하지 않습니다. 재시작 때 진행 중 연결을 종료하며 관계·동의·아직 만료되지 않은 대기 요청을 복원합니다. bearer token은 원문 대신 digest로 저장합니다. 영속 저장의 유휴 공간은 계정과 최대 공간 예산을 유지하고 토큰만 만료하며 메모리 모드만 유휴 공간을 퇴거합니다. 정원·요청 제한·HTTPS·백업과 초기화는 [배포 안내](../deploy/README.md)를 따릅니다.

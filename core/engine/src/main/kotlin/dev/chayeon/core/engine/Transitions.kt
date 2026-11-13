@@ -94,7 +94,7 @@ internal fun Room.seedDemo() {
         val settings = ParticipationSettings("settings-${demo.id}", v, ConsentScope.entries.map {
             ConsentRecord("consent-${demo.id}-$it", v, it, ConsentStatus.GRANTED, policy.consentDocumentVersion, now)
         })
-        put(EngineAccount(demo.id, Session("session-${demo.id}", v, demo.id, SessionMode.SOLO, PersonaCode.ACCOUNT_A,
+        put(EngineAccount(demo.id, Session("session-${demo.id}", v, demo.id, SessionMode.SOLO,
             null, null, null, policy.participation(v)), profile, settings, discovery = DiscoveryMode.ON))
     }
 }

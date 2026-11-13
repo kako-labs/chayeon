@@ -76,7 +76,7 @@ class LocalBackend(
         try {
             mutex.withLock {
                 if (request.mode != mode) return@withLock AppResult.Failure(AppError.Unknown)
-                val result = currentEngine().enterSession(request.persona.name.lowercase(), request)
+                val result = currentEngine().enterSession("local-owner", request)
                 if (result is AppResult.Success) sessionStorage.write(result.value)
                 result
             }

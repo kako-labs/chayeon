@@ -29,7 +29,7 @@ Read before working: docs/architecture.md, docs/product/drive-signature.md, docs
 - No live score or coaching while driving. Only the partner's title and at most two static published score chips may accompany an incoming or active call. No other numbers or decorative motion while driving.
 - Never reward speed or aggressive driving. Other users see only explicitly published trait scores from 60 to 100, never private scores, trip counts/history, ranks, or negative judgments. LONG_ROAD and NIGHT_DRIVE remain unscored preference badges.
 - Unsupported signals are UNSUPPORTED, never zero.
-- SOLO는 첫 모드 선택에서 가상 상대임을 알리고, 내 시그니처 근거에서 데이터 출처를 한 줄로 보여줍니다. 다른 화면에서는 반복하지 않습니다. SERVER_DEMO는 실제 사람과 섞이는 가상 상대와 합성 데이터에 작은 표시를 유지합니다.
+- SOLO는 서버 주소가 없으면 첫 프로필 만들기에서, 서버 주소가 있으면 모드 선택에서 가상 상대임을 알리고, 내 시그니처 근거에서 데이터 출처를 한 줄로 보여줍니다. 다른 화면에서는 반복하지 않습니다. SERVER_DEMO는 실제 사람과 섞이는 가상 상대와 합성 데이터에 작은 표시를 유지합니다.
 
 ## Design
 

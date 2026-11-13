@@ -286,7 +286,7 @@ def release():
                         "-keyalg", "RSA", "-keysize", "2048", "-validity", "3650",
                         "-dname", "CN=Chayeon Local Install"], env=env, check=True)
     result = subprocess.call([str(ROOT / "gradlew"), ":app:assembleRelease", "-Pchayeon.demo=true",
-                              "-Pchayeon.serverUrl=", "--no-daemon"], cwd=ROOT, env=env)
+                              "-Pchayeon.serverUrl=" + os.environ.get("CHAYEON_SERVER_URL", ""), "--no-daemon"], cwd=ROOT, env=env)
     if result:
         return result
     target = ROOT / "apk/chayeon-release.apk"

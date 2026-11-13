@@ -7,7 +7,7 @@ import org.junit.Test
 class SessionConsentTest {
     private val policy = ParticipationPolicy("policy", 1, 5, 2, 12, null, "current")
     private val active = SessionState.Active(Session("session", 1, "account", SessionMode.SERVER_DEMO,
-        PersonaCode.ACCOUNT_A, null, null, null, policy))
+        null, null, null, policy))
     private val failed = LoadState.Failed(AppError.Network)
     private fun settings(status: ConsentStatus, document: String = "current") = LoadState.Ready(ParticipationSettings("settings", 1,
         listOf(ConsentScope.VEHICLE_DATA, ConsentScope.LOCATION_USE).map {

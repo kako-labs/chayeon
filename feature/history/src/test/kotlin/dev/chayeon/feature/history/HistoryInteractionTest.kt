@@ -55,9 +55,28 @@ class HistoryInteractionTest {
 
     @Test fun serverOptionIsHiddenWhenUnavailable() {
         val state = HistoryFixtures.state.copy(modes = setOf(SessionMode.SOLO))
-        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { FirstRunScreen(state, previewChrome(), {}, {}, {}, {}, {}) } }
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { FirstRunScreen(state, previewChrome(), {}, {}, {}) } }
         compose.onNodeWithText("두 대로 연결(서버)").assertDoesNotExist()
-        compose.onNodeWithText("혼자 둘러보기(가상 상대)").assertExists()
+        compose.onNodeWithText("혼자 둘러보기(가상 상대)").assertDoesNotExist()
+        compose.onNodeWithText("프로필을 준비하고 있어요").assertExists()
+    }
+
+    @Test fun firstRunOffersModesWithoutIdentityOrRoomFields() {
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+            FirstRunScreen(HistoryFixtures.state.copy(selectedMode = SessionMode.SERVER_DEMO), previewChrome(), {}, {}, {})
+        } }
+        compose.onNodeWithText("시작하기").assertExists()
+        compose.onNodeWithText("계정을 골라 주세요").assertDoesNotExist()
+        compose.onNodeWithText("방 코드").assertDoesNotExist()
+    }
+
+    @Test fun emptySoloProfileDisclosesVirtualPeers() {
+        val state = screenState(HistoryScreen.PROFILE_SETUP, ScreenScenario.EMPTY).copy(modes = setOf(SessionMode.SOLO))
+        compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+            ProfileSetupScreen(state, previewChrome(), false, {}, {}, {}, {})
+        } }
+        compose.onNodeWithText("혼자 둘러보기에서는 가상 상대와 만나봐요").assertExists()
+        compose.onNodeWithText("실명 대신 부를 이름").assertExists()
     }
 
     @Test fun consentChoiceSendsExplicitCommandAndDoesNotGrantOtherScopes() {
@@ -132,7 +151,7 @@ class HistoryInteractionTest {
         }
         compose.onNodeWithText("차량 데이터·위치·공개 범위").assertExists()
         compose.onNodeWithContentDescription("뒤로").performClick()
-        compose.onNodeWithText("이 계정으로 시작").assertIsDisplayed()
+        compose.onNodeWithText("시작하기").assertIsDisplayed()
     }
 
     @Test fun consentBackReturnsToSavedProfileWithoutNavigatingAgain() {

@@ -11,7 +11,7 @@ import uuid
 def main():
     base = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:19876"
     room = "http-" + uuid.uuid4().hex[:12]
-    credentials = {persona: secrets.token_urlsafe(32) for persona in ["ACCOUNT_A", "ACCOUNT_B"]}
+    credentials = {installation: secrets.token_urlsafe(32) for installation in ["first", "second"]}
 
     def command(path, session=None, expected_error=None, **fields):
         body = {"meta": {"commandId": str(uuid.uuid4())}, **fields}
@@ -37,23 +37,25 @@ def main():
         assert result["type"] == "success"
         return result["value"]
 
-    def enter(persona):
-        return command("session/enter", mode="SERVER_DEMO", persona=persona, roomCode=room, clientSecret=credentials[persona])
+    def enter(installation):
+        return command("session/enter", mode="SERVER_DEMO", roomCode=room, clientSecret=credentials[installation])
 
-    def prepare(persona):
-        session = enter(persona)
+    def prepare(installation):
+        session = enter(installation)
+        assert snapshot(session)["profile"]["publicProfile"]["nickname"] == ""
         profile = command("profile/save", session, draft={"nickname": "가상프로필", "avatar": "DAWN", "interests": ["JAZZ"]})
         for scope in ["ADULT_ATTESTATION", "VEHICLE_DATA", "LOCATION_USE", "PUBLIC_PROFILE"]:
             command("profile/consent", session, scope=scope, action="GRANT", documentVersion=session["policy"]["consentDocumentVersion"])
         command("discovery/set", session, mode="ON")
         return session, profile
 
-    first, first_profile = prepare("ACCOUNT_A")
-    second, second_profile = prepare("ACCOUNT_B")
+    first, first_profile = prepare("first")
+    second, second_profile = prepare("second")
     request = command("connection/request", first, candidateId=second_profile["id"])
-    for credential in [None, secrets.token_urlsafe(32)]:
-        command("session/enter", expected_error="not_authorized", mode="SERVER_DEMO", persona="ACCOUNT_B",
-                roomCode=room, clientSecret=credential)
+    command("session/enter", expected_error="not_authorized", mode="SERVER_DEMO", roomCode=room)
+    outsider = command("session/enter", mode="SERVER_DEMO", roomCode=room, clientSecret=secrets.token_urlsafe(32))
+    assert outsider["accountId"] not in {first["accountId"], second["accountId"]}
+    command("connection/respond", outsider, expected_error="peer_unavailable", requestId=request["id"], decision="ACCEPT")
     assert snapshot(second)["connectionRequests"][0]["status"] == "PENDING"
     command("connection/respond", {"accessToken": "invalid"}, expected_error="not_authorized",
             requestId=request["id"], decision="ACCEPT")
@@ -87,7 +89,7 @@ def main():
     assert {k: v for k, v in before.items() if k != "serverTimeEpochMillis"} == {k: v for k, v in after_edit.items() if k != "serverTimeEpochMillis"}
     sign_out_body = {"meta": {"commandId": str(uuid.uuid4())}}
     command("session/sign-out", first, **sign_out_body)
-    recovered = enter("ACCOUNT_A")
+    recovered = enter("first")
     assert recovered["accountId"] == first["accountId"]
     command("session/sign-out", recovered, **sign_out_body)
     assert snapshot(recovered)["profile"]["id"] == first_profile["id"]
@@ -96,10 +98,10 @@ def main():
     assert remaining["afterConnections"][0]["closeReason"] == "ACCOUNT_DELETED"
     assert remaining["afterConnections"][0]["sharedContacts"] is None
     assert remaining["afterConnections"][0]["ownSharedContacts"] is None
-    recovered_second = enter("ACCOUNT_B")
+    recovered_second = enter("second")
     assert recovered_second["accountId"] == second["accountId"]
     command("session/sign-out", recovered_second)
-    print("PASS: two accounts, consent, takeover rejection, forged accept rejection, private encounter deletion, mutual contact exchange, replay privacy, hidden activity, session recovery, deletion purge")
+    print("PASS: two accounts, consent, independent outsider identity, outsider acceptance rejection, forged accept rejection, private encounter deletion, mutual contact exchange, replay privacy, hidden activity, session recovery, deletion purge")
 
 
 if __name__ == "__main__":

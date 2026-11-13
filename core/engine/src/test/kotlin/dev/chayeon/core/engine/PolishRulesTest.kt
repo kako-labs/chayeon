@@ -19,19 +19,19 @@ class PolishRulesTest {
         assertEquals(4, DemoCast.peers.single { it.id == "demo-slow" }.presenceScript.size)
     }
 
-    @Test fun `persona default nicknames never collide with the demo cast`() {
+    @Test fun `new accounts begin with an empty profile and independent identities`() {
         val f = Fixture()
-        val names = PersonaCode.entries.map { persona ->
-            val actor = persona.name
-            f.engine.enterSession(actor, EnterSessionRequest(f.meta(), SessionMode.SOLO, persona)).ok()
-            f.snap(actor).profile!!.publicProfile.nickname
+        for (actor in listOf("first-install", "second-install", "third-install")) {
+            f.engine.enterSession(actor, EnterSessionRequest(f.meta(), SessionMode.SOLO)).ok()
+            val profile = f.snap(actor).profile!!
+            assertEquals("", profile.publicProfile.nickname)
+            assertEquals(AvatarId.DAWN, profile.publicProfile.avatar)
+            assertEquals(emptySet(), profile.publicProfile.interests)
+            assertEquals(ContactIds(), profile.contacts)
+            assertEquals(RegistrationState.PROFILE_REQUIRED, profile.registration)
         }
-        assertEquals(listOf("새벽드라이브", "노을산책"), names)
-        assertEquals(names.size, names.toSet().size)
-        assertTrue(names.none { name -> DemoCast.peers.any { it.nickname == name } })
-        assertEquals("느린오후", DemoCast.peers.single { it.id == "demo-slow" }.nickname)
+        assertEquals(3, f.engine.exportState().accounts.values.map { it.profile.id }.toSet().size)
     }
-
 
     @Test fun `runtime cast exactly matches the fixture used by signature scenario tests`() {
         val root = generateSequence(File(System.getProperty("user.dir"))) { it.parentFile }.first { File(it, "fixtures/drive").isDirectory }

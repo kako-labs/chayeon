@@ -2,12 +2,16 @@ package dev.chayeon.server
 
 import dev.chayeon.core.engine.*
 import dev.chayeon.core.model.*
-import java.security.SecureRandom
 import java.security.MessageDigest
 import java.util.Base64
 import java.util.UUID
 
 data class ServerPolicy(
+    val roomCapacity: Int = 50,
+    val dataDirectory: java.nio.file.Path? = null,
+    val trustProxy: Boolean = false,
+    /** Header the trusted proxy overwrites with the client address, for example `CF-Connecting-IP` behind a Cloudflare tunnel. */
+    val clientIpHeader: String = "X-Chayeon-Client-IP",
     val maximumBodyBytes: Int = 32_768,
     val maximumRooms: Int = 64,
     val idleRoomMillis: Long = 1_800_000,
@@ -17,16 +21,14 @@ data class ServerPolicy(
     val retiredReceiptTtlMillis: Long = 300_000,
 ) {
     init {
+        require(roomCapacity > 0)
         require(maximumBodyBytes > 0 && maximumRooms > 0 && idleRoomMillis > 0)
         require(pollTimeoutMillis in 1..25_000 && tickIntervalMillis > 0)
         require(maximumRetiredReceipts > 0 && retiredReceiptTtlMillis > 0)
     }
 }
 
-internal class HostedRoom(val engine: ChayeonEngine, var lastAccess: Long) {
-    val actors = mutableMapOf<PersonaCode, String>()
-    val claims = mutableMapOf<PersonaCode, ByteArray>()
-}
+internal class HostedRoom(val engine: ChayeonEngine, var lastAccess: Long)
 
 internal class Authorization(val roomCode: String, val actor: String, val sessionId: String) {
     override fun toString() = "Authorization(redacted)"
@@ -45,41 +47,78 @@ class RoomRegistry(
     private val demoEnabled: Boolean = true,
     private val voiceStateReader: (ChayeonEngine) -> EngineState = ChayeonEngine::exportState,
 ) {
+    internal val admission = Admission(clock::now)
     private val rooms = mutableMapOf<String, HostedRoom>()
     private val tokens = mutableMapOf<String, Authorization>()
-    private val random = SecureRandom()
     private val retired = linkedMapOf<String, RetiredReceipt>()
     private val voice = VoiceRelay(::voiceIdentity)
+    private val stores = mutableMapOf<String, FileEngineStore>()
+
+    init {
+        policy.dataDirectory?.let { directory ->
+            java.nio.file.Files.createDirectories(directory)
+            java.nio.file.Files.newDirectoryStream(directory, "*.json").use { paths ->
+                paths.forEach { path ->
+                    require(rooms.size < policy.maximumRooms) { "Stored room limit exceeded" }
+                    val code = path.fileName.toString().removeSuffix(".json")
+                    require(code.matches(Regex("[A-Za-z0-9_-]{4,32}")))
+                    createRoom(code)
+                }
+            }
+        }
+    }
+
+    private fun createRoom(code: String): HostedRoom {
+        val store = policy.dataDirectory?.let { FileEngineStore(it.resolve("$code.json")) }
+        val engine = ChayeonEngine(rules, clock = clock, policy = enginePolicy, roomId = code,
+            demoEnabled = demoEnabled, store = store ?: MemoryEngineStore())
+        val room = HostedRoom(engine, clock.now())
+        rooms[code] = room
+        if (store != null) {
+            stores[code] = store
+            store.tokens.forEach { (token, identity) -> tokens[token] = Authorization(code, identity.actor, identity.sessionId) }
+            engine.exportState().connections.values.filter { it.status != ConnectionStatus.ENDED }.forEach {
+                val ended = engine.leaveConnection(it.first, LeaveConnectionRequest(CommandMeta(UUID.randomUUID().toString()), it.id))
+                check(ended is AppResult.Success) { "Unable to close restored call" }
+            }
+        }
+        return room
+    }
+
+    private fun persistTokens(code: String) {
+        stores[code]?.saveTokens(tokens.filterValues { it.roomCode == code }.mapValues { StoredAuthorization(it.value.actor, it.value.sessionId) })
+    }
 
     @Synchronized
     fun enter(request: EnterSessionRequest): AppResult<Session> {
-        if (request.mode != SessionMode.SERVER_DEMO || request.roomCode?.matches(Regex("[A-Za-z0-9_-]{4,32}")) != true)
+        if (request.mode != SessionMode.SERVER_DEMO || (request.roomCode ?: "default").matches(Regex("[A-Za-z0-9_-]{4,32}")) != true)
             return AppResult.Failure(AppError.Restricted)
         val secret = request.clientSecret
         if (secret == null || secret.length !in 32..256) return AppResult.Failure(AppError.NotAuthorized)
-        val secretHash = MessageDigest.getInstance("SHA-256").digest(secret.toByteArray(Charsets.UTF_8))
+        val secretHash = MessageDigest.getInstance("SHA-256").digest(((request.roomCode ?: "default") + ":" + secret).toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
         expireIdle()
-        val code = request.roomCode!!
+        val code = request.roomCode ?: "default"
         val room = rooms[code] ?: run {
             if (rooms.size >= policy.maximumRooms) return AppResult.Failure(AppError.Restricted)
-            HostedRoom(ChayeonEngine(rules, clock = clock, policy = enginePolicy, roomId = code, demoEnabled = demoEnabled), clock.now())
-                .also { rooms[code] = it }
+            createRoom(code)
         }
-        val claim = room.claims[request.persona]
-        if (claim != null && !MessageDigest.isEqual(claim, secretHash)) return AppResult.Failure(AppError.NotAuthorized)
-        val actor = room.actors[request.persona] ?: UUID.randomUUID().toString()
-        val result = room.engine.enterSession(actor, request)
+        val accounts = room.engine.exportState().accounts
+        val actor = accounts.values.firstOrNull { !it.deleted && (it.id == secretHash || it.id.startsWith("$secretHash-")) }?.id
+            ?: if (secretHash !in accounts) secretHash else "$secretHash-${UUID.randomUUID()}"
+        if (accounts[actor] == null && accounts.values.count { !it.deleted && !it.id.startsWith("demo-") } >= policy.roomCapacity)
+            return AppResult.Failure(AppError.Restricted)
+        val result = room.engine.enterSession(actor, request.copy(roomCode = code))
         if (result !is AppResult.Success) return result
-        room.claims[request.persona] = secretHash
-        room.actors[request.persona] = actor
         room.lastAccess = clock.now()
         val session = result.value
         val current = room.engine.snapshotFor(actor)
         if (current !is AppResult.Success || current.value.id != session.id) return AppResult.Failure(AppError.AlreadyClosed)
-        val existing = tokens.entries.firstOrNull { it.value.roomCode == code && it.value.actor == actor && it.value.sessionId == session.id }?.key
-        val token = existing ?: Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(32).also(random::nextBytes))
-        tokens.entries.removeAll { it.value.roomCode == code && it.value.actor == actor && it.key != token }
-        tokens[token] = Authorization(code, actor, session.id)
+        val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+        mac.init(javax.crypto.spec.SecretKeySpec(secret.toByteArray(Charsets.UTF_8), "HmacSHA256"))
+        val token = Base64.getUrlEncoder().withoutPadding().encodeToString(mac.doFinal("$code:${session.id}".toByteArray(Charsets.UTF_8)))
+        tokens.entries.removeAll { it.value.roomCode == code && it.value.actor == actor }
+        tokens[tokenKey(token)] = Authorization(code, actor, session.id)
+        persistTokens(code)
         voice.prune()
         return AppResult.Success(session.copy(accessToken = token))
     }
@@ -87,7 +126,7 @@ class RoomRegistry(
     @Synchronized
     internal fun authorize(header: String?): Pair<Authorization, ChayeonEngine>? {
         if (header == null || !header.startsWith("Bearer ")) return null
-        val identity = tokens[header.removePrefix("Bearer ")] ?: return null
+        val identity = tokens[tokenKey(header.removePrefix("Bearer "))] ?: return null
         val room = rooms[identity.roomCode] ?: return null
         if (clock.now() - room.lastAccess >= policy.idleRoomMillis) {
             expireIdle()
@@ -100,12 +139,9 @@ class RoomRegistry(
     }
 
     @Synchronized
-    internal fun revoke(identity: Authorization, deleted: Boolean) {
+    internal fun revoke(identity: Authorization) {
         tokens.entries.removeAll { it.value.roomCode == identity.roomCode && it.value.actor == identity.actor }
-        if (deleted) rooms[identity.roomCode]?.let { room ->
-            val personas = room.actors.filterValues { it == identity.actor }.keys
-            personas.forEach { room.actors.remove(it); room.claims.remove(it) }
-        }
+        persistTokens(identity.roomCode)
         voice.prune()
     }
 
@@ -113,7 +149,7 @@ class RoomRegistry(
     internal fun execute(header: String?, route: String, body: String): String? {
         val auth = authorize(header)
         if (auth == null) {
-            val receipt = retired[header?.removePrefix("Bearer ")] ?: return null
+            val receipt = retired[header?.removePrefix("Bearer ")?.let(::tokenKey)] ?: return null
             return receipt.response.takeIf { receipt.route == route && receipt.expiresAt > clock.now() && receipt.digest == digest(body) }
         }
         val (identity, engine) = auth
@@ -121,9 +157,9 @@ class RoomRegistry(
         if (route == ApiRoutes.SIGN_OUT || route == ApiRoutes.DELETE_ACCOUNT) {
             val receipt = EngineJson.decodeFromString(SignOutResponse.serializer(), response)
             if (receipt.result is AppResult.Success && engine.exportState().accounts[identity.actor]?.active == false) {
-                retired[header!!.removePrefix("Bearer ")] = RetiredReceipt(route, digest(body), response, clock.now() + policy.retiredReceiptTtlMillis)
+                retired[tokenKey(header!!.removePrefix("Bearer "))] = RetiredReceipt(route, digest(body), response, clock.now() + policy.retiredReceiptTtlMillis)
                 while (retired.size > policy.maximumRetiredReceipts) retired.remove(retired.keys.first())
-                revoke(identity, route == ApiRoutes.DELETE_ACCOUNT)
+                revoke(identity)
             }
         }
         voice.prune()
@@ -134,9 +170,11 @@ class RoomRegistry(
     internal fun canExecute(header: String?, route: String): Boolean {
         if (authorize(header) != null) return true
         if (header == null || !header.startsWith("Bearer ")) return false
-        val receipt = retired[header.removePrefix("Bearer ")] ?: return false
+        val receipt = retired[tokenKey(header.removePrefix("Bearer "))] ?: return false
         return receipt.route == route && receipt.expiresAt > clock.now()
     }
+
+    private fun tokenKey(token: String) = MessageDigest.getInstance("SHA-256").digest(token.toByteArray()).joinToString("") { "%02x".format(it) }
 
     private fun digest(body: String): List<Byte> = MessageDigest.getInstance("SHA-256").digest(body.toByteArray()).toList()
 
@@ -176,7 +214,7 @@ class RoomRegistry(
 
     private fun voiceIdentity(header: String, connectionId: String): VoiceIdentity? {
         if (!header.startsWith("Bearer ")) return null
-        val identity = tokens[header.removePrefix("Bearer ")] ?: return null
+        val identity = tokens[tokenKey(header.removePrefix("Bearer "))] ?: return null
         val room = rooms[identity.roomCode] ?: return null
         if (clock.now() - room.lastAccess >= policy.idleRoomMillis) return null
         val state = voiceStateReader(room.engine)
@@ -194,7 +232,9 @@ class RoomRegistry(
     private fun expireIdle() {
         retired.entries.removeAll { it.value.expiresAt <= clock.now() }
         val expired = rooms.filterValues { clock.now() - it.lastAccess >= policy.idleRoomMillis }.keys
-        expired.forEach(rooms::remove)
+        expired.filter { it !in stores }.forEach(rooms::remove)
+        val changed = tokens.values.map { it.roomCode }.filter { it in expired }.toSet()
         tokens.entries.removeAll { it.value.roomCode in expired }
+        changed.forEach(::persistTokens)
     }
 }

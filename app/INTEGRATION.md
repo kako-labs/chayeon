@@ -170,7 +170,7 @@ QR은 `com.google.zxing:core:3.5.3`만 추가했어요. [해당 버전의 Apache
 당시 통합에서는 공유 계약 `core/model`과 서버를 변경하지 않았고 새 외부 의존성도 없었어요. 아래 음성 통화 통합에서는 계약·서버와 WebSocket 의존성을 함께 추가했어요.
 
 - `data/social/.../SocialGraph.kt`: 주행 중에도 기록 동의와 내용 없는 알림 신호를 제공하는 두 서비스용 Flow를 추가했어요.
-- `feature/history/.../OnboardingViewModels.kt`: 서버와 같은 방 코드 검증을 추가했어요. `HistoryViewModelTest.kt`에서 잘못된 문자·짧은 코드를 검사해요.
+- `feature/history/.../OnboardingViewModels.kt`: 당시 서버와 같은 방 코드 검증을 추가했어요. 현재 설치별 프로필 전환에서는 계정·공간 입력 UI를 제거했으며 기본 공간을 사용하므로 이 검증과 해당 테스트는 대체되었어요.
 - `feature/history/.../SafetyViewModels.kt`: 복구 비밀값, 상대의 닫힌 관계와 공유 연락처에 관한 정리 문구를 바로잡았어요. `feature/history/src/test/screenshots/`의 `cleanup_confirm_delete_account.png`, `cleanup_confirm_sign_out.png`, `cleanup_empty.png`, `cleanup_failure.png`, `cleanup_loading.png`, `cleanup_populated.png`를 갱신했어요.
 - `feature/meet/.../MeetViewModel.kt`, `MeetNavigationTest.kt`, `MeetViewModelTest.kt`: 수신 요청이 후보 탐색을 강제로 끊지 않게 하고 앱 배너로 열도록 했어요. 재시작 시 이미 끝난 연결이 홈을 다시 가로채지 않도록 고치고 회귀 테스트를 추가했어요.
 - `feature/signature/.../SignatureViewModelTest.kt`: 유효한 엔진 투영 보존 테스트에 실제 `DefaultSignatureEngine` 결과를 사용해요.
@@ -179,7 +179,7 @@ QR은 `com.google.zxing:core:3.5.3`만 추가했어요. [해당 버전의 Apache
 
 실차 신호 품질, 실제 차량 서비스 프로세스의 강제 종료·복구, 장시간 백그라운드 유지, App Market 승인은 검증하지 않았어요. 기록 프로세스가 종료되면 메모리의 미완료 주행은 복원하지 않아요.
 
-SOLO 화면의 출처 문구는 첫 모드 선택과 내 시그니처의 특성 상세 한 줄로 모았어요. 위 기기 기록의 `합성 주행`·`차량 주행` 캡션은 당시 화면 문구예요. 현재 동선과 문구는 README `3분 둘러보기`를 따라요.
+SOLO 화면의 출처 문구는 서버 주소가 없으면 첫 프로필 만들기, 서버 주소가 있으면 모드 선택에서 안내하고 내 시그니처의 특성 상세에도 한 줄로 보여줘요. 위 기기 기록의 `합성 주행`·`차량 주행` 캡션은 당시 화면 문구예요. 현재 동선과 문구는 README `3분 둘러보기`를 따라요.
 
 ## 2026-11-13 음성 통화 통합
 

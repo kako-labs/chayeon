@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.net.URI
 
 plugins {
     alias(libs.plugins.android.application)
@@ -6,6 +7,16 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.roborazzi)
+}
+
+val configuredServerUrl = providers.gradleProperty("chayeon.serverUrl").orElse("").get()
+if (configuredServerUrl.isNotBlank()) {
+    val serverUri = URI(configuredServerUrl)
+    require(serverUri.scheme == "https" || (serverUri.scheme == "http" &&
+        serverUri.host?.removeSurrounding("[", "]") in setOf("localhost", "127.0.0.1", "10.0.2.2", "::1"))) {
+        "Server URL requires HTTPS outside localhost"
+    }
+    require(serverUri.host != null && serverUri.userInfo == null) { "Server URL requires a host without credentials" }
 }
 
 val androidConfig = Properties().apply {

@@ -19,7 +19,9 @@ import kotlinx.coroutines.launch
 internal fun Route.voiceRoutes(registry: RoomRegistry) {
     val admission = createRouteScopedPlugin("VoiceAdmission") {
         onCall { call ->
-            if (!registry.voiceAllowed(call.request.header(HttpHeaders.Authorization), call.parameters["connectionId"].orEmpty())) {
+            if (!call.admitted(registry, "voice")) {
+                call.failure(dev.chayeon.core.model.AppError.Restricted, HttpStatusCode.TooManyRequests)
+            } else if (!registry.voiceAllowed(call.request.header(HttpHeaders.Authorization), call.parameters["connectionId"].orEmpty())) {
                 call.respond(HttpStatusCode.Forbidden)
             }
         }

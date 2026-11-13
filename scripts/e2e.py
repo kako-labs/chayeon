@@ -255,13 +255,21 @@ def assert_locked(device, hidden_peers=()):
             raise AssertionError("주행 중 통화 조작 외의 기능이 열려 있어요")
 
 
+def enter_nickname(device):
+    fields = [node for node in device.tree().iter("node") if node.get("class") == "android.widget.EditText"]
+    if not fields or fields[0].get("text", "") == "DawnDriver":
+        raise AssertionError("새 프로필의 빈 닉네임 입력 칸이 필요해요")
+    x1, y1, x2, y2 = map(int, re.findall(r"\d+", fields[0].get("bounds")))
+    device.shell("input", "tap", str((x1 + x2) // 2), str((y1 + y2) // 2))
+    device.shell("input", "text", "DawnDriver")
+    device.shell("input", "keyevent", "KEYCODE_BACK")
+
+
 def enter_solo(device, prefix=""):
     device.launch()
-    device.wait("이 계정으로 시작")
-    device.capture(prefix + "01-first-run", ["혼자 둘러보기(가상 상대)", "주차 중", "가상 상대와 편하게 만나봐요", "계정 A", "노을산책"])
-    device.tap("혼자 둘러보기(가상 상대)")
-    device.tap("이 계정으로 시작")
     device.wait("저장하고 다음")
+    device.capture(prefix + "01-first-run", ["프로필 만들기"])
+    enter_nickname(device)
     device.capture(prefix + "02-profile", ["프로필 만들기"])
     device.tap("저장하고 다음", scroll=True)
     device.wait("차량 데이터·위치·공개 범위")
@@ -460,7 +468,7 @@ def prove_home_zone(device, console, include_driving=True):
             device.shell("input", "keyevent", "KEYCODE_WAKEUP")
             device.launch()
             device.wait("쉬는 중")
-            assert_locked(device, hidden_peers=("별보는밤", "새벽드라이브"))
+            assert_locked(device, hidden_peers=("별보는밤", "DawnDriver"))
             device.capture("home-zone-arrival-driving", ["쉬는 중", "주차하면"])
             console.gear("Park")
         else:
@@ -734,7 +742,7 @@ def finish_session(device, debug_proof):
     device.tap("내 프로필")
     device.wait("내 시그니처 보기")
     assert_solo_surface(device)
-    device.capture("23-profile-restored", ["새벽드라이브", "내 시그니처 보기"])
+    device.capture("23-profile-restored", ["DawnDriver", "내 시그니처 보기"])
     device.tap("인연")
     assert_contacts_hidden(device, ("byeol-night.drive",))
     if device.find("별보는밤") is not None:
@@ -744,8 +752,8 @@ def finish_session(device, debug_proof):
     device.tap("기록과 계정 정리", scroll=True)
     device.tap("로그아웃", scroll=True)
     device.confirm("로그아웃")
-    device.wait("이 계정으로 시작")
-    device.capture("25-signed-out", ["혼자 둘러보기(가상 상대)", "이 계정으로 시작"])
+    device.wait("프로필 만들기")
+    device.capture("25-signed-out", ["프로필 만들기"])
     if debug_proof and device.trip_summary()["rows"] != 0:
         raise AssertionError("로그아웃 뒤 차량 주행 지표가 남아 있어요")
     if debug_proof and home_record_count(device) != 0:

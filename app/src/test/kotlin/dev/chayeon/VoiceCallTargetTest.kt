@@ -8,7 +8,7 @@ class VoiceCallTargetTest {
     private val profile = PublicProfile("peer", 1, "별보는밤", AvatarId.STAR, emptySet(), ProfileKind.DEMO_PEER, null)
     private val connection = Connection("call", 1, "request", profile, ConnectionStatus.CONNECTED, 0, Chemistry())
     private val session = SessionState.Active(Session("session", 1, "account", SessionMode.SERVER_DEMO,
-        PersonaCode.ACCOUNT_A, "room", null, null, ParticipationPolicy("policy", 1, 5, 2, 12, null, "1")))
+        "room", null, null, ParticipationPolicy("policy", 1, 5, 2, 12, null, "1")))
 
     @Test fun passesDemoIdentityOnlyWhileAudioTargetIsVisible() {
         assertEquals(profile, target(connection).peer)

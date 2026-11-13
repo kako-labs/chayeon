@@ -96,9 +96,8 @@ class HistoryViewModelTest {
         val model = watch(FirstRunViewModel(deps))
         var navigated = false
         deps.driving.value = DrivingState()
-        model.navigate { navigated = true }; model.setRoomCode("room"); model.enter(); runCurrent()
+        model.navigate { navigated = true }; model.enter(); runCurrent()
         assertFalse(navigated)
-        assertEquals("", model.uiState.value.roomCode)
         assertTrue(deps.calls.isEmpty())
     }
 
@@ -118,30 +117,59 @@ class HistoryViewModelTest {
 
     @Test fun `server mode is checked again when entering`() = modelTest {
         val model = watch(FirstRunViewModel(deps))
-        model.selectMode(SessionMode.SERVER_DEMO); model.setRoomCode("shared-room"); runCurrent()
+        model.selectMode(SessionMode.SERVER_DEMO); runCurrent()
         deps.modes.value = setOf(SessionMode.SOLO)
         model.enter(); runCurrent()
         assertTrue(deps.calls.isEmpty())
         assertEquals(AppError.PeerUnavailable, model.uiState.value.command("enter").error)
     }
 
-    @Test fun `room codes reject invalid characters and short input before calling server`() = modelTest {
+    @Test fun `server entry uses default room without account selection`() = modelTest {
         val model = watch(FirstRunViewModel(deps))
-        model.selectMode(SessionMode.SERVER_DEMO)
-        runCurrent()
-        for (code in listOf("", "abc", "한글방코드", "room code", "room!")) {
-            model.setRoomCode(code)
-            runCurrent()
-            model.enter()
-            runCurrent()
-            assertTrue(deps.calls.isEmpty())
-            assertEquals("방 코드는 영문, 숫자, 밑줄, 하이픈으로 4~32자 입력해 주세요", model.uiState.value.draftError)
-        }
-        model.setRoomCode("Room_123-demo")
-        runCurrent()
-        model.enter()
-        runCurrent()
-        assertEquals("Room_123-demo", (deps.calls.single() as EnterSessionRequest).roomCode)
+        model.selectMode(SessionMode.SERVER_DEMO); runCurrent()
+        model.enter(); runCurrent()
+        assertNull((deps.calls.single() as EnterSessionRequest).roomCode)
+    }
+
+    @Test fun `solo only starts automatically after signout while configured server waits for choice`() = modelTest {
+        deps.sessionState.value = SessionState.SignedOut()
+        val model = watch(FirstRunViewModel(deps))
+        model.enterSoloIfNeeded(); runCurrent()
+        assertTrue(deps.calls.isEmpty())
+        deps.modes.value = setOf(SessionMode.SOLO); runCurrent()
+        model.enterSoloIfNeeded(); runCurrent()
+        assertEquals(SessionMode.SOLO, (deps.calls.single() as EnterSessionRequest).mode)
+    }
+
+    @Test fun `solo automatic entry waits for session restoration and does not replace failure`() = modelTest {
+        deps.modes.value = setOf(SessionMode.SOLO)
+        deps.sessionState.value = SessionState.Entering()
+        val model = watch(FirstRunViewModel(deps))
+        model.enterSoloIfNeeded(); runCurrent()
+        deps.sessionState.value = SessionState.Failed(AppError.Network); runCurrent()
+        model.enterSoloIfNeeded(); runCurrent()
+        assertTrue(deps.calls.isEmpty())
+    }
+
+    @Test fun `capacity rejection can retry without changing mode`() = modelTest {
+        deps.sessionState.value = SessionState.SignedOut()
+        val model = watch(FirstRunViewModel(deps))
+        model.selectMode(SessionMode.SERVER_DEMO); runCurrent()
+        deps.error = AppError.Restricted
+        model.enter(); runCurrent()
+        deps.error = null
+        model.retry("enter"); runCurrent()
+        assertEquals(2, deps.calls.size)
+        assertTrue(model.uiState.value.command("enter").completed)
+    }
+
+    @Test fun `empty profile starts with empty nickname and cannot save until named`() = modelTest {
+        deps.profileState.value = LoadState.Ready(HistoryFixtures.emptyProfile, 2)
+        val model = watch(ProfileSetupViewModel(deps))
+        assertEquals("", model.uiState.value.draft.nickname)
+        model.save(); runCurrent()
+        assertTrue(deps.calls.isEmpty())
+        assertNotNull(model.uiState.value.draftError)
     }
 
     @Test fun `restart observes registration instead of resetting profile`() = modelTest {

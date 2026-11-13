@@ -20,7 +20,6 @@ internal class FakeHistoryDeps : HistoryDeps {
     }
     val driving = MutableStateFlow(DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK))
     val sessionState = MutableStateFlow<SessionState>(SessionState.Active(HistoryFixtures.session))
-    val personasState = MutableStateFlow<LoadState<List<Persona>>>(LoadState.Ready(HistoryFixtures.personas, 1))
     val modes = MutableStateFlow(setOf(SessionMode.SOLO, SessionMode.SERVER_DEMO))
     val profileState = MutableStateFlow<LoadState<MyProfile?>>(LoadState.Ready(HistoryFixtures.profile, 1))
     val settingsState = MutableStateFlow<LoadState<ParticipationSettings>>(LoadState.Ready(HistoryFixtures.settings, 1))
@@ -51,7 +50,6 @@ internal class FakeHistoryDeps : HistoryDeps {
     }
     override val sessionRepository = object : SessionRepository {
         override val session = sessionState
-        override val personas = personasState
         override val availableModes = modes
         override suspend fun enter(request: EnterSessionRequest): AppResult<Session> = result(request, HistoryFixtures.session)
         override suspend fun signOut(request: SignOutRequest): AppResult<CommandReceipt> = result(request, CommandReceipt("receipt", 2))

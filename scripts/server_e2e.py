@@ -21,10 +21,10 @@ from urllib.request import Request, urlopen
 
 try:
     from . import dev
-    from .e2e import Console, Device, assert_locked, set_synthetic_home, home_position, assert_home_rest, home_record_count, enter_instagram_contact, assert_contacts_hidden, configure_auto_connect
+    from .e2e import Console, Device, assert_locked, set_synthetic_home, home_position, assert_home_rest, home_record_count, enter_instagram_contact, assert_contacts_hidden, configure_auto_connect, enter_nickname
 except ImportError:
     import dev
-    from e2e import Console, Device, assert_locked, set_synthetic_home, home_position, assert_home_rest, home_record_count, enter_instagram_contact, assert_contacts_hidden, configure_auto_connect
+    from e2e import Console, Device, assert_locked, set_synthetic_home, home_position, assert_home_rest, home_record_count, enter_instagram_contact, assert_contacts_hidden, configure_auto_connect, enter_nickname
 
 
 class Peer:
@@ -80,6 +80,9 @@ class VoicePeer:
         from urllib.parse import urlsplit
         address = urlsplit(peer.base)
         self.socket = socket.create_connection((address.hostname, address.port), timeout=5)
+        if address.scheme == "https":
+            import ssl
+            self.socket = ssl.create_default_context().wrap_socket(self.socket, server_hostname=address.hostname)
         self.socket.settimeout(35)
         self.lock = threading.Lock()
         self.stop = threading.Event()
@@ -215,7 +218,7 @@ class VoicePeer:
 def reject_third_voice(peer, connection_id):
     from urllib.parse import urlsplit
     stranger = Peer(urlsplit(peer.base).port)
-    session = stranger.call("/v1/session/enter", mode="SERVER_DEMO", persona="ACCOUNT_A",
+    session = stranger.call("/v1/session/enter", mode="SERVER_DEMO",
                            roomCode="outsider-" + secrets.token_hex(4), clientSecret=secrets.token_urlsafe(32))
     stranger.token = session["accessToken"]
     try:
@@ -338,7 +341,7 @@ def prove_lease_and_offline_restore(device, console, peer, transport, device_por
     deadline = time.monotonic() + 20
     while True:
         pending = next((r for r in peer.sync()["connectionRequests"] if r["status"] == "PENDING" and r["direction"] == "INCOMING"
-                        and r["peer"]["nickname"] == "새벽드라이브"), None)
+                        and r["peer"]["nickname"] == "DawnDriver"), None)
         if pending:
             break
         if time.monotonic() >= deadline:
@@ -391,7 +394,7 @@ def prove_lease_and_offline_restore(device, console, peer, transport, device_por
         if time.monotonic() >= deadline:
             raise AssertionError("통신 복구 뒤 AWAY가 적용되지 않았어요")
         time.sleep(.25)
-    if any(c["profile"]["nickname"] == "새벽드라이브" for c in peer.sync()["discovery"]["candidates"]):
+    if any(c["profile"]["nickname"] == "DawnDriver" for c in peer.sync()["discovery"]["candidates"]):
         raise AssertionError("보호 중인 앱 계정이 후보에 보여요")
     proof = {"connectedSeconds": live_seconds, "deathToDistanceSeconds": death_to_distance,
              "appRequestsAfterStop": requests_after_stop,
@@ -410,21 +413,13 @@ def normalized_connection(value):
     return value
 
 
-def enter_ui(device, room):
+def enter_ui(device):
     device.launch()
     device.wait("두 대로 연결(서버)")
     device.tap("두 대로 연결(서버)")
-    tree = device.tree()
-    fields = [n for n in tree.iter("node") if n.get("class") == "android.widget.EditText"]
-    if len(fields) != 1:
-        raise AssertionError("서버 방 코드 입력 칸을 찾지 못했어요")
-    import re
-    x1, y1, x2, y2 = map(int, re.findall(r"\d+", fields[0].get("bounds")))
-    device.shell("input", "tap", str((x1 + x2) // 2), str((y1 + y2) // 2))
-    device.shell("input", "text", room)
-    device.shell("input", "keyevent", "KEYCODE_BACK")
-    device.tap("이 계정으로 시작", scroll=True)
+    device.tap("시작하기", scroll=True)
     device.wait("저장하고 다음")
+    enter_nickname(device)
     device.tap("저장하고 다음", scroll=True)
     device.wait("차량 데이터·위치·공개 범위")
     for label in ["성인이고, 직접 참여해요", "차량 데이터 사용에 동의해요", "위치 사용에 동의해요", "프로필 공개에 동의해요"]:
@@ -456,7 +451,7 @@ def prove_server_home(device, console, peer):
         request = None
         while time.monotonic() < deadline:
             request = next((r for r in peer.sync()["connectionRequests"] if r["status"] == "PENDING" and r["direction"] == "INCOMING"
-                            and r["peer"]["nickname"] == "새벽드라이브"), None)
+                            and r["peer"]["nickname"] == "DawnDriver"), None)
             if request:
                 break
             time.sleep(.25)
@@ -487,7 +482,7 @@ def prove_server_home(device, console, peer):
             if not states or state != states[-1]:
                 states.append(state)
                 views.append(normalized_connection(connection))
-            if any(c["profile"]["nickname"] == "새벽드라이브" for c in snapshot["discovery"]["candidates"]):
+            if any(c["profile"]["nickname"] == "DawnDriver" for c in snapshot["discovery"]["candidates"]):
                 raise AssertionError("쉬는 앱 계정이 HTTP 후보에 남아 있어요")
             if any(value in json.dumps(snapshot).lower() for value in ["homezone", "home_zone", "latitude", "longitude", '"radius"']):
                 raise AssertionError("HTTP 상대에게 집 정보가 보여요")
@@ -511,7 +506,7 @@ def prove_server_home(device, console, peer):
             raise AssertionError("끝난 연결에 다시 음성으로 들어왔어요")
         observations.append({"mode": mode, "states": states, "connectionViews": views})
         if mode == "driving":
-            assert_locked(device, hidden_peers=("이어가는별", "새벽드라이브"))
+            assert_locked(device, hidden_peers=("이어가는별", "DawnDriver"))
             device.capture("home-http-driving", ["쉬는 중", "주차하면"])
             console.gear("Park")
         else:
@@ -529,7 +524,7 @@ def prove_server_home(device, console, peer):
     device.tap("홈")
     device.card("이어가는별", navigate=False)
     deadline = time.monotonic() + 15
-    while not any(c["profile"]["nickname"] == "새벽드라이브" for c in peer.sync()["discovery"]["candidates"]):
+    while not any(c["profile"]["nickname"] == "DawnDriver" for c in peer.sync()["discovery"]["candidates"]):
         if time.monotonic() >= deadline:
             raise AssertionError("구역 밖으로 나온 앱 계정이 HTTP 후보로 돌아오지 않았어요")
         time.sleep(.25)
@@ -539,10 +534,10 @@ def prove_server_home(device, console, peer):
     device.tap("기록과 계정 정리", scroll=True)
     device.tap("로그아웃", scroll=True)
     device.confirm("로그아웃")
-    device.wait("이 계정으로 시작")
+    device.wait("두 대로 연결(서버)")
     if home_record_count(device):
         raise AssertionError("서버 모드 로그아웃 뒤 집 기록이 남아 있어요")
-    device.capture("home-http-cleanup", ["이 계정으로 시작"])
+    device.capture("home-http-cleanup", ["두 대로 연결(서버)"])
 
 
 def prove_after_exchange(device, console, peer, transport):
@@ -564,7 +559,7 @@ def prove_after_exchange(device, console, peer, transport):
         snapshot = peer.sync()
         pending = next((item for item in snapshot["afterRequests"]
                         if item["direction"] == "INCOMING" and item["status"] == "PENDING"
-                        and item["peer"]["nickname"] == "새벽드라이브"), None)
+                        and item["peer"]["nickname"] == "DawnDriver"), None)
         if pending:
             break
         if time.monotonic() >= deadline:
@@ -628,9 +623,9 @@ def run(port=18765, serial=None):
                 time.sleep(0.2)
         else:
             raise AssertionError("검증 서버가 준비되지 않았어요")
-        room = "proof-" + secrets.token_hex(4)
+        room = "default"
         peer = Peer(port)
-        session = peer.call("/v1/session/enter", mode="SERVER_DEMO", persona="ACCOUNT_B", roomCode=room, clientSecret=secrets.token_urlsafe(32))
+        session = peer.call("/v1/session/enter", mode="SERVER_DEMO",  roomCode=room, clientSecret=secrets.token_urlsafe(32))
         peer.token = session["accessToken"]
         peer.call("/v1/profile/save", draft={"nickname": "이어가는별", "avatar": "STAR", "interests": ["COFFEE"]})
         for consent in ["ADULT_ATTESTATION", "VEHICLE_DATA", "LOCATION_USE", "PUBLIC_PROFILE"]:
@@ -648,7 +643,7 @@ def run(port=18765, serial=None):
         with Console(device) as console:
             device.run("uninstall", "dev.chayeon", check=False)
             device.run("install", "--user", "10", str(dev.ROOT / "app/build/outputs/apk/debug/app-debug.apk"))
-            enter_ui(device, room)
+            enter_ui(device)
             configure_auto_connect(device, minimum=100)
             transport.sync_allowed.clear()
             try:
@@ -657,7 +652,7 @@ def run(port=18765, serial=None):
                 peer.call("/v1/presence/synthetic", presence="NEARBY")
                 peer.start_heartbeat()
                 candidate = next((item for item in peer.sync()["discovery"]["candidates"]
-                                  if item["profile"]["nickname"] == "새벽드라이브"), None)
+                                  if item["profile"]["nickname"] == "DawnDriver"), None)
                 if candidate is None:
                     raise AssertionError("HTTP 상대가 앱 계정을 발견하지 못했어요")
                 requested = peer.call("/v1/connection/request", candidateId=candidate["id"])

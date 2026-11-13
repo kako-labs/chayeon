@@ -54,7 +54,7 @@
 |---|---|
 | `Common.kt` | `AppResult`, 오류 7종, 관찰 상태, 명령 식별자, 주행 정책, 상태 카드 17종 |
 | `ContactIds.kt` | 비공개 연락처 ID, 정규화·유효성 검사·출력 숨김 |
-| `Profile.kt` | 테스트 계정, 세션, 내·공개 프로필, 관심사, 동의 기록, 참여 설정 |
+| `Profile.kt` | 설치별 계정, 세션, 내·공개 프로필, 관심사, 동의 기록, 참여 설정 |
 | `Discovery.kt` | 발견 상태와 최소 공개 후보 |
 | `Voice.kt` | `VoiceCallState`, `VoiceCallRepository`, `VoiceTransport`, `VoiceChannel`, PCM 형식 |
 | `Relationships.kt` | 요청, 일시 연결, 기록, 연락처 교환 애프터, 차단·신고 |
@@ -79,8 +79,8 @@
 
 ## 신원, 공개 경계, 동의
 
-- `/v1/session/enter`만 인증 토큰을 발급하는 진입 경로입니다. `PersonaCode.ACCOUNT_A/B`는 시연 자격 선택이고 행위자 ID가 아닙니다. 서버가 공간과 계정을 결정해 토큰을 발급합니다. 서버 모드는 `SERVER_DEMO`, 기기 안에서만 도는 모드는 `SOLO`입니다. `roomCode`는 시연 공간 구분 값입니다.
-- 서버의 `roomCode`는 영문·숫자·밑줄·하이픈 4~32자예요. `EnterSessionRequest.clientSecret: String? = null`은 호환성을 위한 추가 필드이며 서버 입장에는 32~256자가 필수예요. 최초 페르소나 소유권을 SHA-256 해시로만 저장하고 재입장 때 `MessageDigest.isEqual`로 비교해요. 비밀값이 없거나 다르면 `NotAuthorized`만 반환하고 기존 토큰과 계정은 바꾸지 않아요. 같은 비밀값의 새 입장 명령은 동일 계정의 세션 토큰을 교체해요. 비밀값은 응답·로그·`toString`에 넣지 않아요. 방 코드만으로 기존 페르소나에 들어갈 수 없어요.
+- `/v1/session/enter`만 인증 토큰을 발급하는 진입 경로입니다. 클라이언트가 설치별로 생성한 `clientSecret`과 공간으로 서버가 계정을 결정하고 토큰을 발급합니다. 클라이언트가 행위자 ID를 선택하지 않습니다. 서버 모드는 `SERVER_DEMO`, 기기 안에서만 도는 모드는 `SOLO`입니다. `roomCode`가 없으면 `default` 공간입니다. 앱 UI는 공간을 선택하지 않으며 별도 공간은 테스트용입니다. 새 프로필은 빈 닉네임과 DAWN 아바타로 시작합니다.
+- 서버의 `roomCode`는 영문·숫자·밑줄·하이픈 4~32자예요. 서버 입장에는 32~256자의 설치별 `clientSecret`이 필수예요. 공간과 비밀 값의 SHA-256으로 독립 계정을 찾으므로 다른 유효 비밀 값은 별도 계정을 만들고 기존 계정에 들어가지 못해요. 비밀 값이 없거나 길이가 맞지 않으면 `NotAuthorized`예요. 같은 설치의 새 입장은 기존 계정을 유지하고 이전 세션 토큰을 교체해요. bearer token은 비밀 값을 키로 공간·세션에 HMAC-SHA256을 적용하며 저장 파일에는 token 원문 대신 SHA-256 digest를 보관해요. 같은 입장 명령 재시도에는 같은 세션과 token을 반환해요. 계정 삭제 후 같은 설치가 다시 입장하면 삭제한 프로필을 복원하지 않는 새 계정을 만들어요. 비밀 값은 응답·로그·`toString`에 넣지 않아요.
 - 그 밖의 모든 경로는 `Authorization: Bearer <token>`에서 행위자를 정합니다. 요청 DTO에는 `actorId`, `senderId`, `accountId`, `ownerId`가 없습니다. 상대 프로필·후보·요청·연결 ID는 대상 식별자이며 소유권 증거가 아닙니다.
 - `RecordConsentRequest`는 현재 문서 버전에 대한 `GRANT/REVOKE` 명령입니다. 서버가 인증된 계정의 `ConsentRecord`를 저장합니다. 연결 요청·수락 DTO에는 동의 플래그가 없으며 서버는 자신의 저장 상태를 읽습니다. `ADULT_ATTESTATION`은 시연용 자기 확인이고 연령 검증 주장이 아닙니다.
 - `PublicProfile`과 `Candidate`는 닉네임, 가상 아바타, 관심사, 공개 시그니처와 궁합만 포함합니다. `ProfileKind.VIRTUAL_PROFILE`은 `가상 프로필`, `DEMO_PEER`는 `시연용 가상 상대`로 표시합니다.
@@ -166,7 +166,7 @@
 
 | 경험 명세의 화면 | 관찰 | 명령·화면에서 필요한 값 |
 |---|---|---|
-| 첫 실행 | SessionRepository.session/personas/availableModes | enter; SOLO/SERVER_DEMO, roomCode, ACCOUNT_A/B. app 설정에 서버 주소가 있을 때만 availableModes에 SERVER_DEMO 포함 |
+| 첫 실행 | SessionRepository.session/availableModes | enter; SOLO/SERVER_DEMO, 선택적 roomCode/clientSecret. app 설정에 서버 주소가 있을 때만 availableModes에 SERVER_DEMO 포함 |
 | 프로필 등록·편집 | ProfileRepository.profile, Session.policy | saveProfile(ProfileDraft); 로컬 초안 보존 후 동일 명령 재시도 |
 | 차량 데이터·위치·공개 범위 | ProfileRepository.settings, SignatureRepository.signature, VoiceCallRepository.microphonePermission | recordConsent, updateVisibility, setDiscovery; 선택 requestMicrophone, 공개 미리보기 |
 | 오늘의 인연 | DiscoveryRepository.discovery | setDiscovery, refresh; title/traits/chemistry.lines/공통 관심사 |

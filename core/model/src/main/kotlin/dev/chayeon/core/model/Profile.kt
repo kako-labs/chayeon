@@ -12,22 +12,10 @@ enum class InterestId {
 }
 
 @Serializable
-enum class PersonaCode { ACCOUNT_A, ACCOUNT_B }
-
-@Serializable
 enum class ProfileKind { VIRTUAL_PROFILE, DEMO_PEER }
 
 @Serializable
 enum class SessionMode { SOLO, SERVER_DEMO }
-
-@Serializable
-data class Persona(
-    override val id: String,
-    override val version: Long,
-    val code: PersonaCode,
-    val nickname: String,
-    val avatar: AvatarId,
-) : VersionedEntity
 
 @Serializable
 data class Session(
@@ -35,7 +23,6 @@ data class Session(
     override val version: Long,
     val accountId: String,
     val mode: SessionMode,
-    val persona: PersonaCode,
     val roomCode: String?,
     val accessToken: String?,
     val expiresAtEpochMillis: Long?,

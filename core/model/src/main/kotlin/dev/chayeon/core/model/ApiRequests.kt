@@ -6,12 +6,11 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class SyncRequest(val since: Long = 0)
 
-/** Persona codes select demo credentials; the server issues the actor identity in a bearer token. */
+/** Installation credentials recover an account; only the server-issued token authorizes commands. */
 @Serializable
 data class EnterSessionRequest(
     val meta: CommandMeta,
     val mode: SessionMode,
-    val persona: PersonaCode,
     val roomCode: String? = null,
     val clientSecret: String? = null,
 ) {

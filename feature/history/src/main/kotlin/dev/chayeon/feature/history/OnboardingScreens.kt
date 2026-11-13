@@ -21,11 +21,23 @@ import dev.chayeon.core.ui.*
 
 @Composable
 fun FirstRunScreen(state: HistoryUiState, chrome: ScreenChrome, onMode: (SessionMode) -> Unit,
-    onPersona: (PersonaCode) -> Unit, onRoom: (String) -> Unit, onEnter: () -> Unit, onRetry: (String) -> Unit) {
+    onEnter: () -> Unit, onRetry: (String) -> Unit) {
+    if (SessionMode.SERVER_DEMO !in state.modes) {
+        HistoryFrame(state, chrome, "차연", "프로필을 준비하고 있어요", primary = {
+            GlassCard(Modifier.fillMaxWidth()) {
+                ChayeonText("프로필을 준비하고 있어요", style = ChayeonType.Body)
+                if (state.session is SessionState.Failed) {
+                    ChayeonText(state.session.error.copy(), style = ChayeonType.Secondary)
+                    JellyButton("다시 시작", onEnter, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
+                }
+                CommandFeedback(state.command("enter"), { onRetry("enter") })
+            }
+        })
+        return
+    }
     HistoryFrame(state, chrome, "차연", "길 위에서 시작되는 인연", step = 0, ratio = 1.3f,
         bottom = {
-            OnboardingActions("이 계정으로 시작", !state.command("enter").running && state.selectedMode in state.modes &&
-                state.personas.valueOrNull().orEmpty().any { it.code == state.selectedPersona }, onEnter)
+            OnboardingActions("시작하기", !state.command("enter").running && state.selectedMode in state.modes, onEnter)
         },
         primary = {
             HeroPanel(Modifier.fillMaxWidth().height(LocalHistoryPaneHeight.current.takeIf { it > 0.dp } ?: (ChayeonDimensions.Knot * 3)).testTag("onboarding-left"), contentPadding = PaddingValues(ChayeonSpacing.Hero)) {
@@ -59,22 +71,14 @@ fun FirstRunScreen(state: HistoryUiState, chrome: ScreenChrome, onMode: (Session
                         { onMode(SessionMode.SOLO) }, description = "가상 상대와 편하게 만나봐요", enabled = !state.command("enter").running)
                     if (SessionMode.SERVER_DEMO in state.modes) {
                         GelRadioRow("두 대로 연결(서버)", state.selectedMode == SessionMode.SERVER_DEMO,
-                            { onMode(SessionMode.SERVER_DEMO) }, description = "같은 방 코드로 서로 다른 계정을 골라요", enabled = !state.command("enter").running)
-                        if (state.selectedMode == SessionMode.SERVER_DEMO) GelTextField(state.roomCode, onRoom, "방 코드", maxLength = 32, error = state.draftError, enabled = !state.command("enter").running)
+                            { onMode(SessionMode.SERVER_DEMO) }, description = "참여 중인 사람과 연결해요", enabled = !state.command("enter").running)
                     }
-                    SectionTitle("계정을 골라 주세요")
-                    Loaded(state.personas, "준비된 계정이 없어요") { personas ->
-                        personas.forEach { persona ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
-                                AvatarDish(MochiAvatar.from(persona.avatar), Modifier.size(ChayeonDimensions.PeerSmall))
-                                GelRadioRow(persona.nickname, state.selectedPersona == persona.code, { onPersona(persona.code) }, Modifier.weight(1f),
-                                    description = "계정 ${if (persona.code == PersonaCode.ACCOUNT_A) "A" else "B"}", enabled = !state.command("enter").running)
-                            }
-                        }
-                    }
-                    if (state.selectedMode == SessionMode.SERVER_DEMO) ChayeonText("가상 프로필로 참여해요. 실제 가입과 연령 인증은 제공하지 않아요.", style = ChayeonType.Secondary)
-                    if (state.session is SessionState.Failed) ChayeonText(state.session.error.copy(), style = ChayeonType.Secondary)
-                    CommandFeedback(state.command("enter"), { onRetry("enter") })
+                    if (state.selectedMode == SessionMode.SERVER_DEMO) ChayeonText("실제 참여자와 시연용 가상 상대가 함께 보여요", style = ChayeonType.Secondary)
+                    if (state.session is SessionState.Failed && state.session.error != AppError.Restricted) ChayeonText(state.session.error.copy(), style = ChayeonType.Secondary)
+                    if (state.command("enter").error == AppError.Restricted) {
+                        ChayeonText("지금은 참여자가 많아요. 잠시 후 다시 시작해 주세요", style = ChayeonType.Secondary)
+                        JellyButton("다시 시작", { onRetry("enter") }, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
+                    } else CommandFeedback(state.command("enter"), { onRetry("enter") })
                 }
             }
         })
@@ -94,6 +98,7 @@ fun ProfileSetupScreen(state: HistoryUiState, chrome: ScreenChrome, editing: Boo
             HeroPanel(Modifier.fillMaxWidth().testTag("onboarding-left")) {
                 Column(Modifier.fillMaxWidth().heightIn(min = (LocalHistoryPaneHeight.current - ChayeonSpacing.Hero * 2).coerceAtLeast(0.dp)),
                     verticalArrangement = OnboardingPanelArrangement) {
+                if (!editing && state.modes == setOf(SessionMode.SOLO)) ChayeonText("혼자 둘러보기에서는 가상 상대와 만나봐요", style = ChayeonType.Secondary)
                 SectionTitle("상대에게 이렇게 보여요")
                 ProfilePresentation(preview)
                 InfoRow(ChayeonIcon.LOCK, "연락처는 공개 카드에 보이지 않아요", body = "직접 고른 공개 시그니처만 함께 보여요")

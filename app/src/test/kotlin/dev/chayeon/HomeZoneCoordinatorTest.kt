@@ -32,7 +32,7 @@ internal class HomeEngineFixture {
     }, EngineClock { now }, EngineIdGenerator { "id-${++ids}" }, MemoryEngineStore(), policy, demoEnabled = false)
     fun meta() = CommandMeta("command-${++commands}")
     fun join(actor: String): Session {
-        val session = engine.enterSession(actor, EnterSessionRequest(meta(), SessionMode.SOLO, PersonaCode.ACCOUNT_A)).ok()
+        val session = engine.enterSession(actor, EnterSessionRequest(meta(), SessionMode.SOLO)).ok()
         engine.saveProfile(actor, SaveProfileRequest(meta(), ProfileDraft("가상상대", AvatarId.DAWN, emptySet()))).ok()
         ConsentScope.entries.forEach { engine.recordConsent(actor, RecordConsentRequest(meta(), it, ConsentAction.GRANT, policy.consentDocumentVersion)).ok() }
         engine.setDiscovery(actor, SetDiscoveryRequest(meta(), DiscoveryMode.ON)).ok()
@@ -240,7 +240,7 @@ class HomeZoneCoordinatorTest {
 
     @Test fun onboardingCanGrantConsentAndEnableDiscoveryAfterTheInitialPresenceWasRejected() = runTest {
         val f = HomeEngineFixture()
-        val session = f.engine.enterSession("a", EnterSessionRequest(f.meta(), SessionMode.SOLO, PersonaCode.ACCOUNT_A)).ok()
+        val session = f.engine.enterSession("a", EnterSessionRequest(f.meta(), SessionMode.SOLO)).ok()
         val home = TestHomeZone()
         val coordinator = HomeZoneCoordinator(home, {}, backgroundScope)
         val sent = mutableListOf<SetSyntheticPresenceRequest>()

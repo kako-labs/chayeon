@@ -89,7 +89,7 @@ class PresenceLeaseTest {
         f.engine.signOut("a", SignOutRequest(f.meta())).ok()
         assertNull(f.engine.exportState().accounts.getValue("a").presenceLeaseDeadline)
         f.advance(10_000)
-        f.engine.enterSession("a", EnterSessionRequest(f.meta(), SessionMode.SOLO, PersonaCode.ACCOUNT_A)).ok()
+        f.engine.enterSession("a", EnterSessionRequest(f.meta(), SessionMode.SOLO)).ok()
         assertEquals(f.now + 60_000, f.engine.exportState().accounts.getValue("a").presenceLeaseDeadline)
         f.advance(59_999)
         assertEquals(SyntheticPresence.NEARBY, f.engine.exportState().accounts.getValue("a").syntheticPresence)

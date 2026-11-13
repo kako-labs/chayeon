@@ -27,19 +27,52 @@ class SocialStorageTest {
         File(context.noBackupFilesDir, "chayeon-social").deleteRecursively()
     }
 
-    @Test fun personaChoicesMatchEngineDefaultsAndDoNotCollideWithCast() = runTest {
-        val graph = SocialGraph(context, null, rules, { AppResult.Success(Unit) })
+    @Test fun soloHasOneOwnerAndCleanupRestartsWithAnEmptyProfile() = runTest {
+        val backend = LocalBackend(context, rules)
         try {
-            val personas = (graph.sessionRepository.personas.first() as LoadState.Ready).value
-            assertEquals(PersonaCode.entries.toSet(), personas.map { it.code }.toSet())
-            val engine = ChayeonEngine(rules)
-            personas.forEach { persona ->
-                engine.enterSession(persona.id, EnterSessionRequest(CommandMeta(persona.id), SessionMode.SOLO, persona.code))
-                val profile = (engine.snapshotFor(persona.id) as AppResult.Success).value.profile!!.publicProfile
-                assertEquals(profile.nickname, persona.nickname)
-                assertFalse(dev.chayeon.core.engine.DemoCast.peers.any { it.nickname == persona.nickname })
+            val first = success(backend.enter(EnterSessionRequest(CommandMeta("first"), SessionMode.SOLO)))
+            val again = success(backend.enter(EnterSessionRequest(CommandMeta("again"), SessionMode.SOLO)))
+            assertEquals(first.accountId, again.accountId)
+            val profile = success(backend.sync(again)).profile!!
+            assertEquals("", profile.publicProfile.nickname)
+            assertEquals(RegistrationState.PROFILE_REQUIRED, profile.registration)
+            backend.execute(again, ApiRoutes.SAVE_PROFILE, socialJson.encodeToString(SaveProfileRequest.serializer(),
+                SaveProfileRequest(CommandMeta("save"), ProfileDraft("나의별명", AvatarId.STAR, setOf(InterestId.JAZZ)))) )
+            assertEquals("나의별명", success(backend.sync(again)).profile!!.publicProfile.nickname)
+            success(backend.clearLocalData())
+            val next = success(backend.enter(EnterSessionRequest(CommandMeta("next"), SessionMode.SOLO)))
+            val fresh = success(backend.sync(next)).profile!!
+            assertNotEquals(profile.id, fresh.id)
+            assertEquals("", fresh.publicProfile.nickname)
+            assertEquals(AvatarId.DAWN, fresh.publicProfile.avatar)
+            assertEquals(emptySet<InterestId>(), fresh.publicProfile.interests)
+            assertEquals(ContactIds(), fresh.contacts)
+            assertEquals(RegistrationState.PROFILE_REQUIRED, fresh.registration)
+        } finally { backend.close() }
+    }
+
+    @Test fun logoutAndDeletionBothReturnSoloToEmptyFirstRun() = runTest {
+        for (delete in listOf(false, true)) {
+            val driving = object : DrivingStateProvider {
+                override val drivingState = kotlinx.coroutines.flow.flowOf(DrivingState(policy = DrivingPolicy.ALLOWED))
             }
-        } finally { graph.close() }
+            val graph = SocialGraph(context, null, rules, { AppResult.Success(Unit) }, driving)
+            try {
+                graph.sessionRepository.session.first { it is SessionState.SignedOut }
+                success(graph.sessionRepository.enter(EnterSessionRequest(CommandMeta("enter-$delete"), SessionMode.SOLO)))
+                success(graph.profileRepository.saveProfile(SaveProfileRequest(CommandMeta("save-$delete"),
+                    ProfileDraft("나의별명", AvatarId.STAR, setOf(InterestId.JAZZ)))))
+                if (delete) success(graph.sessionRepository.deleteAccount(DeleteAccountRequest(CommandMeta("delete"))))
+                else success(graph.sessionRepository.signOut(SignOutRequest(CommandMeta("logout"))))
+                assertTrue(graph.sessionRepository.session.first() is SessionState.SignedOut)
+                success(graph.sessionRepository.enter(EnterSessionRequest(CommandMeta("fresh-$delete"), SessionMode.SOLO)))
+                val fresh = (graph.profileRepository.profile.first { it is LoadState.Ready } as LoadState.Ready).value!!
+                assertEquals("", fresh.publicProfile.nickname)
+                assertEquals(AvatarId.DAWN, fresh.publicProfile.avatar)
+                assertEquals(RegistrationState.PROFILE_REQUIRED, fresh.registration)
+                success(graph.sessionRepository.signOut(SignOutRequest(CommandMeta("finish-$delete"))))
+            } finally { graph.close() }
+        }
     }
 
     @Test fun `sessions are backup excluded endpoint scoped and clearable`() {
@@ -60,6 +93,22 @@ class SocialStorageTest {
         assertNotEquals(original, restored.getOrCreate("https://one.example", "other"))
         assertNotEquals(original, restored.getOrCreate("https://two.example", "room"))
         assertTrue(File(context.noBackupFilesDir, "chayeon-social/client-secrets.json").isFile)
+    }
+
+    @Test fun storedLegacySessionAndEngineIgnoreRemovedPersonaWithoutChangingTheWireContract() {
+        val engine = ChayeonEngine(rules, store = PrivateEngineStore(context), demoEnabled = false)
+        val session = success(engine.enterSession("local-owner", EnterSessionRequest(CommandMeta("legacy"), SessionMode.SOLO)))
+        PrivateSessionStorage(context, "local-session.json").write(session)
+        for (name in listOf("local-session.json", "engine.json")) {
+            val file = File(context.noBackupFilesDir, "chayeon-social/$name")
+            file.writeText(file.readText().replace("\"mode\":\"SOLO\"", "\"mode\":\"SOLO\",\"persona\":\"ACCOUNT_A\""))
+        }
+        assertEquals(session, PrivateSessionStorage(context, "local-session.json").read())
+        val restored = ChayeonEngine(rules, store = PrivateEngineStore(context), demoEnabled = false)
+        assertEquals(session.id, success(restored.snapshotFor(session.accountId)).id)
+        val wire = socialJson.encodeToString(EnterSessionRequest.serializer(), EnterSessionRequest(CommandMeta("wire"), SessionMode.SOLO))
+            .replace("\"mode\":\"SOLO\"", "\"mode\":\"SOLO\",\"persona\":\"ACCOUNT_A\"")
+        assertTrue(runCatching { socialJson.decodeFromString(EnterSessionRequest.serializer(), wire) }.isFailure)
     }
 
     @Test fun `cleanup marker survives a new storage instance and contains no credential`() {
@@ -93,7 +142,7 @@ class SocialStorageTest {
         val graph = SocialGraph(context, null, rules, { AppResult.Success(Unit) })
         assertEquals(setOf(SessionMode.SOLO), graph.sessionRepository.availableModes.first())
         assertEquals(AppResult.Failure(AppError.Restricted), graph.sessionRepository.enter(
-            EnterSessionRequest(CommandMeta("enter"), SessionMode.SOLO, PersonaCode.ACCOUNT_A)))
+            EnterSessionRequest(CommandMeta("enter"), SessionMode.SOLO)))
         graph.close()
         val remoteGraph = SocialGraph(context, "https://example.test", rules, { AppResult.Success(Unit) })
         assertEquals(setOf(SessionMode.SOLO, SessionMode.SERVER_DEMO), remoteGraph.sessionRepository.availableModes.first())
@@ -102,8 +151,8 @@ class SocialStorageTest {
 
     @Test fun `solo restart preserves profile and encounters and signout cleanup removes persisted data`() = runTest {
         val engine = ChayeonEngine(rules = rules, store = PrivateEngineStore(context), demoEnabled = false)
-        val session = success(engine.enterSession("account_a", EnterSessionRequest(CommandMeta("enter-a"), SessionMode.SOLO, PersonaCode.ACCOUNT_A)))
-        success(engine.enterSession("account_b", EnterSessionRequest(CommandMeta("enter-b"), SessionMode.SOLO, PersonaCode.ACCOUNT_B)))
+        val session = success(engine.enterSession("account_a", EnterSessionRequest(CommandMeta("enter-a"), SessionMode.SOLO)))
+        success(engine.enterSession("account_b", EnterSessionRequest(CommandMeta("enter-b"), SessionMode.SOLO)))
         for (actor in listOf("account_a", "account_b")) {
             success(engine.saveProfile(actor, SaveProfileRequest(CommandMeta("profile-$actor"),
                 ProfileDraft(if (actor == "account_a") "새벽드라이브" else "노을산책", AvatarId.DAWN, setOf(InterestId.JAZZ)))))

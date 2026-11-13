@@ -57,7 +57,10 @@ fun NavGraphBuilder.historyGraph(
                 }
             }
         }
-        FirstRunScreen(state, chrome, model::selectMode, model::selectPersona, model::setRoomCode, model::enter, model::retry)
+        LaunchedEffect(state.modes, state.session, state.driving.policy) {
+            model.enterSoloIfNeeded()
+        }
+        FirstRunScreen(state, chrome, model::selectMode, model::enter, model::retry)
     }
     listOf(HistoryDestination.PROFILE_SETUP, HistoryDestination.PROFILE_EDIT).forEach { route ->
         composable(route) {

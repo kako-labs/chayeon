@@ -18,7 +18,7 @@ internal class Fixture(demo: Boolean = false, val policy: EnginePolicy = EngineP
     val engine = ChayeonEngine(rules, EngineClock { now }, EngineIdGenerator { "id-${++sequence}" }, store, policy, demoEnabled = demo)
     fun meta() = CommandMeta("cmd-${++sequence}")
     fun join(actor: String) {
-        engine.enterSession(actor, EnterSessionRequest(meta(), SessionMode.SOLO, PersonaCode.ACCOUNT_A)).ok()
+        engine.enterSession(actor, EnterSessionRequest(meta(), SessionMode.SOLO)).ok()
         engine.saveProfile(actor, SaveProfileRequest(meta(), ProfileDraft("가상상대", AvatarId.DAWN, setOf(InterestId.JAZZ)))).ok()
         ConsentScope.entries.forEach { engine.recordConsent(actor, RecordConsentRequest(meta(), it, ConsentAction.GRANT, policy.consentDocumentVersion)).ok() }
         engine.setDiscovery(actor, SetDiscoveryRequest(meta(), DiscoveryMode.ON)).ok()
@@ -163,7 +163,7 @@ class EngineTest {
     @Test fun `registration and stored consents gate discovery and publication`() {
         val f = Fixture()
         val e = f.engine
-        e.enterSession("a", EnterSessionRequest(f.meta(), SessionMode.SOLO, PersonaCode.ACCOUNT_A)).ok()
+        e.enterSession("a", EnterSessionRequest(f.meta(), SessionMode.SOLO)).ok()
         assertEquals(AppError.Restricted, e.setDiscovery("a", SetDiscoveryRequest(f.meta(), DiscoveryMode.ON)).error())
         e.saveProfile("a", SaveProfileRequest(f.meta(), ProfileDraft("가상상대", AvatarId.SEA, emptySet()))).ok()
         assertEquals(RegistrationState.CONSENT_REQUIRED, f.snap("a").profile!!.registration)
