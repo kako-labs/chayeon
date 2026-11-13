@@ -165,6 +165,7 @@ scripts/         개발, 종단 검증, 릴리스 도구
 - [기획서](docs/proposal.md)
 - [아키텍처](docs/architecture.md)
 - [공통 계약](docs/contracts.md)
+- [제품 결정 기록](docs/product/decisions.md): 차연을 만드는 이유와 주요 방향 결정
 - [드라이브 시그니처 명세](docs/product/drive-signature.md)
 - [경험 명세](docs/product/experience-spec.md)
 - [품질 기준](docs/product/quality-bar.md)
