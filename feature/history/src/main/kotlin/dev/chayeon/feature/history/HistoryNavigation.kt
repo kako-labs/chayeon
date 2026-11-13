@@ -89,7 +89,7 @@ fun NavGraphBuilder.historyGraph(
         ConsentScreen(state, chrome, model::record, model::setDiscovery,
             { model.navigate { onExit(HistoryExit.OpenSignatureVisibility) } },
             { model.navigate { if (state.myProfile?.registration == RegistrationState.READY) onExit(HistoryExit.OpenMeet) } },
-            model::retry, { model.navigate(::back) }, { model.openHomeZone { open(HistoryDestination.HOME_ZONE) } })
+            model::retry, { model.navigate(::back) }, { model.openHomeZone { open(HistoryDestination.HOME_ZONE) } }, model::requestMicrophone)
     }
     composable(HistoryDestination.HOME_ZONE) {
         val model: HomeZoneViewModel = viewModel { HomeZoneViewModel(deps) }

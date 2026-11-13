@@ -16,6 +16,7 @@ fun MyProfileScreen(
     onVisibility: () -> Unit,
     onExit: (SignatureExit) -> Unit,
     onRetry: () -> Unit,
+    onReceiveRequestsWhileDriving: (Boolean) -> Unit = {},
 ) {
     SignatureFrame("내 프로필", state.driving.policy, chrome,
         primary = {
@@ -62,6 +63,15 @@ fun MyProfileScreen(
         },
         secondary = {
             SignatureColumn {
+                GlassCard(Modifier.fillMaxWidth()) {
+                    val settings = (state.settings as? LoadState.Ready)?.value
+                    Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
+                        GelToggle(settings?.receiveRequestsWhileDriving == true, onReceiveRequestsWhileDriving,
+                            "주행 중에도 새 요청 받기", enabled = settings != null && !state.updatingCallSetting)
+                        ChayeonText("전화처럼 닉네임과 칭호만 보고 받을 수 있어요", style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
+                        if (state.callSettingError != null) ChayeonText("설정을 바꾸지 못했어요. 다시 눌러 주세요", style = ChayeonType.Secondary, color = ChayeonColors.Pink)
+                    }
+                }
                 SettingsRow(ChayeonIcon.KNOT, "내 시그니처", "주행 스타일과 차량 관리에 담긴 나를 알아봐요.", onSignature)
                 SettingsRow(ChayeonIcon.EYE, "시그니처 공개 범위", "상대에게 보일 특성을 직접 골라요.", onVisibility)
                 SettingsRow(ChayeonIcon.LOCK, "차량 데이터와 위치 사용", "어떤 정보를 읽고 사용하는지 확인해요.", { onExit(SignatureExit.OpenConsent) })

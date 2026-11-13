@@ -35,8 +35,16 @@ internal class SocialSessionRepository(
 
 internal class SocialProfileRepository(private val coordinator: SocialCoordinator) : ProfileRepository {
     override val profile = coordinator.observe { it.profile }
-    override val settings: Flow<LoadState<ParticipationSettings>> = coordinator.observe {
-        it.settings ?: ParticipationSettings("settings", it.version)
+    override val settings: Flow<LoadState<ParticipationSettings>> = combine(coordinator.store.state, coordinator.driving) { state, driving ->
+        when (val data = state.data) {
+            is LoadState.Ready -> {
+                val settings = data.value.settings ?: ParticipationSettings("settings", data.version)
+                LoadState.Ready(if (driving.policy == DrivingPolicy.ALLOWED) settings else
+                    ParticipationSettings(settings.id, settings.version, receiveRequestsWhileDriving = settings.receiveRequestsWhileDriving), data.version)
+            }
+            is LoadState.Loading -> data
+            is LoadState.Failed -> data
+        }
     }
     override suspend fun saveProfile(request: SaveProfileRequest) = coordinator.command(
         ApiRoutes.SAVE_PROFILE, request, SaveProfileRequest.serializer(), SaveProfileResponse.serializer(), { it.result })
@@ -77,7 +85,20 @@ internal class SocialConnectionRepository(
     private val coordinator: SocialCoordinator,
     private val canStartConnection: suspend () -> Boolean = { true },
 ) : ConnectionRepository {
-    override val requests = coordinator.observe { it.connectionRequests }
+    override val requests = combine(coordinator.store.state, coordinator.driving) { state, driving ->
+        when (val data = state.data) {
+            is LoadState.Ready -> when {
+                driving.policy == DrivingPolicy.ALLOWED -> LoadState.Ready(data.value.connectionRequests, data.version)
+                driving.policy == DrivingPolicy.RESTRICTED && data.value.settings?.receiveRequestsWhileDriving == true ->
+                    LoadState.Ready(data.value.connectionRequests.filter {
+                        it.direction == RequestDirection.INCOMING && it.status == ConnectionRequestStatus.PENDING
+                    }.map { it.copy(peer = it.peer.copy(interests = emptySet(), signature = it.peer.signature?.copy(traits = emptyList(), knotSeed = KnotSeed(0))), chemistry = Chemistry()) }, data.version)
+                else -> LoadState.Failed(AppError.Restricted, data.version)
+            }
+            is LoadState.Loading -> data
+            is LoadState.Failed -> data
+        }
+    }
     // A driving screen still needs the active relationship identity to offer the permitted leave action.
     override val connection: Flow<LoadState<Connection?>> = coordinator.store.state.map { state ->
         when (val data = state.data) {
@@ -108,7 +129,9 @@ internal class SocialConnectionRepository(
         canExecute = canStartConnection)
     override suspend fun respond(request: RespondConnectionRequest) = coordinator.command(
         ApiRoutes.RESPOND_CONNECTION, request, RespondConnectionRequest.serializer(), RespondConnectionResponse.serializer(), { it.result },
-        canExecute = { request.decision != RequestDecision.ACCEPT || canStartConnection() })
+        requiresAllowed = false,
+        canExecute = { coordinator.allowsIncomingResponse(request.requestId) &&
+            (request.decision != RequestDecision.ACCEPT || canStartConnection()) })
     override suspend fun cancel(request: CancelConnectionRequest) = coordinator.command(
         ApiRoutes.CANCEL_CONNECTION, request, CancelConnectionRequest.serializer(), CancelConnectionResponse.serializer(), { it.result })
     override suspend fun leave(request: LeaveConnectionRequest) = coordinator.command(

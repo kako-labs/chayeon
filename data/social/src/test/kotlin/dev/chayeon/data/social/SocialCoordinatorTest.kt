@@ -29,6 +29,66 @@ import org.junit.Test
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class SocialCoordinatorTest {
+    @Test fun drivingIncomingIsOptInAndOnlyPendingIncomingResponsesPassTheTransportGuard() = runTest {
+        val backend = FakeBackend()
+        val driving = MutableStateFlow(DrivingState(policy = DrivingPolicy.ALLOWED))
+        val coordinator = SocialCoordinator(mapOf(SessionMode.SOLO to backend), backgroundScope,
+            { AppResult.Success(Unit) }, { 10 }, provider(driving))
+        coordinator.enter(enter()); runCurrent()
+        val peer = profile().publicProfile.copy(interests = setOf(InterestId.JAZZ))
+        val incoming = ConnectionRequest("incoming", 1, peer, RequestDirection.INCOMING,
+            ConnectionRequestStatus.PENDING, 0, 100_000, Chemistry())
+        val outgoing = incoming.copy(id = "outgoing", direction = RequestDirection.OUTGOING)
+        val repository = SocialConnectionRepository(coordinator)
+        for (optIn in listOf(false, true)) {
+            backend.snapshot.value = AppResult.Success(SyncSnapshot("session", if (optIn) 3 else 2, 1_000,
+                profile(), ParticipationSettings("settings", 1, receiveRequestsWhileDriving = optIn),
+                connectionRequests = listOf(incoming, outgoing)))
+            runCurrent()
+            for (policy in listOf(DrivingPolicy.RESTRICTED, DrivingPolicy.UNKNOWN)) {
+                driving.value = DrivingState(policy = policy)
+                val permitted = optIn && policy == DrivingPolicy.RESTRICTED
+                assertEquals(permitted, coordinator.allowsIncomingResponse("incoming"))
+                assertFalse(coordinator.allowsIncomingResponse("outgoing"))
+                assertFalse(coordinator.allowsIncomingResponse("missing"))
+                val visible = repository.requests.first()
+                if (permitted) {
+                    assertEquals(listOf("incoming"), (visible as LoadState.Ready).value.map { it.id })
+                    assertTrue(visible.value.single().peer.interests.isEmpty())
+                } else assertTrue(visible is LoadState.Failed)
+                assertEquals(AppResult.Failure(AppError.Restricted),
+                    repository.requestConnection(RequestConnectionRequest(CommandMeta("new"), "peer")))
+            }
+        }
+        assertFalse(ParticipationSettings("settings", 0).receiveRequestsWhileDriving)
+        coordinator.close()
+    }
+
+    @Test fun incomingPermissionIsRecheckedWhenAnOptedInResponseIsInFlight() = runTest {
+        val backend = FakeBackend()
+        val driving = MutableStateFlow(DrivingState(policy = DrivingPolicy.ALLOWED))
+        val coordinator = SocialCoordinator(mapOf(SessionMode.SOLO to backend), backgroundScope,
+            { AppResult.Success(Unit) }, { 10 }, provider(driving))
+        coordinator.enter(enter()); runCurrent()
+        val incoming = ConnectionRequest("incoming", 1, profile().publicProfile, RequestDirection.INCOMING,
+            ConnectionRequestStatus.PENDING, 0, 100_000, Chemistry())
+        backend.snapshot.value = AppResult.Success(SyncSnapshot("session", 2, 1_000,
+            settings = ParticipationSettings("settings", 2, receiveRequestsWhileDriving = true),
+            connectionRequests = listOf(incoming)))
+        runCurrent()
+        driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED)
+        val gate = CompletableDeferred<Unit>()
+        backend.beforeExecute = { gate.await() }
+        val response = async { SocialConnectionRepository(coordinator).respond(
+            RespondConnectionRequest(CommandMeta("accept"), "incoming", RequestDecision.ACCEPT)) }
+        runCurrent()
+        driving.value = DrivingState(policy = DrivingPolicy.UNKNOWN)
+        gate.complete(Unit)
+        assertEquals(AppResult.Failure(AppError.Restricted), response.await())
+        assertTrue(backend.bodies.isEmpty())
+        coordinator.close()
+    }
+
     @Test fun failedOrHungBackgroundPresenceCannotHoldRestorationEnterOrSignOutAndCannotPublishUiErrors() = runTest {
         for (hang in listOf(false, true)) {
             val backend = FakeBackend().apply {

@@ -42,9 +42,9 @@ class MeetMotionTest {
     @Test fun connectionReachesAndThenLightFlows() {
         compose.mainClock.autoAdvance = false
         val state = ConnectedUiState(driving = MeetFixtures.parked, connection = MeetFixtures.connection,
-            ownProfile = MeetFixtures.own, loading = false, greetingsLoading = false)
+            ownProfile = MeetFixtures.own, loading = false)
         compose.setContent {
-            ChayeonTheme(DrivingPolicy.ALLOWED, 1f) { ConnectedScreen(state, previewChrome(), {}, {}, {}, {}) }
+            ChayeonTheme(DrivingPolicy.ALLOWED, 1f) { ConnectedScreen(state, previewChrome(), {}, {}) }
         }
         compose.mainClock.advanceTimeBy(350)
         val reaching = pixels()
@@ -75,8 +75,8 @@ class MeetMotionTest {
         compose.setContent {
             ChayeonTheme(driving.value.policy, 1f) {
                 ConnectedScreen(ConnectedUiState(driving = driving.value, connection = MeetFixtures.connection,
-                    ownProfile = MeetFixtures.own, loading = false, greetingsLoading = false),
-                    previewChrome(policy = driving.value.policy, gear = driving.value.gear), {}, {}, {}, {})
+                    ownProfile = MeetFixtures.own, loading = false),
+                    previewChrome(policy = driving.value.policy, gear = driving.value.gear), {}, {})
             }
         }
         compose.mainClock.advanceTimeBy(900)
@@ -92,7 +92,7 @@ class MeetMotionTest {
         compose.setContent {
             ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
                 ConnectedScreen(ConnectedUiState(driving = MeetFixtures.parked, connection = MeetFixtures.connection,
-                    ownProfile = MeetFixtures.own, loading = false, greetingsLoading = false), previewChrome(), {}, {}, {}, {})
+                    ownProfile = MeetFixtures.own, loading = false), previewChrome(), {}, {})
             }
         }
         compose.mainClock.advanceTimeBy(50)

@@ -44,6 +44,7 @@ data class HistoryUiState(
     val selectedReason: ReportReason = ReportReason.UNPLEASANT_MESSAGE,
     val confirmation: HistoryConfirmation? = null,
     val remainingMillis: Map<String, Long?> = emptyMap(),
+    val microphoneGranted: Boolean = false,
 ) {
     val requiredConsentsGranted: Boolean get() = policy?.let { settings.hasRequiredConsents(it.consentDocumentVersion) } == true
     val policy: ParticipationPolicy? get() = (session as? SessionState.Active)?.session?.policy

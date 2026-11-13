@@ -55,6 +55,7 @@
 | `Common.kt` | `AppResult`, 오류 7종, 관찰 상태, 명령 식별자, 주행 정책, 상태 카드 18종 |
 | `Profile.kt` | 테스트 계정, 세션, 내·공개 프로필, 관심사, 동의 기록, 참여 설정 |
 | `Discovery.kt` | 발견 상태와 최소 공개 후보 |
+| `Voice.kt` | `VoiceCallState`, `VoiceCallRepository`, `VoiceTransport`, `VoiceChannel`, PCM 형식 |
 | `Relationships.kt` | 요청, 일시 연결, 인사, 기록, 애프터, 차단·신고 |
 | `Signature.kt` | 공개 시그니처, 개인 근거, 주행 집계, 매듭 시드, 궁합 |
 | `Repositories.kt` | 기능이 사용하는 관찰·명령 인터페이스와 기기 안의 명령 |
@@ -69,7 +70,7 @@
 | SIGNATURE | `core:signature`의 순수 계산, 칭호·궁합·시드; 내 프로필·근거·공개 범위·요약 화면 |
 | VEHICLE | SDK와 `CarPropertyManager`, 주행 정책, 포그라운드 수집, 기기 안의 지표 저장, `SignatureRepository`, `VehicleConsole` |
 | ENGINE | `core:engine`의 관계 상태 기계, 명령 검증·원자성, 만료·이탈 판정, 시연 상대. 서버와 기기 안 모드가 공유 |
-| SOCIAL | `data:social`의 기기 안 백엔드와 HTTP 백엔드, 동기화·명령 재시도, `ServerTimeProvider` |
+| SOCIAL | `data:social`의 기기 안 백엔드와 HTTP/WebSocket 백엔드, 동기화·명령 재시도, `ServerTimeProvider` |
 | SERVER | 토큰 인증·공간 격리, HTTP 경로, 긴 폴링, 엔진 호스팅 |
 | APP | 생성자 주입, 최상위 이동, 기기 데이터 정리 연결, 알림과 시연 제어 조립 |
 
@@ -158,8 +159,8 @@
 - 일시 연결은 `CONNECTED → CHECKING → CONNECTED`가 가능하고, 마지막은 `ENDED`입니다. `CHECKING`은 상태를 확인 중이라는 뜻이며 이탈 확정이 아닙니다. `DISTANCE/PEER_LEFT/SELF_LEFT/STATUS_UNKNOWN/DISCOVERY_OFF/BLOCKED`를 분리합니다. `ENDED`에서 이전 연결로 돌아갈 수 없습니다.
 - 실제 성립해 끝난 일시 연결만 하나의 `Encounter`를 만듭니다. 거절·취소·만료 요청은 기록이 되지 않습니다. 내 기록 삭제는 상대 기록과 차단 상태를 바꾸지 않습니다.
 - 애프터 요청 `PENDING`은 `ACCEPTED` 또는 `DECLINED/WITHDRAWN/EXPIRED/UNAVAILABLE`로 끝납니다. 별도 `AfterConnection`은 `CONNECTED → CLOSED`이며 다시 열지 않습니다.
-- 일시 인사는 `PresetCode`만 보낼 수 있습니다. 애프터에는 `AfterMessageContent.Preset`과 `Text`가 있습니다. 시안의 프리셋 UI와 향후 입력 UI가 같은 계약을 씁니다.
-- `DrivingPolicy.ALLOWED`에서만 탐색·요청·수락·입력·편집을 허용합니다. `RESTRICTED`, `UNKNOWN`에서는 나가기만 허용합니다. 서버 요청에 클라이언트가 허용 여부를 주장하는 필드는 없습니다. 기기 정책은 UI와 명령 진입점에서 확인하고, 서버는 자신의 인증·동의·관계 상태를 별도로 검사합니다.
+- 기존 일시 인사 API의 `PresetCode` 계약은 유지하지만, 현재 임시 연결 화면은 관찰·전송하지 않고 통화와 이야깃거리를 보여줘요. 애프터의 `AfterMessageContent.Preset`과 `Text`, 스레드·입력·전송 동작은 유지해요.
+- `DrivingPolicy.ALLOWED`에서만 탐색·발신 요청·일반 수락·입력·편집을 허용해요. RESTRICTED의 활성 통화에서는 음소거/해제와 통화 끊기를 허용하고, 기본 OFF 수신 설정을 켠 전용 화면에서만 받기/거절을 추가 허용해요. UNKNOWN에서는 통화 끊기만 허용해요. 서버 요청에 클라이언트가 허용 여부를 주장하는 필드는 없습니다. 기기 정책은 UI와 명령 진입점에서 확인하고, 서버는 자신의 인증·동의·관계 상태를 별도로 검사합니다.
 - `DrivingState` 초기값은 `UNKNOWN`입니다. P와 실제 주행 상태 0을 확인한 차량 구현만 `ALLOWED`를 냅니다. 속도 0만으로 허용하지 않습니다.
 - 로그아웃·계정 삭제 성공 전에 `SignatureRepository.clearLocalData()`와 로컬 프로필·대화·토큰 캐시를 정리합니다. APP이 정리 의존성을 연결하고 SOCIAL의 SessionRepository 구현이 완료를 보장합니다. 정리 실패를 성공으로 숨기지 않습니다. 계정 삭제와 단순 로그아웃의 서버 보존 범위는 다릅니다.
 
@@ -169,13 +170,14 @@
 |---|---|---|
 | 첫 실행 | SessionRepository.session/personas/availableModes | enter; SOLO/SERVER_DEMO, roomCode, ACCOUNT_A/B. app 설정에 서버 주소가 있을 때만 availableModes에 SERVER_DEMO 포함 |
 | 프로필 등록·편집 | ProfileRepository.profile, Session.policy | saveProfile(ProfileDraft); 로컬 초안 보존 후 동일 명령 재시도 |
-| 차량 데이터·위치·공개 범위 | ProfileRepository.settings, SignatureRepository.signature | recordConsent, updateVisibility, setDiscovery; 공개 미리보기 |
+| 차량 데이터·위치·공개 범위 | ProfileRepository.settings, SignatureRepository.signature, VoiceCallRepository.microphonePermission | recordConsent, updateVisibility, setDiscovery; 선택 requestMicrophone, 공개 미리보기 |
 | 오늘의 인연 | DiscoveryRepository.discovery | setDiscovery, refresh; title/traits/chemistry.lines/공통 관심사 |
 | 상대 카드·궁합 | discovery.candidates | PublicProfile.signature, KnotSeed, Chemistry; requestConnection(candidateId) |
 | 요청 보냄 | ConnectionRepository.requests, ServerTimeProvider.serverTime | cancel; 서버 기준 expiresAtEpochMillis, retryAvailableAtEpochMillis |
 | 요청 받음 | ConnectionRepository.requests, ServerTimeProvider.serverTime | respond(ACCEPT/DECLINE); peer와 chemistry, 서버 기준 응답 기한 |
-| 연결 중 | ConnectionRepository.connection, observeGreetings | sendGreeting; PresetCode, clientMessageId, delivery, availablePresets |
-| 연결 중·주행 제한 / 주행 중 | DrivingStateProvider.drivingState, connection | 나가기만; UNKNOWN도 같은 잠금, 기어·합성 표시 |
+| 연결 중 | ConnectionRepository.connection, VoiceCallRepository.state, ProfileRepository.profile | 자동 통화, setMuted, requestMicrophone, leave; 공개 공통 관심사·궁합·칭호의 읽기 전용 이야깃거리 |
+| 연결 중·주행 제한 / 주행 중 | DrivingStateProvider.drivingState, connection, VoiceCallRepository.state | RESTRICTED는 음소거/해제·통화 끊기, UNKNOWN은 통화 끊기만. 통화 상태 live region |
+| 주행 중 요청 받음 | requests, settings.receiveRequestsWhileDriving | ON+RESTRICTED에서만 받기/거절. 아바타·닉네임·칭호, 집 보호 수락 차단 |
 | 연결 중·좁은 창 | 위와 같음 | 레이아웃만 변경, 다른 데이터 계약 없음 |
 | 연결 종료 | ConnectionRepository.connection | endReason, endedAtEpochMillis, encounterId |
 | 스친 인연 / 기록 상세 | EncounterRepository.encounters/observeEncounter | deleteEncounter/deleteAllEncounters; peer, chemistry, afterEligibility |
@@ -208,7 +210,7 @@
 | 요청 만료 | REQUEST_EXPIRED | ConnectionRequestStatus.EXPIRED |
 | 받은 요청 취소 | REQUEST_CANCELLED | ConnectionRequestStatus.CANCELLED |
 | 수락 시 연결 불가 | PEER_UNAVAILABLE | AppError.PeerUnavailable 또는 요청 UNAVAILABLE |
-| 인사 전송 실패 | MESSAGE_SEND_FAILED | DeliveryState.FAILED 또는 sendGreeting의 Failure |
+| 인사 전송 실패 | MESSAGE_SEND_FAILED | 기존 일시 인사 API의 실패 상태. 현재 통화 UI에서는 사용하지 않음 |
 | 연결 상태 확인 중 | CONNECTION_CHECKING | ConnectionStatus.CHECKING |
 | 애프터 거절 | AFTER_DECLINED | AfterRequestStatus.DECLINED |
 | 애프터 만료 | AFTER_EXPIRED | AfterRequestStatus.EXPIRED |
@@ -239,3 +241,16 @@ NOT_SET와 신선한 위치로 확인한 OUTSIDE만 발견을 허용해요. INSI
 presence가 Restricted로 거절되면 heartbeat와 AWAY 자동 재시도를 멈춰요. 동의 복원 후 발견 ON은 최초 가입·홈·하단 오브·동의 화면 모두 HomeProtectedDiscoveryRepository.setDiscovery → confirmPresence를 통해 새 키로 presence를 확인해요. 보호 상태 변화만으로 거절된 전송을 재개하지 않아요. 직접 꺼 둔 발견도 자동으로 켜지 않아요.
 
 ContractTest는 기기 전용 타입과 집·구역·반경 필드가 요청·응답 직렬화 그래프에 들어오지 않는지 검사해요. PresenceLeaseTest는 실제 엔진의 lease 만료와 명시적 AWAY의 전체 상대 스냅샷·DISTANCE 시각을 비교해요. HomeZoneCoordinatorTest의 명시적 AWAY 비교는 조정기가 동일한 명령만 보낸다는 증거이며 실제 위치 기반 이탈의 증거는 아니에요. HomeZoneRemotePrivacyTest는 mock HTTP의 모든 요청 본문·헤더와 UpdateLocation 미호출을 확인해요.
+
+## 음성 통화 계약
+
+- `VoiceCallState`는 connectionId, IDLE/CONNECTING/ACTIVE/RECONNECTING, muted, 마이크 AVAILABLE/DENIED/UNAVAILABLE/NOT_USED를 담는 기기 전용 상태예요. 음성 데이터나 음성 활동 수치를 담지 않아요.
+- `VoiceCallRepository.microphonePermission`은 통화 여부·SOLO 여부와 독립적인 기기 권한 관찰이에요. 온보딩을 다시 열어도 실제 권한 표시를 복원하며 마이크를 열지 않아요.
+- `VoiceTransport.open(connectionId)`는 인증된 `VoiceChannel`을 열어요. incoming과 send는 PCM16 little endian, 16 kHz, mono, 20 ms, 정확히 640 bytes예요. 마이크가 없거나 음소거면 프레임을 보내지 않아요. 침묵 프레임으로 대체하지 않아요.
+- `data:voice` 내부 `DemoPeerVoice.start(peer)/setFocusAvailable/stop`은 데모 재생 수명 경계이고 `DemoSpeechEngine.prepare/speak/stop/release` 뒤에 Pleos TextToSpeech 3.3.1 ON_DEVICE 구현을 둬요. SOLO 또는 상대가 DEMO_PEER이면 모드와 무관하게 마이크와 음성 WebSocket을 열지 않아요. 상대별 세 문장을 초기 준비 후 순서대로 재생하며, 문장 시작 시각 기준 약 20초 간격을 유지해요. 포커스가 없으면 재생하지 않고 종료 시 즉시 stop해요. SDK 시작 이벤트는 실제 소리 시작 신호로 사용하지 않아요.
+- `ParticipationSettings.receiveRequestsWhileDriving`와 `UpdateSettingsRequest.receiveRequestsWhileDriving`은 기본 false예요. 기존 저장 데이터·구버전 DTO는 OFF로 읽어요. 주행 중 설정 관찰은 이 값만 공개하고 요청은 ON+RESTRICTED의 PENDING INCOMING만 공개해요. 수락/거절의 실제 전송과 재시도 직전에도 정책·설정·요청 방향을 다시 검사해요. 집 보호는 수락을 추가로 차단해요.
+- 정상 요청 화면의 수락과 opt-in 수신 화면의 받기는 같은 respond(ACCEPT) 명령이에요. `통화 끊기`와 알림 action은 기존 leave 명령이에요. 새로운 종료 사유·애프터 음성 계약은 추가하지 않아요.
+- 서버는 현재 CONNECTED만 참여·중계해요. CHECKING과 ENDED로 바뀌면 이미 열린 양측 소켓도 닫고 늦은 join은 거절해요. 단순 네트워크 끊김에는 관계를 종료하지 않아 아직 CONNECTED라면 재참여할 수 있어요. 토큰 교체·로그아웃·계정 삭제 시 기존 토큰 소켓도 닫아요.
+- 프레임은 640 byte이며 초당 50개, 버스트 50개 예산을 사용해요. 순간 초과는 DROP으로 처리하고 연결을 유지해요. 잘못된 크기 또는 초당 100개 초과가 5개 연속 1초 구간에 걸치면 소켓을 닫아요. 참가자의 전송률 예산과 과부하 관측은 재접속으로 초기화하지 않아요. 상대별 큐는 5프레임 drop-oldest예요. 입장·명령·revision·ticker가 현재 참가자를 다시 확인하며 프레임마다 engine export나 prune을 호출하지 않아요. 녹음·저장·내용 및 프레임별 메타데이터 로그는 없어요.
+
+기기 PCM 재생은 첫 4프레임을 모은 뒤 시작해요. 오디오 분량은 80ms이며 첫 프레임 도착 후 대기 시간은 약 60ms예요. 수신 큐는 5프레임으로 제한하고 blocking AudioTrack sink의 쓰기가 소비 속도를 맞춰요.

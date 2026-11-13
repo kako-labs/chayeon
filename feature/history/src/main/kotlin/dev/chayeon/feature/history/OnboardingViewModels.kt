@@ -3,6 +3,8 @@ package dev.chayeon.feature.history
 import dev.chayeon.core.model.*
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import androidx.lifecycle.viewModelScope
 
 class FirstRunViewModel(deps: HistoryDeps) : HistoryViewModel(deps) {
     init {
@@ -78,6 +80,16 @@ class ProfileSetupViewModel(deps: HistoryDeps) : HistoryViewModel(deps) {
 }
 
 class ConsentViewModel(deps: HistoryDeps) : HistoryViewModel(deps) {
+    init {
+        observe(deps.voiceCallRepository.microphonePermission) { state, granted -> state.copy(microphoneGranted = granted) }
+    }
+    fun requestMicrophone() {
+        viewModelScope.launch {
+            if (deps.drivingStateProvider.drivingState.first().policy != DrivingPolicy.ALLOWED) return@launch
+            val granted = deps.voiceCallRepository.requestMicrophone()
+            content.update { it.copy(microphoneGranted = granted) }
+        }
+    }
     fun openHomeZone(action: () -> Unit) = edit {
         if (ConsentScope.entries.none { busy("consent:$it") }) action()
     }

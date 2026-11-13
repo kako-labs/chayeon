@@ -21,6 +21,12 @@ class MainActivity : ComponentActivity() {
         (application as ChayeonApplication).vehicleGraph.permissionsChanged()
     }
     private val notifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    private var microphoneResult: CompletableDeferred<Boolean>? = null
+    private val microphonePermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        (application as ChayeonApplication).microphonePermissionChanged()
+        microphoneResult?.complete(granted)
+        microphoneResult = null
+    }
     private var locationResult: CompletableDeferred<Boolean>? = null
     private val locationPermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         val app = application as ChayeonApplication
@@ -32,6 +38,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val app = application as ChayeonApplication
+        app.graph.prepareMicrophone = {
+            if (app.graph.currentPolicy() != DrivingPolicy.ALLOWED || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) false
+            else if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) true
+            else {
+                val result = CompletableDeferred<Boolean>()
+                microphoneResult?.complete(false)
+                microphoneResult = result
+                microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
+                result.await()
+            }
+        }
         app.graph.prepareHomeLocation = {
             if (app.graph.currentPolicy() != DrivingPolicy.ALLOWED) false
             else if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
@@ -72,6 +89,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        (application as ChayeonApplication).microphonePermissionChanged()
         (application as ChayeonApplication).vehicleGraph.setForeground(true)
     }
 
@@ -81,6 +99,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        microphoneResult?.complete(false)
+        (application as ChayeonApplication).graph.prepareMicrophone = { false }
         locationResult?.complete(false)
         (application as ChayeonApplication).graph.prepareHomeLocation = { false }
         super.onDestroy()

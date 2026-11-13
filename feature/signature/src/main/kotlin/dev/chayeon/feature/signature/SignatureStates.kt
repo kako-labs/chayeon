@@ -24,6 +24,8 @@ data class MyProfileUiState(
     val signature: LoadState<MySignature> = LoadState.Loading(),
     val settings: LoadState<ParticipationSettings> = LoadState.Loading(),
     val consoleAvailable: Boolean = false,
+    val updatingCallSetting: Boolean = false,
+    val callSettingError: AppError? = null,
 )
 
 data class TraitDetailUiState(

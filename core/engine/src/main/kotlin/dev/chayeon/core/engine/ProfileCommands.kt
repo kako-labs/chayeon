@@ -64,7 +64,8 @@ internal fun Room.updateSettings(actor: String, r: UpdateSettingsRequest): Parti
     val a = account(actor)
     checkVersion(r.meta, v)
     stamp()
-    val settings = a.settings.copy(version = v, notifyRequests = r.notifyRequests, notifyGreetings = r.notifyGreetings)
+    val settings = a.settings.copy(version = v, notifyRequests = r.notifyRequests, notifyGreetings = r.notifyGreetings,
+        receiveRequestsWhileDriving = r.receiveRequestsWhileDriving)
     put(a.copy(settings = settings))
     return settings
 }

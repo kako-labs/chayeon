@@ -14,6 +14,8 @@ import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.server.websocket.*
+import io.ktor.websocket.*
 import io.ktor.utils.io.readAvailable
 import io.ktor.util.AttributeKey
 import kotlinx.coroutines.*
@@ -21,6 +23,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import java.io.ByteArrayOutputStream
+import kotlin.time.Duration.Companion.seconds
 
 private val wire = EngineJson
 private class BodyLimit : RuntimeException(null, null, false, false)
@@ -40,6 +43,11 @@ internal val roomRegistryKey = AttributeKey<RoomRegistry>("room-registry")
 
 fun Application.chayeonModule(registry: RoomRegistry = productionRegistry()) {
     attributes.put(roomRegistryKey, registry)
+    install(WebSockets) {
+        maxFrameSize = VoiceFormat.FRAME_BYTES.toLong()
+        pingPeriod = 15.seconds
+        timeout = 15.seconds
+    }
     install(StatusPages) {
         exception<BodyLimit> { call, _ -> call.failure(AppError.Restricted, HttpStatusCode.PayloadTooLarge) }
         exception<Throwable> { call, cause ->
@@ -58,6 +66,7 @@ fun Application.chayeonModule(registry: RoomRegistry = productionRegistry()) {
     }
     monitor.subscribe(ApplicationStopped) { ticker.cancel() }
     routing {
+        voiceRoutes(registry)
         get("/health") { call.respondText("{\"status\":\"ready\"}", ContentType.Application.Json) }
         post(ApiRoutes.ENTER_SESSION) {
             val body = call.readBody(registry.policy.maximumBodyBytes)

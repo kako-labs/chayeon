@@ -121,4 +121,5 @@ data class ParticipationSettings(
     val consents: List<ConsentRecord> = emptyList(),
     val notifyRequests: Boolean = true,
     val notifyGreetings: Boolean = true,
+    val receiveRequestsWhileDriving: Boolean = false,
 ) : VersionedEntity

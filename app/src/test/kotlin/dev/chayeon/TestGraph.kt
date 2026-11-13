@@ -14,6 +14,7 @@ internal class TestGraph(vehicleConsole: VehicleConsole = EmptyVehicleConsole())
     val active = Session("session", 1, "account", SessionMode.SOLO, PersonaCode.ACCOUNT_A, null, null, null, policy)
     val publicProfile = PublicProfile("profile", 1, "새벽드라이브", AvatarId.DAWN, emptySet(), ProfileKind.VIRTUAL_PROFILE, null)
     val profiles = MutableStateFlow<LoadState<MyProfile?>>(LoadState.Ready(null, 0))
+    val settings = MutableStateFlow<LoadState<ParticipationSettings>>(LoadState.Ready(ParticipationSettings("settings", 0), 0))
     val requests = MutableStateFlow<LoadState<List<ConnectionRequest>>>(LoadState.Ready(emptyList(), 0))
     val connection = MutableStateFlow<LoadState<Connection?>>(LoadState.Ready(null, 0))
     val greetings = MutableStateFlow<LoadState<List<ConnectionGreeting>>>(LoadState.Ready(emptyList(), 0))
@@ -40,6 +41,7 @@ internal class TestGraph(vehicleConsole: VehicleConsole = EmptyVehicleConsole())
         object : SessionRepository by EmptySessionRepository() { override val session = sessions },
         object : ProfileRepository by EmptyProfileRepository() {
             override val profile = profiles
+            override val settings = this@TestGraph.settings
             override suspend fun publishSignature(request: PublishSignatureRequest): AppResult<MyProfile> {
                 publications += request
                 return publicationResult

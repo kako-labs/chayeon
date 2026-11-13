@@ -83,9 +83,9 @@ private fun MeetRoute(
     LaunchedEffect(flowModel, entry) {
         entry.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             flowModel.effectsFor(route).collect { effect ->
-                if ((effect is MeetNavigationEffect.Connected || effect is MeetNavigationEffect.Ended ||
-                        effect is MeetNavigationEffect.Requests || effect == MeetNavigationEffect.ResumeHome) &&
-                    !flowModel.allowsNavigation()) return@collect
+                if (effect is MeetNavigationEffect.Connected && !flowModel.allowsConnectedNavigation()) return@collect
+                if ((effect is MeetNavigationEffect.Ended || effect is MeetNavigationEffect.Requests ||
+                        effect == MeetNavigationEffect.ResumeHome) && !flowModel.allowsNavigation()) return@collect
                 flowModel.handled(effect)
                 when (effect) {
                     is MeetNavigationEffect.Connected -> navController.replaceMeet(MeetDestination.CONNECTED)
@@ -143,7 +143,8 @@ private fun MeetRoute(
         MeetDestination.CONNECTED -> {
             val model: ConnectedViewModel = viewModel { ConnectedViewModel(deps) }
             val state by model.uiState.collectAsStateWithLifecycle()
-            ConnectedScreen(state, chrome, model::sendGreeting, model::retryGreeting, model::leave,
+            ConnectedScreen(state, chrome, model::leave,
+                onMute = model::toggleMute, onMicrophone = model::requestMicrophone,
                 onSafety = { guarded { state.connection?.peer?.id?.let { currentExit(MeetExit.OpenSafety(it)) } } },
             )
         }

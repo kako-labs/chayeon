@@ -2,6 +2,12 @@
 """One emulator account and one real HTTP peer, with no actor-id shortcuts."""
 
 import json
+import base64
+import hashlib
+import math
+import select
+import socket
+import struct
 import os
 from pathlib import Path
 import secrets
@@ -64,6 +70,159 @@ class Peer:
         return self.call("/v1/sync?since=0")
 
 
+class VoicePeer:
+    """Bounded, unrecorded PCM proof using only the standard library."""
+    def __init__(self, peer, connection_id):
+        from urllib.parse import urlsplit
+        address = urlsplit(peer.base)
+        self.socket = socket.create_connection((address.hostname, address.port), timeout=5)
+        self.socket.settimeout(35)
+        self.lock = threading.Lock()
+        self.stop = threading.Event()
+        self.closed = threading.Event()
+        self.received = 0
+        self.failure = None
+        self.sender = None
+        self.reader = None
+        key = base64.b64encode(secrets.token_bytes(16)).decode()
+        request = (f"GET /v1/voice/{connection_id} HTTP/1.1\r\nHost: {address.netloc}\r\n"
+                   f"Upgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Version: 13\r\n"
+                   f"Sec-WebSocket-Key: {key}\r\nAuthorization: Bearer {peer.token}\r\n\r\n")
+        self.socket.sendall(request.encode())
+        response = bytearray()
+        while not response.endswith(b"\r\n\r\n") and len(response) < 8192:
+            part = self.socket.recv(1)
+            if not part:
+                break
+            response.extend(part)
+        if not bytes(response).startswith(b"HTTP/1.1 101 "):
+            self.socket.close()
+            raise PermissionError("음성 연결이 허용되지 않았어요")
+        expected = base64.b64encode(hashlib.sha1((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()).digest())
+        if expected not in response:
+            self.socket.close()
+            raise AssertionError("음성 WebSocket 응답이 올바르지 않아요")
+
+    def send(self, opcode, payload):
+        mask = secrets.token_bytes(4)
+        size = len(payload)
+        header = bytes([0x80 | opcode, 0x80 | size]) if size < 126 else bytes([0x80 | opcode, 0x80 | 126]) + struct.pack("!H", size)
+        data = bytes(value ^ mask[index % 4] for index, value in enumerate(payload))
+        with self.lock:
+            self.socket.sendall(header + mask + data)
+
+    def exact(self, count):
+        result = bytearray()
+        while len(result) < count:
+            part = self.socket.recv(count - len(result))
+            if not part:
+                raise EOFError()
+            result.extend(part)
+        return bytes(result)
+
+    def start(self):
+        def read():
+            try:
+                while not self.stop.is_set():
+                    first, second = self.exact(2)
+                    length = second & 127
+                    if length == 126:
+                        length = struct.unpack("!H", self.exact(2))[0]
+                    elif length == 127:
+                        length = struct.unpack("!Q", self.exact(8))[0]
+                    if length > 640 or second & 128:
+                        raise AssertionError("음성 프레임 크기 또는 형식이 올바르지 않아요")
+                    payload = self.exact(length)
+                    opcode = first & 15
+                    if opcode == 8:
+                        self.closed.set()
+                        return
+                    if opcode == 9:
+                        self.send(10, payload)
+                    elif opcode == 2:
+                        if length != 640:
+                            raise AssertionError("20 ms 음성 프레임이 아니에요")
+                        self.received += 1
+                    elif opcode != 10:
+                        raise AssertionError("음성이 아닌 프레임이 왔어요")
+            except (EOFError, ConnectionError, OSError):
+                self.closed.set()
+            except Exception as failure:
+                self.failure = failure
+                self.closed.set()
+
+        def sine():
+            index = 0
+            deadline = time.monotonic()
+            try:
+                while not self.stop.is_set() and not self.closed.is_set():
+                    frame = struct.pack("<320h", *(int(3000 * math.sin(2 * math.pi * 440 * (index + sample) / 16000)) for sample in range(320)))
+                    self.send(2, frame)
+                    index += 320
+                    deadline += .02
+                    self.stop.wait(max(0, deadline - time.monotonic()))
+                    if time.monotonic() - deadline > .1:
+                        deadline = time.monotonic()
+            except (ConnectionError, OSError):
+                self.closed.set()
+
+        self.reader = threading.Thread(target=read, daemon=True)
+        self.sender = threading.Thread(target=sine, daemon=True)
+        self.reader.start()
+        self.sender.start()
+        return self
+
+    def assert_capture(self, device):
+        deadline = time.monotonic() + 8
+        while self.received == 0 and time.monotonic() < deadline and not self.closed.is_set():
+            time.sleep(.1)
+        if self.failure:
+            raise self.failure
+        if not self.received:
+            tree = device.tree()
+            content = " ".join(n.get("text", "") + " " + n.get("content-desc", "") for n in tree.iter("node"))
+            if "이 차에서는 마이크를 쓸 수 없어요" not in content and "마이크를 허용하면" not in content:
+                raise AssertionError("마이크 제한 안내도 수신 음성 프레임도 없어요")
+        if self.closed.is_set():
+            raise AssertionError("활성 연결의 음성 소켓이 끝났어요")
+
+    def assert_closed(self):
+        if not self.closed.wait(3):
+            raise AssertionError("연결 종료 뒤 음성 소켓이 남아 있어요")
+        if self.failure:
+            raise self.failure
+
+    def close(self):
+        self.stop.set()
+        try:
+            self.send(8, struct.pack("!H", 1000))
+        except (ConnectionError, OSError):
+            pass
+        try:
+            self.socket.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        self.socket.close()
+        for thread in (self.sender, self.reader):
+            if thread:
+                thread.join(timeout=6)
+
+
+def reject_third_voice(peer, connection_id):
+    from urllib.parse import urlsplit
+    stranger = Peer(urlsplit(peer.base).port)
+    session = stranger.call("/v1/session/enter", mode="SERVER_DEMO", persona="ACCOUNT_A",
+                           roomCode="outsider-" + secrets.token_hex(4), clientSecret=secrets.token_urlsafe(32))
+    stranger.token = session["accessToken"]
+    try:
+        unexpected = VoicePeer(stranger, connection_id)
+    except PermissionError:
+        return
+    else:
+        unexpected.close()
+        raise AssertionError("세 번째 계정이 음성 연결에 들어왔어요")
+
+
 class AppTransport:
     """Forward real HTTP unchanged; retain only route, presence and acknowledgement for proof."""
     def __init__(self, port):
@@ -77,6 +236,9 @@ class AppTransport:
                 pass
 
             def forward(self):
+                if self.headers.get("Upgrade", "").lower() == "websocket":
+                    self.tunnel_voice()
+                    return
                 body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
                 presence = json.loads(body).get("presence") if self.path == "/v1/presence/synthetic" else None
                 with owner.lock:
@@ -102,6 +264,26 @@ class AppTransport:
                     self.wfile.write(payload)
                 except (BrokenPipeError, ConnectionResetError):
                     pass
+
+            def tunnel_voice(self):
+                # Forward authenticated WebSocket bytes without inspecting or retaining audio.
+                with socket.create_connection(("127.0.0.1", port), timeout=5) as upstream:
+                    lines = [f"GET {self.path} HTTP/1.1", f"Host: 127.0.0.1:{port}"]
+                    lines.extend(f"{key}: {value}" for key, value in self.headers.items() if key.lower() != "host")
+                    upstream.sendall(("\r\n".join(lines) + "\r\n\r\n").encode())
+                    self.close_connection = True
+                    while True:
+                        ready, _, _ = select.select([self.connection, upstream], [], [], 35)
+                        if not ready:
+                            return
+                        for source in ready:
+                            try:
+                                data = source.recv(4096)
+                                if not data:
+                                    return
+                                (upstream if source is self.connection else self.connection).sendall(data)
+                            except (ConnectionError, OSError):
+                                return
 
             do_GET = forward
             do_POST = forward
@@ -143,7 +325,7 @@ def prove_lease_and_offline_restore(device, console, peer, transport, device_por
             raise AssertionError("lease 검증의 연결 요청이 도착하지 않았어요")
         time.sleep(.25)
     connection_id = peer.call("/v1/connection/respond", requestId=pending["id"], decision="ACCEPT")["connectionId"]
-    device.wait("주고받은 인사")
+    device.wait("통화 중")
     began = time.monotonic()
     print("RUN server lease: connected beyond 70 seconds on heartbeats", flush=True)
     while time.monotonic() - began < 75:
@@ -228,7 +410,9 @@ def enter_ui(device, room):
     for label in ["성인이고, 직접 참여해요", "차량 데이터 사용에 동의해요", "위치 사용에 동의해요", "프로필 공개에 동의해요"]:
         device.tap(label)
         device.permissions()
-    device.tap("선택한 설정으로 시작")
+    device.tap("마이크 · 선택", scroll=True)
+    device.permissions()
+    device.tap("선택한 설정으로 시작", scroll=True)
     device.wait("내 프로필")
     device.tap("발견 켜기")
 
@@ -259,8 +443,9 @@ def prove_server_home(device, console, peer):
         if request is None:
             raise AssertionError("집 보호 검증의 요청이 도착하지 않았어요")
         accepted = peer.call("/v1/connection/respond", requestId=request["id"], decision="ACCEPT")
-        device.wait("주고받은 인사")
+        device.wait("통화 중")
         connection_id = accepted["connectionId"]
+        voice = VoicePeer(peer, connection_id).start()
         if mode == "driving":
             console.gear("Drive")
             device.wait("주행 중", exact=False)
@@ -295,6 +480,15 @@ def prove_server_home(device, console, peer):
             raise AssertionError("집 근처에서 HTTP 연결이 끝나지 않았어요")
         if states[-1] != ("ENDED", "DISTANCE") or ("CHECKING", None) not in states:
             raise AssertionError("거리 이탈의 확인 중 → 종료 경로를 거치지 않았어요")
+        voice.assert_closed()
+        voice.close()
+        try:
+            late = VoicePeer(peer, connection_id)
+        except PermissionError:
+            pass
+        else:
+            late.close()
+            raise AssertionError("끝난 연결에 다시 음성으로 들어왔어요")
         observations.append({"mode": mode, "states": states, "connectionViews": views})
         if mode == "driving":
             assert_locked(device, hidden_peers=("이어가는별", "새벽드라이브"))
@@ -302,7 +496,7 @@ def prove_server_home(device, console, peer):
             console.gear("Park")
         else:
             device.shell("input", "keyevent", "KEYCODE_BACK")
-        device.wait("멀어져서 연결이 끝났어요")
+        device.wait("서로 멀어져서 통화가 끝났어요")
         device.tap("오늘의 인연으로")
         if mode != "ordinary":
             assert_home_rest(device)
@@ -343,6 +537,7 @@ def run(port=18765, serial=None):
     server = subprocess.Popen([str(dev.ROOT / "server/build/install/server/bin/server")], env=env, stdout=log, stderr=subprocess.STDOUT)
     peer = None
     transport = None
+    voice = None
     try:
         for _ in range(100):
             try:
@@ -386,28 +581,29 @@ def run(port=18765, serial=None):
             accepted = peer.call("/v1/connection/respond", requestId=request["id"], decision="ACCEPT")
             if accepted["peer"]["nickname"] != "새벽드라이브":
                 raise AssertionError("앱 계정의 요청을 수락하지 않았어요")
-            device.wait("주고받은 인사")
-            device.tap("안녕하세요")
-            device.wait("보냈어요")
-            snapshot = peer.sync()
-            if not any(m["author"] == "PEER" and m["code"] == "HELLO" for m in snapshot["greetings"]):
-                raise AssertionError("앱의 인사가 HTTP 상대에게 도착하지 않았어요")
-            connection = next(c for c in snapshot["connections"] if c["status"] == "CONNECTED")
-            peer.call("/v1/connection/greeting", connectionId=connection["id"], clientMessageId=str(uuid.uuid4()), code="NICE_TO_MEET_YOU")
-            device.wait("받았어요")
-            device.capture("02-http-greetings", ["이어가는별 님과 이어져 있어요", "보냈어요", "받았어요"])
+            device.wait("통화 중")
+            voice = VoicePeer(peer, accepted["connectionId"]).start()
+            reject_third_voice(peer, accepted["connectionId"])
+            voice.assert_capture(device)
+            device.capture("02-http-call", ["이어가는별", "통화 중", "음소거", "통화 끊기"])
             console.gear("Drive")
-            peer.call("/v1/connection/greeting", connectionId=connection["id"], clientMessageId=str(uuid.uuid4()), code="TAKE_CARE")
-            time.sleep(2)
+            device.wait("통화 중")
             assert_locked(device)
-            device.capture("03-http-restricted", ["주행 중", "나가기"])
+            device.tap("음소거")
+            device.wait("음소거 중")
+            device.tap("음소거 해제")
+            device.wait("통화 중")
+            device.capture("03-http-restricted", ["통화 중", "음소거", "통화 끊기"])
             notification = device.shell("dumpsys", "notification", "--noredact")
-            if "주차하면 확인할 수 있어요" not in notification or "category=msg" not in notification:
-                raise AssertionError("내용 없는 메시지 알림을 확인하지 못했어요")
-            (device.output / "notification-proof.json").write_text(json.dumps({"category": "msg", "body": "주차하면 확인할 수 있어요"}, ensure_ascii=False), encoding="utf-8")
+            if "통화 끊기" not in notification or "category=call" not in notification:
+                raise AssertionError("통화 끊기 동작이 있는 통화 알림을 확인하지 못했어요")
+            (device.output / "notification-proof.json").write_text(json.dumps({"category": "call", "hangUpAction": True}, ensure_ascii=False), encoding="utf-8")
             console.gear("Park")
-            device.wait("주고받은 인사")
-            device.tap("나가기")
+            device.wait("통화 중")
+            device.tap("통화 끊기")
+            voice.assert_closed()
+            voice.close()
+            voice = None
             device.wait("기록 보기")
             device.capture("04-http-ended", ["기록 보기"])
             if len(peer.sync()["encounters"]) != 1:
@@ -417,9 +613,11 @@ def run(port=18765, serial=None):
             device.capture("05-http-encounter", ["이어가는별", "애프터 신청"])
             prove_lease_and_offline_restore(device, console, peer, transport, port)
             prove_server_home(device, console, peer)
-        print("PASS real HTTP: request, accept, greeting both ways, restricted notification, leave, encounter", flush=True)
+        print("PASS HTTP + voice: request, accept, PCM relay, third-account rejection, driving mute, call termination, distance close, encounter", flush=True)
         return 0
     finally:
+        if voice:
+            voice.close()
         if peer:
             peer.close()
         if transport:

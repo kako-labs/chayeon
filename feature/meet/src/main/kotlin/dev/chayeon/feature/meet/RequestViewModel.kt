@@ -40,6 +40,8 @@ class RequestViewModel(private val deps: MeetDeps, initialRequestId: String? = n
         state.copy(driving = driving, accept = accepting, decline = declining, cancel = cancelling)
     }.combine(deps.homeZoneRepository.state) { state, home ->
         state.copy(homeSuppressed = home.suppressed)
+    }.combine(deps.profileRepository.settings) { state, settings ->
+        state.copy(receiveRequestsWhileDriving = settings.readyValue()?.receiveRequestsWhileDriving == true)
     }.stateIn(viewModelScope, meetSharing, RequestUiState())
 
     private suspend fun currentRequest(): ConnectionRequest? {
@@ -56,18 +58,25 @@ class RequestViewModel(private val deps: MeetDeps, initialRequestId: String? = n
         val command = if (decision == RequestDecision.ACCEPT) accept else decline
         command.launch(viewModelScope,
             prepare = { currentRequest()?.let { RespondConnectionRequest(freshMeta(), it.id, decision) } },
-            permitted = { deps.allowsInteraction() },
+            permitted = { allowsResponse() },
             execute = { payload ->
                 val current = currentRequest()
                 when {
                     current?.id != payload.requestId || current.status != ConnectionRequestStatus.PENDING -> AppResult.Failure(AppError.AlreadyClosed)
                     current.direction != RequestDirection.INCOMING -> AppResult.Failure(AppError.NotAuthorized)
-                    !deps.allowsInteraction() -> AppResult.Failure(AppError.Restricted)
+                    !allowsResponse() -> AppResult.Failure(AppError.Restricted)
                     decision == RequestDecision.ACCEPT && deps.homeZoneRepository.state.first().suppressed -> AppResult.Failure(AppError.PeerUnavailable)
                     else -> deps.connectionRepository.respond(payload)
                 }
             },
         )
+    }
+
+    private suspend fun allowsResponse(): Boolean {
+        val policy = deps.drivingStateProvider.drivingState.first().policy
+        return policy == DrivingPolicy.ALLOWED || (policy == DrivingPolicy.RESTRICTED &&
+            deps.profileRepository.settings.first().readyValue()?.receiveRequestsWhileDriving == true &&
+            currentRequest()?.direction == RequestDirection.INCOMING)
     }
 
     fun cancel() {

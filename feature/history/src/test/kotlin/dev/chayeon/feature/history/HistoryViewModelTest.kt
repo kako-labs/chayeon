@@ -28,6 +28,21 @@ class HistoryViewModelTest {
         try { block() } finally { store.clear(); runCurrent() }
     }
 
+    @Test fun `optional microphone permission is requested only while parked`() = modelTest {
+        val model = watch(ConsentViewModel(deps))
+        val requiredBefore = model.uiState.value.requiredConsentsGranted
+        for (policy in listOf(DrivingPolicy.RESTRICTED, DrivingPolicy.UNKNOWN)) {
+            deps.driving.value = DrivingState(policy = policy)
+            model.requestMicrophone(); runCurrent()
+            assertEquals(0, deps.microphoneRequests)
+        }
+        deps.driving.value = DrivingState(policy = DrivingPolicy.ALLOWED)
+        model.requestMicrophone(); runCurrent()
+        assertEquals(1, deps.microphoneRequests)
+        assertTrue(model.uiState.value.microphoneGranted)
+        assertEquals(requiredBefore, model.uiState.value.requiredConsentsGranted)
+    }
+
     @Test fun `save failure preserves draft and retry has identical payload and metadata`() = modelTest {
         val model = watch(ProfileSetupViewModel(deps))
         val draft = ProfileDraft("달빛산책", AvatarId.STAR, setOf(InterestId.COFFEE))

@@ -55,7 +55,9 @@ class SourcePresentationTest {
             fixture.connection.value = LoadState.Ready(Connection("connection", 1, "request", peer,
                 ConnectionStatus.CONNECTED, 0, Chemistry()), 1)
         }
-        compose.onNodeWithText("주고받은 인사").assertExists()
+        compose.onNodeWithText("주고받은 인사").assertDoesNotExist()
+        compose.onNodeWithText("통화 중").assertExists()
+        compose.onNodeWithText("통화 끊기").assertExists()
         assertSoloSurface()
         compose.onRoot().captureRoboImage("src/test/screenshots/app-solo-connected.png")
         compose.runOnIdle { fixture.sessions.value = SessionState.Active(fixture.active.copy(mode = SessionMode.SERVER_DEMO)) }

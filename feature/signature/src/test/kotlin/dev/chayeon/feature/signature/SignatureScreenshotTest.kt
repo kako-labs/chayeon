@@ -42,7 +42,7 @@ class SignatureScreenshotTest {
                             "failure" -> LoadState.Failed(AppError.Network)
                             "empty" -> f.ready(null)
                             else -> f.ready(f.profile)
-                        }, signatureLoad, consoleAvailable = true), chrome, {}, {}, {}, {})
+                        }, signatureLoad, settings = f.ready(ParticipationSettings("settings", 1, receiveRequestsWhileDriving = variant == "incoming_on")), consoleAvailable = true), chrome, {}, {}, {}, {})
                     "signature" -> MySignatureScreen(SignatureUiState(driving, signatureLoad, true), chrome, {}, {}, {}, {}, {})
                     "trait" -> TraitDetailScreen(TraitDetailUiState(driving, f.evidence.trait,
                         when (variant) {
@@ -73,6 +73,8 @@ class SignatureScreenshotTest {
         }
         compose.onNodeWithTag("signature-screen").captureRoboImage("src/test/screenshots/${screen}_$variant.png")
     }
+    @Test fun profile_incoming_on() = capture("profile", "incoming_on")
+    @Test fun profile_incoming_off() = capture("profile", "incoming_off")
     @Test fun profile_populated() = capture("profile", "populated")
     @Test fun profile_loading() = capture("profile", "loading")
     @Test fun profile_empty() = capture("profile", "empty")

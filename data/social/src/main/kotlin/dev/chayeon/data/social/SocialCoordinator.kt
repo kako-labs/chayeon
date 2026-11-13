@@ -47,6 +47,15 @@ internal class SocialCoordinator(
 
     fun bindDrivingState(provider: DrivingStateProvider) { drivingBinding.value = provider }
 
+    suspend fun allowsIncomingResponse(requestId: String): Boolean {
+        val policy = withTimeoutOrNull(1_000) { driving.first().policy } ?: return false
+        if (policy == DrivingPolicy.ALLOWED) return true
+        val snapshot = (store.state.value.data as? LoadState.Ready)?.value ?: return false
+        return policy == DrivingPolicy.RESTRICTED && snapshot.settings?.receiveRequestsWhileDriving == true &&
+            snapshot.connectionRequests.any { it.id == requestId && it.direction == RequestDirection.INCOMING &&
+                it.status == ConnectionRequestStatus.PENDING }
+    }
+
     suspend fun allowed(): Boolean = try {
         withTimeoutOrNull(1_000) { drivingBinding.value?.drivingState?.first()?.policy } == DrivingPolicy.ALLOWED
     } catch (cancelled: CancellationException) {

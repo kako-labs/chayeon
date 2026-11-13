@@ -54,7 +54,8 @@ fun NavGraphBuilder.signatureGraph(
         MyProfileScreen(state, chrome,
             onSignature = { allowed { navController.navigate(SignatureDestination.MY_SIGNATURE) { launchSingleTop = true } } },
             onVisibility = { allowed { navController.navigate(SignatureDestination.VISIBILITY) { launchSingleTop = true } } },
-            onExit = { exit -> allowed { onExit(exit) } }, onRetry = model::retry)
+            onExit = { exit -> allowed { onExit(exit) } }, onRetry = model::retry,
+            onReceiveRequestsWhileDriving = model::setReceiveRequestsWhileDriving)
     }
     composable(SignatureDestination.MY_SIGNATURE) {
         val model: SignatureViewModel = viewModel { SignatureViewModel(deps) }

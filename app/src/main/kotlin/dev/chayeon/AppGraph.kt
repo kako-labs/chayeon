@@ -31,10 +31,12 @@ class AppGraph(
     val serverUrl: String,
     val homeZoneRepository: HomeZoneRepository,
     val homeZoneCoordinator: HomeZoneCoordinator,
+    val voiceCallRepository: dev.chayeon.core.model.VoiceCallRepository = dev.chayeon.core.model.NoVoiceCall,
 ) {
     val serverModeAvailable: Boolean get() = serverUrl.isNotBlank()
 
     val meetDeps: MeetDeps = object : MeetDeps {
+        override val voiceCallRepository = this@AppGraph.voiceCallRepository
         override val demoPresence = kotlinx.coroutines.flow.combine(sessionRepository.session, homeZoneCoordinator.desiredPresence) { session, presence ->
             presence.takeIf { demoEnabled && session is dev.chayeon.core.model.SessionState.Active }
         }
@@ -47,6 +49,7 @@ class AppGraph(
     }
 
     val historyDeps: HistoryDeps = object : HistoryDeps {
+        override val voiceCallRepository = this@AppGraph.voiceCallRepository
         override val sessionRepository = this@AppGraph.sessionRepository
         override val discoveryRepository = this@AppGraph.discoveryRepository
         override val connectionRepository = this@AppGraph.connectionRepository
@@ -73,5 +76,6 @@ class AppGraph(
     var isRealVehicle: Boolean = true
     var demoEnabled: Boolean = false
     var prepareHomeLocation: suspend () -> Boolean = { false }
+    var prepareMicrophone: suspend () -> Boolean = { false }
     var syntheticHomePosition: suspend (Boolean) -> dev.chayeon.core.model.AppResult<Unit> = { dev.chayeon.core.model.AppResult.Failure(dev.chayeon.core.model.AppError.Restricted) }
 }

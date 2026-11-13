@@ -29,8 +29,6 @@ class MeetViewModelTest {
             runCurrent()
             assertEquals(MeetFixtures.own, model.uiState.value.ownProfile)
             assertEquals(MeetFixtures.connection, model.uiState.value.connection)
-            assertTrue(model.uiState.value.greetings.isEmpty())
-            model.sendGreeting(PresetCode.HELLO); runCurrent()
             assertTrue(deps.greetingCommands.isEmpty())
         }
         deps.drivingState.value = MeetFixtures.parked
@@ -96,7 +94,7 @@ class MeetViewModelTest {
         listOf(home.uiState, candidate.uiState, request.uiState, connected.uiState).forEach { observe(it) }; runCurrent()
         for (policy in listOf(DrivingPolicy.RESTRICTED, DrivingPolicy.UNKNOWN)) {
             deps.drivingState.value = DrivingState(policy = policy)
-            home.setDiscovery(false); home.refresh(); candidate.requestConnection(); request.accept(); connected.sendGreeting(PresetCode.HELLO)
+            home.setDiscovery(false); home.refresh(); candidate.requestConnection(); request.accept()
             runCurrent(); request.decline(); request.cancel(); runCurrent()
         }
         assertTrue(deps.discoveryCommands.isEmpty()); assertTrue(deps.refreshCommands.isEmpty())
@@ -165,52 +163,36 @@ class MeetViewModelTest {
         model.accept(); runCurrent(); assertTrue(deps.respondCommands.isEmpty())
     }
 
-    @Test fun `greeting retries keep body and client id and reconcile server acknowledgment`() = scenario { deps, store ->
+    @Test fun `call does not subscribe to legacy greetings`() = scenario { deps, store ->
         deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3)
-        val result = CompletableDeferred<AppResult<ConnectionGreeting>>()
-        deps.greetingResult = { result.await() }
+        deps.greetingsSource = { error("Voice calls must not read greeting threads") }
         val model = store.keep(ConnectedViewModel(deps)); observe(model.uiState); runCurrent()
-        model.sendGreeting(PresetCode.HELLO); model.sendGreeting(PresetCode.HELLO); runCurrent()
-        assertEquals(1, deps.greetingCommands.size)
-        assertEquals(DeliveryState.SENDING, model.uiState.value.greetings.single().delivery)
-        result.complete(AppResult.Failure(AppError.Network)); runCurrent()
-        val id = deps.greetingCommands.single().clientMessageId
-        assertEquals(DeliveryState.FAILED, model.uiState.value.greetings.single().delivery)
-        val message = ConnectionGreeting("server-id", 4, "connection", id, MessageAuthor.SELF, PresetCode.HELLO, 120_000, DeliveryState.SENT)
-        deps.greetingResult = { AppResult.Success(message) }
-        model.retryGreeting(id); model.retryGreeting(id); runCurrent()
-        assertEquals(2, deps.greetingCommands.size); assertEquals(deps.greetingCommands[0], deps.greetingCommands[1])
-        deps.messages.value = LoadState.Ready(listOf(message), 4); runCurrent()
-        assertEquals(1, model.uiState.value.greetings.size)
-        assertEquals(DeliveryState.SENT, model.uiState.value.greetings.single().delivery)
-        model.retryGreeting(id); runCurrent(); assertEquals(2, deps.greetingCommands.size)
+        assertEquals(MeetFixtures.connection, model.uiState.value.connection)
+        assertTrue(deps.greetingObservations.isEmpty())
+        assertTrue(deps.greetingCommands.isEmpty())
     }
 
-    @Test fun `checking ended and withdrawn presets refuse new greetings and failed retries`() = scenario { deps, store ->
+    @Test fun `checking and ended calls remain independent of greeting delivery`() = scenario { deps, store ->
         deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3)
-        deps.greetingResult = { AppResult.Failure(AppError.Network) }
         val model = store.keep(ConnectedViewModel(deps)); observe(model.uiState); runCurrent()
-        model.sendGreeting(PresetCode.HELLO); runCurrent()
-        val id = deps.greetingCommands.single().clientMessageId
         for (status in listOf(ConnectionStatus.CHECKING, ConnectionStatus.ENDED)) {
             deps.connection.value = LoadState.Ready(MeetFixtures.connection.copy(status = status, version = 8), 8)
-            model.sendGreeting(PresetCode.HELLO); model.retryGreeting(id); runCurrent()
+            runCurrent()
+            assertEquals(status, model.uiState.value.connection?.status)
         }
-        deps.connection.value = LoadState.Ready(MeetFixtures.connection.copy(availablePresets = emptySet()), 9)
-        model.sendGreeting(PresetCode.HELLO); model.retryGreeting(id); runCurrent()
-        assertEquals(1, deps.greetingCommands.size)
+        assertTrue(deps.greetingObservations.isEmpty())
+        assertTrue(deps.greetingCommands.isEmpty())
     }
 
-    @Test fun `ending during send never revives greeting content`() = scenario { deps, store ->
-        deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3)
-        val result = CompletableDeferred<AppResult<ConnectionGreeting>>()
-        deps.greetingResult = { result.await() }
+    @Test fun `late legacy greeting cannot revive an ended call`() = scenario { deps, store ->
+        deps.connection.value = LoadState.Ready(MeetFixtures.ended, 4)
         val model = store.keep(ConnectedViewModel(deps)); observe(model.uiState); runCurrent()
-        model.sendGreeting(PresetCode.HELLO); runCurrent()
-        deps.connection.value = LoadState.Ready(MeetFixtures.ended, 4); runCurrent()
-        result.complete(AppResult.Failure(AppError.Network)); runCurrent()
-        assertTrue(model.uiState.value.greetings.isEmpty())
-        assertEquals(ConnectionStatus.ENDED, model.uiState.value.connection?.status)
+        val before = model.uiState.value
+        deps.messages.value = LoadState.Ready(listOf(ConnectionGreeting("late", 5, "connection", "client",
+            MessageAuthor.PEER, PresetCode.HELLO, 120_000, DeliveryState.SENT)), 5)
+        runCurrent()
+        assertEquals(before, model.uiState.value)
+        assertTrue(deps.greetingObservations.isEmpty())
     }
 
     @Test fun `all screen state replays reset to unknown after unsubscribing`() = scenario { deps, store ->
@@ -224,7 +206,7 @@ class MeetViewModelTest {
         assertEquals(EndedUiState(), states[4].value); assertEquals(MeetUiState(), states[5].value)
     }
 
-    @Test fun `connection arriving while restricted or unknown opens only after parking`() = scenario { deps, store ->
+    @Test fun `connection arriving while restricted opens immediately`() = scenario { deps, store ->
         val model = store.keep(MeetViewModel(deps))
         val events = mutableListOf<MeetNavigationEffect>()
         deps.drivingState.value = DrivingState(policy = DrivingPolicy.RESTRICTED)
@@ -233,11 +215,23 @@ class MeetViewModelTest {
         }
         deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3)
         runCurrent()
-        assertTrue(events.isEmpty())
+        assertEquals(listOf(MeetNavigationEffect.Connected("connection")), events)
+        assertTrue(model.allowsConnectedNavigation())
+        assertFalse(model.allowsNavigation())
+    }
+
+    @Test fun `connection arriving while unknown waits until policy is known`() = scenario { deps, store ->
+        val model = store.keep(MeetViewModel(deps))
+        val events = mutableListOf<MeetNavigationEffect>()
         deps.drivingState.value = DrivingState(policy = DrivingPolicy.UNKNOWN)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            model.effectsFor(MeetDestination.DRIVING).collect { events += it; model.handled(it) }
+        }
+        deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3)
         runCurrent()
         assertTrue(events.isEmpty())
-        deps.drivingState.value = MeetFixtures.parked
+        assertFalse(model.allowsConnectedNavigation())
+        deps.drivingState.value = DrivingState(policy = DrivingPolicy.RESTRICTED)
         runCurrent()
         assertEquals(listOf(MeetNavigationEffect.Connected("connection")), events)
     }
@@ -257,7 +251,7 @@ class MeetViewModelTest {
         assertEquals(List(2) { MeetNavigationEffect.Connected("connection") }, events)
     }
 
-    @Test fun `new connection on an existing connected route stays anonymous while driving`() = scenario { deps, store ->
+    @Test fun `new connected call stays visible while driving`() = scenario { deps, store ->
         deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3)
         val model = store.keep(ConnectedViewModel(deps))
         observe(model.uiState)
@@ -267,9 +261,9 @@ class MeetViewModelTest {
         assertNotNull(model.uiState.value.connection)
         deps.connection.value = LoadState.Ready(MeetFixtures.connection.copy(id = "new-connection", version = 4), 4)
         runCurrent()
-        assertTrue(model.uiState.value.awaitingPark)
-        assertNull(model.uiState.value.connection)
-        assertNull(model.uiState.value.ownProfile)
+        assertFalse(model.uiState.value.awaitingPark)
+        assertEquals("new-connection", model.uiState.value.connection?.id)
+        assertNotNull(model.uiState.value.ownProfile)
         model.leave()
         runCurrent()
         assertEquals("new-connection", deps.leaveCommands.single().connectionId)
@@ -313,28 +307,25 @@ class MeetViewModelTest {
         model.cancel(); runCurrent(); assertEquals("new", deps.cancelCommands.single().requestId)
     }
 
-    @Test fun `new connection never displays previous connection greetings while new observation stalls`() = scenario { deps, store ->
+    @Test fun `new call does not wait for a stalled legacy greeting stream`() = scenario { deps, store ->
         deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3)
-        deps.messages.value = LoadState.Ready(listOf(ConnectionGreeting("old-message", 4, "connection", "old-client",
-            MessageAuthor.PEER, PresetCode.HELLO, 120_000, DeliveryState.SENT)), 4)
-        deps.greetingsSource = { id -> if (id == "new-connection") flow { awaitCancellation() } else deps.messages }
+        deps.greetingsSource = { flow { awaitCancellation() } }
         val model = store.keep(ConnectedViewModel(deps)); observe(model.uiState); runCurrent()
-        assertEquals(1, model.uiState.value.greetings.size)
         deps.connection.value = LoadState.Ready(MeetFixtures.connection.copy(id = "new-connection", version = 5), 5)
-        runCurrent(); assertTrue(model.uiState.value.greetings.isEmpty()); assertTrue(model.uiState.value.greetingsLoading)
+        runCurrent()
+        assertEquals("new-connection", model.uiState.value.connection?.id)
+        assertFalse(model.uiState.value.loading)
+        assertTrue(deps.greetingObservations.isEmpty())
     }
 
-    @Test fun `restored failed greeting reconstructs original command and message id`() = scenario { deps, store ->
+    @Test fun `restored call ignores failed legacy greetings`() = scenario { deps, store ->
         deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3)
-        deps.greetingResult = { AppResult.Failure(AppError.Network) }
-        val original = store.keep(ConnectedViewModel(deps)); observe(original.uiState); runCurrent()
-        original.sendGreeting(PresetCode.HELLO); runCurrent()
-        val sent = deps.greetingCommands.single()
-        deps.messages.value = LoadState.Ready(listOf(ConnectionGreeting("failed", 4, sent.connectionId, sent.clientMessageId,
-            MessageAuthor.SELF, sent.code, 120_000, DeliveryState.FAILED)), 4)
+        deps.messages.value = LoadState.Ready(listOf(ConnectionGreeting("failed", 4, "connection", "client",
+            MessageAuthor.SELF, PresetCode.HELLO, 120_000, DeliveryState.FAILED)), 4)
         val restored = store.keep(ConnectedViewModel(deps)); observe(restored.uiState); runCurrent()
-        restored.retryGreeting(sent.clientMessageId); runCurrent()
-        assertEquals(sent, deps.greetingCommands.last())
+        assertEquals(MeetFixtures.connection, restored.uiState.value.connection)
+        assertTrue(deps.greetingCommands.isEmpty())
+        assertTrue(deps.greetingObservations.isEmpty())
     }
 
     @Test fun `connection failure clears public content while keeping restricted exit available`() = scenario { deps, store ->

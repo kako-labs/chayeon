@@ -41,6 +41,7 @@ data class UpdateSettingsRequest(
     val meta: CommandMeta,
     val notifyRequests: Boolean,
     val notifyGreetings: Boolean,
+    val receiveRequestsWhileDriving: Boolean = false,
 )
 
 @Serializable

@@ -5,6 +5,12 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.*
 
 internal class FakeHistoryDeps : HistoryDeps {
+    var microphoneRequests = 0
+    override val voiceCallRepository = object : VoiceCallRepository {
+        override val state = MutableStateFlow(VoiceCallState())
+        override suspend fun setMuted(muted: Boolean) = Unit
+        override suspend fun requestMicrophone(): Boolean { microphoneRequests++; return true }
+    }
     val homeZone = MutableStateFlow(HomeZoneState())
     override val homeZoneRepository = object : HomeZoneRepository {
         override val state = homeZone

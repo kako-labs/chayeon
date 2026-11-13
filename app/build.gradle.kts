@@ -81,6 +81,7 @@ dependencies {
     implementation(project(":core:ui"))
     implementation(project(":data:social"))
     implementation(project(":data:vehicle"))
+    implementation(project(":data:voice"))
     implementation(project(":feature:meet"))
     implementation(project(":feature:history"))
     implementation(project(":feature:signature"))

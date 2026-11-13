@@ -15,6 +15,7 @@ chayeon/
   data/
     social/          기기 안 엔진과 서버 연동 구현
     vehicle/         차량 신호, 주행 기록, 시그니처 저장
+    voice/           통화 수명, AudioRecord/AudioTrack, Pleos 데모 음성, 오디오 포커스, 통화 서비스
   feature/
     meet/            발견, 요청, 일시 연결, 주행 중
     history/         참여 준비, 기록, 애프터, 차단·신고, 정리
@@ -35,6 +36,8 @@ flowchart TD
   App --> Sig[feature:signature]
   App --> Social[data:social]
   App --> Vehicle[data:vehicle]
+  App --> Voice[data:voice]
+  Voice --> Model
   Meet --> Model[core:model]
   Meet --> SigCore[core:signature]
   Meet --> UI[core:ui]
@@ -59,13 +62,14 @@ flowchart TD
 
 ```kotlin
 val allowedEdges = mapOf(
-    ":app" to setOf(":core:model", ":core:signature", ":core:engine", ":core:ui", ":data:social", ":data:vehicle",
+    ":app" to setOf(":core:model", ":core:signature", ":core:engine", ":core:ui", ":data:social", ":data:vehicle", ":data:voice",
         ":feature:meet", ":feature:history", ":feature:signature"),
     ":core:model" to emptySet(),
     ":core:signature" to setOf(":core:model"),
     ":core:engine" to setOf(":core:model"),
     ":core:ui" to setOf(":core:model"),
     ":data:social" to setOf(":core:model", ":core:engine"),
+    ":data:voice" to setOf(":core:model"),
     ":data:vehicle" to setOf(":core:model", ":core:signature"),
     ":feature:meet" to setOf(":core:model", ":core:signature", ":core:ui"),
     ":feature:history" to setOf(":core:model", ":core:signature", ":core:ui"),
@@ -76,7 +80,7 @@ val allowedEdges = mapOf(
 
 - feature는 서로 의존하지 않고 data 모듈도 보지 않습니다. 인터페이스만 보며 구현은 `app`의 `AppGraph`가 넣습니다.
 - 차량 SDK와 `android.car`는 `data:vehicle`에서만 씁니다.
-- HTTP 클라이언트는 `data:social`에서만 씁니다.
+- HTTP/WebSocket 클라이언트는 `data:social`에서만 씁니다. `data:voice`는 `core:model`의 PCM 채널만 사용하며 Android 오디오와 통화 서비스를 소유합니다.
 - 관계 규칙은 `core:engine` 한곳에 있습니다. 서버와 `혼자 둘러보기`가 같은 상태 기계를 실행해 두 모드의 동작이 갈라지지 않습니다.
 - 위 그래프는 `verifyArchitecture`가 빌드 때 검사합니다.
 
@@ -89,7 +93,10 @@ val allowedEdges = mapOf(
 | `SessionRepository` | 시연 공간 입장, 테스트 계정, 로그아웃, 계정 삭제 |
 | `ProfileRepository` | 내 프로필, 참여 설정, 공개 시그니처 게시 |
 | `DiscoveryRepository` | 발견 켜기와 끄기, 후보 관찰 |
-| `ConnectionRepository` | 요청, 응답, 취소, 현재 연결 관찰, 인사, 종료 |
+| `ConnectionRepository` | 요청, 응답, 취소, 현재 연결 관찰, 통화 끊기(leave). 기존 인사 계약은 유지하되 임시 연결 UI에서는 사용하지 않음 |
+| `VoiceCallRepository` | 연결 ID별 통화 상태, 음소거, 주차 중 선택적 마이크 권한 |
+| `VoiceTransport`, `VoiceChannel` | data:social이 구현하는 인증 WebSocket PCM 채널 |
+| `DemoPeerVoice` (`data:voice` 내부) | 양 모드의 데모 상대 재생·포커스·종료. Pleos 기기 내 음성, 마이크와 WebSocket 없음 |
 | `EncounterRepository` | 스친 인연 목록과 상세, 내 기록 삭제 |
 | `AfterRepository` | 애프터 신청, 응답, 철회, 후속 대화, 관계 종료 |
 | `SafetyRepository` | 차단, 해제, 신고, 차단 목록 |
@@ -187,6 +194,7 @@ Pleos 에뮬레이터 측정에서 온 조건입니다. 실차와 App Market 승
 | compileSdk, targetSdk | 35 |
 | minSdk | 28 |
 | 패키지 | `dev.chayeon` |
+| Pleos 데모 음성 | TextToSpeech SDK 3.3.1, ON_DEVICE |
 
 Vehicle SDK는 `https://nexus-playground.pleos.ai/repository/maven-releases/`의 `ai.pleos.playground:Vehicle:2.3.2`입니다. SDK 파일은 저장소에 넣지 않습니다.
 
@@ -225,3 +233,13 @@ Application 소유 `HomeZoneCoordinator` 한곳만 presence를 전송해요. `pr
 좌표와 반경은 서버로 보내지 않으며 엔진·서버에는 집 개념을 추가하지 않아요. 상대는 집 보호, 앱 종료, 차량 전원 종료, 통신 단절에서 같은 거리 이탈 화면을 봐요. 다만 서버 운영자는 명시적 AWAY가 도착했음을 볼 수 있어요. 이번 빌드에는 실제 위치 기반 이탈이 없어 집 보호 때문이라고 추측할 수 있어요. `data:social`의 내부 presence 명령은 주행 제한 중에도 실행되며 사람이 누르는 콘솔과 집 설정은 현재 정책을 다시 확인해요.
 
 종단 도구는 `--serial`, `CHAYEON_EMULATOR_SERIAL`, `ANDROID_SERIAL` 순서로 선택을 우선해요. 지정한 기기가 사라지면 다른 기기로 바꾸지 않아요. 지정이 없으면 실행 대수와 무관하게 AVD 이름이 `Pleos_Connect_v2_0`인 한 대만 자동 선택하며, 없거나 둘 이상이면 명시적 선택을 요청해요. 선택한 serial의 부팅 완료를 기다리고 설치·셸·포트 전달을 모두 그 기기로 제한해요. 에뮬레이터를 시작하거나 종료하지 않아요. 모의 ADB 선택·격리 테스트도 `verify`에 포함해요.
+
+## 일시 연결 통화
+
+`ChayeonApplication`이 통화 조정기를 소유하고 세션·연결·집 보호·마이크 권한을 관찰해요. CONNECTED에 자동 참여하며 CHECKING, ENDED, 세션 종료, 집 보호 진입에서는 녹음·재생·서비스를 정리해요. 통화 끊기는 기존 leave 명령이며 네트워크 응답 전에 로컬 오디오를 닫아요. 애프터에는 통화를 추가하지 않아요.
+
+서버의 `/v1/voice/{connectionId}`는 Bearer 토큰을 인증하고 엔진의 현재 연결 당사자만 허용해요. 16 kHz mono PCM16의 20 ms/640 byte 프레임을 상대 한 명에게만 보내요. 대기열은 5프레임(100 ms)이고 넘치면 오래된 프레임을 버려요. 초당 50프레임 예산과 최대 50프레임 버스트를 허용하고, 순간 초과는 버리되 통화는 유지해요. 잘못된 프레임 크기 또는 초당 100프레임 초과가 연속 5개 1초 구간에서 관찰될 때 해당 소켓을 닫아요. 재접속에도 참가자의 예산과 과부하 관측을 유지해요. 참가자 검증은 입장·명령·엔진 revision·250ms ticker에서 하고, 프레임 중계와 writer에서는 엔진 export나 전체 재검증을 실행하지 않아요. 음성은 저장 모델과 동기화 DTO에 들어가지 않아요.
+
+마이크를 사용할 수 없으면 수신만 유지해요. Android 14에서 RECORD_AUDIO 없이 microphone 타입 서비스를 시작할 수 없으므로 수신 전용·데모 상대 통화는 mediaPlayback 타입을 사용하고, 녹음 가능한 통화에는 microphone 타입을 함께 사용해요. 알림은 CATEGORY_CALL이며 통화 끊기 action이 같은 leave 경로를 실행해요. 실차 오디오 라우팅과 Pleos 백그라운드 유지·권한 승인은 별도 검증 대상이에요.
+
+데모 상대의 음성은 `data:voice`의 `ScriptedDemoPeerVoice` → `DemoSpeechEngine` → `PleosSpeechEngine`에서 처리해요. Pleos TextToSpeech 3.3.1을 직접 호출하고 `Mode.ON_DEVICE`만 사용해요. 일반 권한 `pleos.car.permission.TTS_SERVICE`만 선언하며 보안 그룹은 추가하지 않아요. SOLO 또는 `ProfileKind.DEMO_PEER`이면 서버 모드에서도 음성 WebSocket·마이크를 열지 않아요. 초기 prepare로 SDK를 준비한 뒤 포커스 아래에서 세 문장을 순서대로 재생하고, 시작 시각 기준 약 20초 간격을 둬요. 실제 소리 시작을 검증하지 못하므로 SDK 시작 콜백으로 발화 UI를 바꾸지 않아요. 종료·보호·포커스 상실은 재생을 멈춰요.

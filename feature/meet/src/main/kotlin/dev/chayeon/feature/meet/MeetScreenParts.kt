@@ -202,7 +202,7 @@ internal fun MeetDiscoveryHero(state: HomeUiState, onToggle: (Boolean) -> Unit) 
 
 @Composable
 internal fun MeetRelationStage(own: PublicProfile?, peer: PublicProfile, stage: ThreadStage, title: String, subtitle: String,
-    modifier: Modifier = Modifier, animate: Boolean = true, centered: Boolean = false, largeAvatars: Boolean = centered) {
+    modifier: Modifier = Modifier, animate: Boolean = true, centered: Boolean = false, largeAvatars: Boolean = centered, largeNames: Boolean = false, footer: (@Composable () -> Unit)? = null) {
     HeroPanel(modifier.fillMaxWidth(), contentPadding = PaddingValues(ChayeonSpacing.Large)) {
         Column(Modifier.fillMaxWidth().align(Alignment.Center), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium),
             horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start) {
@@ -212,31 +212,32 @@ internal fun MeetRelationStage(own: PublicProfile?, peer: PublicProfile, stage: 
                 if (maxWidth >= ChayeonSpacing.NarrowBreakpoint) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-                        MeetRelationAvatar(own, "나", large = largeAvatars)
+                        MeetRelationAvatar(own, "나", large = largeAvatars, largeName = largeNames)
                         ThreadView(stage, Modifier.weight(1f), animateTransition = animate)
-                        MeetRelationAvatar(peer, peer.nickname, large = largeAvatars)
+                        MeetRelationAvatar(peer, peer.nickname, large = largeAvatars, largeName = largeNames)
                     }
                 } else {
                     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
-                        MeetRelationAvatar(peer, peer.nickname, large = stage == ThreadStage.CONNECTED)
+                        MeetRelationAvatar(peer, peer.nickname, large = stage == ThreadStage.CONNECTED, largeName = largeNames)
                         Box(Modifier.size(ChayeonDimensions.Avatar), contentAlignment = Alignment.Center) {
                             ThreadView(stage, Modifier.width(ChayeonDimensions.Avatar).rotate(90f), animateTransition = animate)
                         }
-                        MeetRelationAvatar(own, "나")
+                        MeetRelationAvatar(own, "나", largeName = largeNames)
                     }
                 }
             }
+            footer?.invoke()
         }
     }
 }
 
 @Composable
-private fun MeetRelationAvatar(profile: PublicProfile?, fallback: String, large: Boolean = false) {
+private fun MeetRelationAvatar(profile: PublicProfile?, fallback: String, large: Boolean = false, largeName: Boolean = false) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
         if (profile != null) AvatarDish(MochiAvatar.from(profile.avatar), Modifier.size(if (large) ChayeonDimensions.PeerLarge else ChayeonDimensions.Avatar))
         else IconOrb(ChayeonIcon.PROFILE, Modifier.size(ChayeonDimensions.Avatar), OrbVariant.GLASS)
-        ChayeonText(profile?.nickname ?: fallback, style = ChayeonType.Section)
+        ChayeonText(profile?.nickname ?: fallback, style = if (largeName) ChayeonType.Title else ChayeonType.Section)
         if (LocalSourceLabels.current && profile != null) ChayeonText(profile.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
     }
 }
@@ -250,26 +251,6 @@ internal fun MeetTwoColumns(first: @Composable () -> Unit, second: @Composable (
         } else Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
             first()
             second()
-        }
-    }
-}
-
-@Composable
-internal fun MeetGreeting(message: GreetingUi, canRetry: Boolean, onRetry: (String) -> Unit) {
-    val mine = message.author == MessageAuthor.SELF
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = if (mine) Alignment.End else Alignment.Start,
-        verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
-        BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = if (mine) Alignment.CenterEnd else Alignment.CenterStart) {
-            ChatBubble(message.code.label, mine, Modifier.widthIn(max = minOf(maxWidth * .88f, ChayeonDimensions.ChemistryKnot)))
-        }
-        ChayeonText(when (message.delivery) {
-            DeliveryState.SENDING -> "보내고 있어요"
-            DeliveryState.SENT -> if (mine) "보냈어요" else "받았어요"
-            DeliveryState.FAILED -> "보내지 못했어요"
-        }, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
-        if (message.delivery == DeliveryState.FAILED && mine) {
-            MeetError(message.error)
-            JellyButton("다시 보내기", { onRetry(message.clientMessageId) }, variant = JellyVariant.SECONDARY, enabled = canRetry)
         }
     }
 }

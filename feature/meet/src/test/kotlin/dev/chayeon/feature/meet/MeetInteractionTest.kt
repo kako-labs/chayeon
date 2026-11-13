@@ -76,7 +76,7 @@ class MeetInteractionTest {
         compose.setContent {
             val state by model.uiState.collectAsState()
             ChayeonTheme(state.driving.policy, 0f) {
-                ConnectedScreen(state, previewChrome(policy = state.driving.policy), model::sendGreeting, model::retryGreeting, model::leave, {})
+                ConnectedScreen(state, previewChrome(policy = state.driving.policy), model::leave, {})
             }
         }
         compose.waitUntil(timeoutMillis = 5_000) { model.uiState.value.connection != null }
@@ -256,53 +256,42 @@ class MeetInteractionTest {
         assertEquals(1, accepts)
     }
 
-    @Test fun greetingMainActionAndFailedRetryPreserveClientMessageId() {
+    @Test fun parkedCallHasNoGreetingThreadComposerOrPresetActions() {
         val deps = FakeMeetDeps()
         deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3)
-        deps.greetingResult = { AppResult.Failure(AppError.Network) }
-        val model = keep(ConnectedViewModel(deps))
-        showConnected(model)
-        compose.onNode(hasText(PresetCode.HELLO.label) and hasClickAction()).performScrollTo().performClick()
-        compose.waitUntil(timeoutMillis = 5_000) { model.uiState.value.greetings.singleOrNull()?.delivery == DeliveryState.FAILED }
-        compose.onNodeWithText("보내지 못했어요").performScrollTo().assertIsDisplayed()
-        val first = deps.greetingCommands.single()
-        deps.greetingResult = { payload ->
-            AppResult.Success(ConnectionGreeting("ack", 4, payload.connectionId, payload.clientMessageId,
-                MessageAuthor.SELF, payload.code, 120_000, DeliveryState.SENT))
+        deps.messages.value = LoadState.Ready(listOf(ConnectionGreeting("legacy", 4, "connection", "client",
+            MessageAuthor.PEER, PresetCode.HELLO, 120_000, DeliveryState.SENT)), 4)
+        showConnected(keep(ConnectedViewModel(deps)))
+        compose.onNodeWithText("통화 중").assertIsDisplayed()
+        compose.onNodeWithText("이야깃거리").assertExists()
+        listOf("주고받은 인사", "인사 보내기", "다시 보내기", PresetCode.HELLO.label).forEach {
+            compose.onAllNodesWithText(it).assertCountEquals(0)
         }
-        compose.onNodeWithText("다시 보내기").performScrollTo().performClick()
-        compose.waitUntil(timeoutMillis = 5_000) { model.uiState.value.greetings.singleOrNull()?.delivery == DeliveryState.SENT }
-        compose.onNodeWithText("보냈어요").performScrollTo().assertIsDisplayed()
-        assertEquals(2, deps.greetingCommands.size)
-        assertEquals(first, deps.greetingCommands.last())
-        assertEquals(PresetCode.HELLO, first.code)
+        assertTrue(deps.greetingCommands.isEmpty())
+        assertTrue(deps.greetingObservations.isEmpty())
     }
 
-    @Test fun checkingDisablesPresetAndFailedGreetingRetry() {
-        val retryIds = mutableListOf<String>()
-        val sent = mutableListOf<PresetCode>()
+    @Test fun checkingCallKeepsOnlyVoiceAndSafetyControls() {
         val state = ConnectedUiState(driving = MeetFixtures.parked,
             connection = MeetFixtures.connection.copy(status = ConnectionStatus.CHECKING), ownProfile = MeetFixtures.own,
-            loading = false, greetingsLoading = false,
-            greetings = listOf(GreetingUi("failed-id", PresetCode.HELLO, MessageAuthor.SELF, DeliveryState.FAILED)))
+            loading = false)
         compose.setContent {
-            ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { ConnectedScreen(state, previewChrome(), { sent += it }, { retryIds += it }, {}, {}) }
+            ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { ConnectedScreen(state, previewChrome(), {}, {}) }
         }
         compose.onNodeWithText("연결 상태를 확인하고 있어요").assertExists()
-        compose.onNode(hasText(PresetCode.HELLO.label) and hasClickAction()).performScrollTo().assertIsNotEnabled().performClick()
-        compose.onNodeWithText("다시 보내기").performScrollTo().assertIsNotEnabled().performClick()
-        assertTrue(sent.isEmpty())
-        assertTrue(retryIds.isEmpty())
+        compose.onNodeWithContentDescription("음소거").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("통화 끊기").assertIsEnabled()
+        compose.onNodeWithText("인사 보내기").assertDoesNotExist()
     }
 
-    @Test fun policyTransitionHidesGreetingContentAndLeavesOnlyExitAction() {
+    @Test fun policyTransitionHidesTopicsAndSafetyLeavingCallControls() {
         val deps = FakeMeetDeps()
         deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3)
         deps.messages.value = LoadState.Ready(listOf(ConnectionGreeting("peer-message", 3, "connection", "peer-client",
             MessageAuthor.PEER, PresetCode.NICE_TO_MEET_YOU, 120_000, DeliveryState.SENT)), 3)
         val model = keep(ConnectedViewModel(deps))
         showConnected(model)
-        compose.onNodeWithText("주고받은 인사").assertExists()
+        compose.onNodeWithText("이야깃거리").assertExists()
         for (policy in listOf(DrivingPolicy.RESTRICTED, DrivingPolicy.UNKNOWN)) {
             compose.runOnIdle { deps.drivingState.value = MeetFixtures.parked.copy(policy = policy, gear = Gear.DRIVE) }
             compose.waitUntil(timeoutMillis = 5_000) { model.uiState.value.driving.policy == policy }
@@ -310,9 +299,9 @@ class MeetInteractionTest {
             compose.onAllNodesWithText(PresetCode.HELLO.label).assertCountEquals(0)
             compose.onNodeWithText("주고받은 인사").assertDoesNotExist()
             compose.onNodeWithText("차단·신고").assertDoesNotExist()
-            compose.onNodeWithText("나가기").assertIsEnabled()
+            compose.onNodeWithText("통화 끊기").assertIsEnabled()
         }
-        compose.onNodeWithText("나가기").performClick()
+        compose.onNodeWithText("통화 끊기").performClick()
         compose.waitUntil(timeoutMillis = 5_000) { deps.leaveCommands.size == 1 }
         assertEquals(MeetFixtures.connection.id, deps.leaveCommands.single().connectionId)
         assertTrue(deps.greetingCommands.isEmpty())
@@ -330,7 +319,7 @@ class MeetInteractionTest {
         }
         compose.waitUntil { model.uiState.value.awaitingPark }
         compose.onNodeWithText(MeetFixtures.peer.nickname).assertDoesNotExist()
-        compose.onNodeWithText("나가기").assertIsEnabled()
+        compose.onNodeWithText("통화 끊기").assertIsEnabled()
         compose.runOnIdle { deps.homeZone.value = deps.homeZone.value.copy(status = HomeZoneStatus.OUTSIDE) }
         compose.onNodeWithText(MeetFixtures.peer.nickname).assertDoesNotExist()
         compose.runOnIdle { deps.drivingState.value = MeetFixtures.parked }
@@ -348,7 +337,7 @@ class MeetInteractionTest {
         }
         compose.waitUntil(timeoutMillis = 5_000) { model.uiState.value.connection == null && model.uiState.value.canLeave }
         compose.onNodeWithText(MeetFixtures.peer.nickname).assertDoesNotExist()
-        compose.onNodeWithText("나가기").assertIsEnabled().performClick()
+        compose.onNodeWithText("통화 끊기").assertIsEnabled().performClick()
         compose.waitUntil(timeoutMillis = 5_000) { deps.leaveCommands.size == 1 }
         assertEquals(MeetFixtures.connection.id, deps.leaveCommands.single().connectionId)
     }
@@ -382,19 +371,21 @@ class MeetInteractionTest {
     }
 
     @Test @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
-    fun narrowConnectedScrollReachesPresetAndFailedRetry() {
-        val codes = mutableListOf<PresetCode>()
-        val retries = mutableListOf<String>()
+    fun narrowCallKeepsControlsVisibleAndTopicsReachable() {
+        var muted = false
+        var ended = false
         val state = ConnectedUiState(driving = MeetFixtures.parked, connection = MeetFixtures.connection, ownProfile = MeetFixtures.own,
-            loading = false, greetingsLoading = false,
-            greetings = listOf(GreetingUi("narrow-failed", PresetCode.HELLO, MessageAuthor.SELF, DeliveryState.FAILED)))
+            loading = false)
         compose.setContent {
-            ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { ConnectedScreen(state, previewChrome(), { codes += it }, { retries += it }, {}, {}) }
+            ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { ConnectedScreen(state, previewChrome(), { ended = true }, {}, onMute = { muted = true }) }
         }
-        compose.onNode(hasText(PresetCode.ADMIRE_SIGNAL_MANNERS.label) and hasClickAction()).performScrollTo().assertIsDisplayed().performClick()
-        compose.onNodeWithText("다시 보내기").performScrollTo().assertIsDisplayed().performClick()
-        assertEquals(listOf(PresetCode.ADMIRE_SIGNAL_MANNERS), codes)
-        assertEquals(listOf("narrow-failed"), retries)
+        compose.onNodeWithContentDescription("음소거").assertIsDisplayed().performClick()
+        compose.onNodeWithText("이야깃거리").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("차단·신고").assertIsDisplayed()
+        compose.onNodeWithText("주고받은 인사").assertDoesNotExist()
+        compose.onNodeWithContentDescription("통화 끊기").assertIsDisplayed().performClick()
+        assertTrue(muted)
+        assertTrue(ended)
     }
 
     @Test fun directStateGuardBlocksDiscoveryEvenIfCallerThemeIsAllowed() {

@@ -3,6 +3,10 @@ package dev.chayeon.feature.meet
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.isEnabled
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.hasClickAction
@@ -58,21 +62,22 @@ class MeetNavigationTest {
         assertEquals(MeetFixtures.discovery, deps.discovery.value)
     }
 
-    @Test fun newConnectionWhileDrivingHidesIdentityUntilParked() {
+    @Test fun newConnectionWhileDrivingOpensCallAndDoesNotFallBackToGenericLock() {
         launch()
         compose.runOnIdle { deps.drivingState.value = DrivingState(policy = DrivingPolicy.RESTRICTED, gear = Gear.DRIVE) }
         awaitRoute(MeetDestination.DRIVING)
         compose.runOnIdle { deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3) }
+        awaitRoute(MeetDestination.CONNECTED)
+        compose.onNodeWithText("통화 중").assertExists()
+        compose.onNodeWithText(MeetFixtures.peer.nickname).assertExists()
+        compose.onNodeWithContentDescription("음소거").assertIsEnabled()
+        compose.onNodeWithContentDescription("통화 끊기").assertIsEnabled()
+        compose.onAllNodes(hasClickAction() and isEnabled()).assertCountEquals(2)
+        compose.runOnIdle { deps.drivingState.value = DrivingState(policy = DrivingPolicy.UNKNOWN) }
         compose.waitForIdle()
-        for (policy in listOf(DrivingPolicy.RESTRICTED, DrivingPolicy.UNKNOWN)) {
-            compose.runOnIdle { deps.drivingState.value = DrivingState(policy = policy) }
-            compose.waitForIdle()
-            compose.runOnIdle { assertEquals(MeetDestination.DRIVING, controller.currentDestination?.route) }
-            compose.onNodeWithText("새 연결이 있어요").assertExists()
-            compose.onNodeWithText(MeetFixtures.peer.nickname).assertDoesNotExist()
-            compose.onNodeWithText(MeetFixtures.own.nickname).assertDoesNotExist()
-            compose.onAllNodes(hasClickAction()).assertCountEquals(1)
-        }
+        compose.runOnIdle { assertEquals(MeetDestination.CONNECTED, controller.currentDestination?.route) }
+        compose.onNodeWithContentDescription("음소거").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("통화 끊기").assertIsEnabled()
         compose.runOnIdle { deps.drivingState.value = MeetFixtures.parked }
         awaitRoute(MeetDestination.CONNECTED)
         compose.onNodeWithText(MeetFixtures.peer.nickname).assertExists()
@@ -88,7 +93,7 @@ class MeetNavigationTest {
         awaitRoute(MeetDestination.DRIVING)
         compose.runOnIdle { deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3) }
         compose.waitForIdle()
-        compose.onNodeWithText("나가기").performClick()
+        compose.onNodeWithText("통화 끊기").performClick()
         compose.waitForIdle()
         compose.runOnIdle {
             assertEquals(MeetFixtures.connection.id, deps.leaveCommands.single().connectionId)

@@ -27,9 +27,8 @@ class MeetScreenshotTest {
     private val candidate = CandidateUiState(MeetFixtures.parked, MeetFixtures.candidate, MeetFixtures.own, unavailableState = null, canRequest = true)
     private val incoming = RequestUiState(MeetFixtures.parked, MeetFixtures.request, MeetFixtures.own, loading = false, remainingMillis = 108_000)
     private val sent = incoming.copy(request = MeetFixtures.request.copy(direction = RequestDirection.OUTGOING))
-    private val greeting = GreetingUi("greeting-self", PresetCode.HELLO, MessageAuthor.SELF, DeliveryState.SENT)
     private val connected = ConnectedUiState(MeetFixtures.parked, MeetFixtures.connection, MeetFixtures.own,
-        loading = false, greetings = listOf(greeting, GreetingUi("greeting-peer", PresetCode.NICE_TO_MEET_YOU, MessageAuthor.PEER, DeliveryState.SENT)), greetingsLoading = false)
+        loading = false)
     private val ended = EndedUiState(MeetFixtures.parked, MeetFixtures.ended, MeetFixtures.own, loading = false)
 
     private fun driving(policy: DrivingPolicy) = MeetFixtures.parked.copy(policy = policy,
@@ -55,8 +54,10 @@ class MeetScreenshotTest {
     private fun request(name: String, state: RequestUiState) = capture("request_$name", state.driving.policy) { chrome ->
         RequestScreen(state, chrome, {}, {}, {}, {}, {})
     }
-    private fun connected(name: String, state: ConnectedUiState = connected) = capture("connected_$name", state.driving.policy) { chrome ->
-        ConnectedScreen(state, chrome, {}, {}, {}, {})
+    private fun connected(name: String, state: ConnectedUiState = connected) {
+        capture("connected_$name", state.driving.policy) { chrome -> ConnectedScreen(state, chrome, {}, {}) }
+        compose.onNodeWithText("주고받은 인사").assertDoesNotExist()
+        compose.onNodeWithText("인사 보내기").assertDoesNotExist()
     }
     private fun ended(name: String, state: EndedUiState = ended) = capture("ended_$name", state.driving.policy) { chrome ->
         EndedScreen(state, chrome, {}, {})
@@ -75,7 +76,7 @@ class MeetScreenshotTest {
         CandidateScreen(candidate, it, {}, {}, {})
     }
     @Test fun serverConnectedRetainsLabels() = capture("connected_server", showSourceLabels = true) {
-        ConnectedScreen(connected, it, {}, {}, {}, {})
+        ConnectedScreen(connected, it, {}, {})
     }
     @Test fun homeMixedPeers() = home("mixed_peers", home.copy(discovery = MeetFixtures.discovery.copy(candidates = listOf(
         MeetFixtures.candidate,
@@ -161,16 +162,39 @@ class MeetScreenshotTest {
     @Test @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
     fun requestSentNarrow() = request("sent_narrow", sent)
 
+    @Test fun callDrivingMicrophoneUnavailable() = connected("call_driving_mic_unavailable", connected.copy(driving = driving(DrivingPolicy.RESTRICTED), call = VoiceCallState("connection", CallStatus.ACTIVE, microphone = MicrophoneStatus.UNAVAILABLE)))
+    @Test @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
+    fun callNarrowMuted() = connected("call_narrow_muted", connected.copy(call = VoiceCallState("connection", CallStatus.ACTIVE, muted = true)))
+    @Test fun callConnecting() = connected("call_connecting", connected.copy(call = VoiceCallState("connection", CallStatus.CONNECTING)))
+    @Test fun callReconnecting() = connected("call_reconnecting", connected.copy(call = VoiceCallState("connection", CallStatus.RECONNECTING)))
+    @Test fun callMicrophoneDenied() = connected("call_mic_denied", connected.copy(call = VoiceCallState("connection", CallStatus.ACTIVE, microphone = MicrophoneStatus.DENIED)))
+    @Test fun callMuted() = connected("call_muted", connected.copy(call = VoiceCallState("connection", CallStatus.ACTIVE, muted = true)))
+    @Test fun callMicrophoneUnavailable() = connected("call_mic_unavailable", connected.copy(call = VoiceCallState("connection", CallStatus.ACTIVE, microphone = MicrophoneStatus.UNAVAILABLE)))
+    @Test fun callDrivingMuted() = connected("call_driving_muted", connected.copy(driving = driving(DrivingPolicy.RESTRICTED), call = VoiceCallState("connection", CallStatus.ACTIVE, muted = true)))
+    @Test fun incomingDrivingOptIn() = request("incoming_driving", incoming.copy(driving = driving(DrivingPolicy.RESTRICTED), receiveRequestsWhileDriving = true))
+    @Test fun incomingDrivingOptOut() = request("incoming_driving_off", incoming.copy(driving = driving(DrivingPolicy.RESTRICTED)))
+    @Test fun incomingDrivingHomeProtected() = request("incoming_driving_home", incoming.copy(driving = driving(DrivingPolicy.RESTRICTED), receiveRequestsWhileDriving = true, homeSuppressed = true))
+    @Test @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
+    fun incomingDrivingNarrow() = request("incoming_driving_narrow", incoming.copy(driving = driving(DrivingPolicy.RESTRICTED), receiveRequestsWhileDriving = true))
+    @Test fun callNoPublicTopics() = connected("call_no_topics", connected.copy(
+        ownProfile = MeetFixtures.own.copy(interests = emptySet(), signature = null),
+        connection = MeetFixtures.connection.copy(peer = MeetFixtures.peer.copy(interests = emptySet(), signature = null), chemistry = Chemistry())))
+    @Test fun callSharedInterestsOnly() = connected("call_shared_interests", connected.copy(
+        ownProfile = MeetFixtures.own.copy(signature = null),
+        connection = MeetFixtures.connection.copy(peer = MeetFixtures.peer.copy(signature = null), chemistry = Chemistry())))
+    @Test fun callPublicTitlesOnly() = connected("call_public_titles", connected.copy(
+        ownProfile = MeetFixtures.own.copy(interests = emptySet()),
+        connection = MeetFixtures.connection.copy(peer = MeetFixtures.peer.copy(interests = emptySet()), chemistry = Chemistry())))
     @Test fun connectedPopulated() = connected("populated")
-    @Test fun connectedLoading() = connected("loading", connected.copy(connection = null, loading = true, greetings = emptyList(), greetingsLoading = true))
-    @Test fun connectedEmpty() = connected("empty", connected.copy(connection = null, greetings = emptyList()))
-    @Test fun connectedFailure() = connected("failure", connected.copy(connection = null, observationError = AppError.Network, greetings = emptyList()))
+    @Test fun connectedLoading() = connected("loading", connected.copy(connection = null, loading = true))
+    @Test fun connectedEmpty() = connected("empty", connected.copy(connection = null))
+    @Test fun connectedFailure() = connected("failure", connected.copy(connection = null, observationError = AppError.Network))
     @Test fun connectedChecking() = connected("checking", connected.copy(connection = MeetFixtures.connection.copy(status = ConnectionStatus.CHECKING)))
-    @Test fun connectedSending() = connected("sending", connected.copy(greetings = listOf(greeting.copy(delivery = DeliveryState.SENDING)), sendingPresets = setOf(PresetCode.HELLO)))
-    @Test fun connectedGreetingFailed() = connected("greeting_failed", connected.copy(greetings = listOf(greeting.copy(delivery = DeliveryState.FAILED, error = AppError.Network))))
-    @Test fun connectedGreetingsLoading() = connected("greetings_loading", connected.copy(greetings = emptyList(), greetingsLoading = true))
-    @Test fun connectedGreetingsEmpty() = connected("greetings_empty", connected.copy(greetings = emptyList()))
-    @Test fun connectedGreetingsFailure() = connected("greetings_failure", connected.copy(greetings = emptyList(), greetingsError = AppError.Network))
+    @Test fun connectedSending() = connected("sending", connected.copy(call = VoiceCallState("connection", CallStatus.CONNECTING)))
+    @Test fun connectedGreetingFailed() = connected("greeting_failed", connected.copy(call = VoiceCallState("connection", CallStatus.RECONNECTING)))
+    @Test fun connectedGreetingsLoading() = connected("greetings_loading", connected.copy(call = VoiceCallState("connection", CallStatus.CONNECTING)))
+    @Test fun connectedGreetingsEmpty() = connected("greetings_empty", connected)
+    @Test fun connectedGreetingsFailure() = connected("greetings_failure", connected.copy(call = VoiceCallState("connection", CallStatus.ACTIVE, microphone = MicrophoneStatus.UNAVAILABLE)))
     @Test fun connectedLeaveFailure() = connected("leave_failure", connected.copy(leave = MeetCommandState(error = AppError.Network)))
     @Test fun connectedLeaving() = connected("leaving", connected.copy(leave = MeetCommandState(inProgress = true)))
     @Test fun connectedRestricted() = connected("restricted", connected.copy(driving = driving(DrivingPolicy.RESTRICTED)))

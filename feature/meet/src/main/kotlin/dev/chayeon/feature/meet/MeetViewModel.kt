@@ -33,7 +33,7 @@ class MeetViewModel(private val deps: MeetDeps) : ViewModel() {
         val pending = requestsState.readyValue().orEmpty()
             .filter { it.status == ConnectionRequestStatus.PENDING }.maxByOrNull { it.version }
         when {
-            driving.policy == DrivingPolicy.ALLOWED && connection != null && connection.status != ConnectionStatus.ENDED &&
+            driving.policy != DrivingPolicy.UNKNOWN && connection != null && connection.status != ConnectionStatus.ENDED &&
                 route != MeetDestination.CONNECTED && "connected:${connection.id}" !in handled ->
                 MeetNavigationEffect.Connected(connection.id)
             driving.policy == DrivingPolicy.ALLOWED && connection?.status == ConnectionStatus.ENDED && route != MeetDestination.ENDED &&
@@ -63,4 +63,8 @@ class MeetViewModel(private val deps: MeetDeps) : ViewModel() {
     }
 
     suspend fun allowsNavigation(): Boolean = deps.allowsInteraction()
+
+    suspend fun allowsConnectedNavigation(): Boolean =
+        kotlinx.coroutines.withTimeoutOrNull(1_000) { deps.drivingStateProvider.drivingState.first().policy }
+            ?.let { it != DrivingPolicy.UNKNOWN } == true
 }

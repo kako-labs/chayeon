@@ -12,6 +12,7 @@ import dev.chayeon.core.model.ServerTimeProvider
 import dev.chayeon.core.model.SignatureRepository
 
 interface HistoryDeps {
+    val voiceCallRepository: dev.chayeon.core.model.VoiceCallRepository get() = dev.chayeon.core.model.NoVoiceCall
     val homeZoneRepository: dev.chayeon.core.model.HomeZoneRepository
     val syntheticHomeEnabled: Boolean get() = false
     suspend fun prepareHomeLocation(): Boolean = false

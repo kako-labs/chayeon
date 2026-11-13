@@ -138,7 +138,7 @@ class ScreenKitBehaviorTest {
         AvatarId.entries.forEach { assertEquals(it.label, MochiAvatar.from(it).description) }
         ConnectionEndReason.entries.forEach { assertFalse(it.presentation("가상 상대").title.contains("차단")) }
         assertEquals("깜빡이 매너가 멋져요", PresetCode.ADMIRE_SIGNAL_MANNERS.label)
-        assertEquals("느린오후 님이 연결을 마쳤어요", ConnectionEndReason.PEER_LEFT.presentation("느린오후").title)
+        assertEquals("느린오후 님이 통화를 마쳤어요", ConnectionEndReason.PEER_LEFT.presentation("느린오후").title)
         assertEquals("위치나 통신이 오래 끊겼어요. 멀어졌다고 판단한 것은 아니에요.", ConnectionEndReason.STATUS_UNKNOWN.presentation("상대").body)
     }
 }

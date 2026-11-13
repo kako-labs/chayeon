@@ -11,13 +11,14 @@ plugins {
 }
 
 val allowedEdges = mapOf(
-    ":app" to setOf(":core:model", ":core:signature", ":core:engine", ":core:ui", ":data:social", ":data:vehicle",
+    ":app" to setOf(":core:model", ":core:signature", ":core:engine", ":core:ui", ":data:social", ":data:vehicle", ":data:voice",
         ":feature:meet", ":feature:history", ":feature:signature"),
     ":core:model" to emptySet(),
     ":core:signature" to setOf(":core:model"),
     ":core:engine" to setOf(":core:model"),
     ":core:ui" to setOf(":core:model"),
     ":data:social" to setOf(":core:model", ":core:engine"),
+    ":data:voice" to setOf(":core:model"),
     ":data:vehicle" to setOf(":core:model", ":core:signature"),
     ":feature:meet" to setOf(":core:model", ":core:signature", ":core:ui"),
     ":feature:history" to setOf(":core:model", ":core:signature", ":core:ui"),

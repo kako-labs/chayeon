@@ -116,7 +116,7 @@ fun ProfileSetupScreen(state: HistoryUiState, chrome: ScreenChrome, editing: Boo
 @Composable
 fun ConsentScreen(state: HistoryUiState, chrome: ScreenChrome, onConsent: (ConsentScope, Boolean) -> Unit,
     onDiscovery: (Boolean) -> Unit, onVisibility: () -> Unit, onContinue: () -> Unit, onRetry: (String) -> Unit, onBack: () -> Unit,
-    onHomeZone: () -> Unit = {}) {
+    onHomeZone: () -> Unit = {}, onMicrophone: () -> Unit = {}) {
     HistoryFrame(state, chrome, "차량 데이터·위치·공개 범위", "무엇을 읽고 보여줄지 직접 골라 주세요", onBack, step = 2,
         bottom = { OnboardingActions("선택한 설정으로 시작", state.requiredConsentsGranted && state.myProfile?.registration == RegistrationState.READY, onContinue) },
         primary = {
@@ -159,6 +159,9 @@ fun ConsentScreen(state: HistoryUiState, chrome: ScreenChrome, onConsent: (Conse
                     }
                 }
                 }
+                GelCheckbox("마이크 · 선택", state.microphoneGranted, { if (it) onMicrophone() },
+                    description = "연결된 상대와 통화할 때만 써요. 허용하지 않아도 들을 수 있어요.",
+                    enabled = !state.microphoneGranted)
                 GlassCard(Modifier.fillMaxWidth().testTag("onboarding-right")) { ContentColumn {
                     GelToggle(state.requiredConsentsGranted && state.discovery.mode == DiscoveryMode.ON, onDiscovery, "발견 켜기",
                         enabled = state.requiredConsentsGranted && state.myProfile?.registration == RegistrationState.READY && !state.command("discovery").running)

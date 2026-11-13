@@ -41,6 +41,9 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
     val homeZone by graph.homeZoneRepository.state.collectAsStateWithLifecycle(HomeZoneState(HomeZoneStatus.LOCATION_UNKNOWN))
     val session by graph.sessionRepository.session.collectAsStateWithLifecycle(SessionState.Entering())
     val profile by graph.profileRepository.profile.collectAsStateWithLifecycle(LoadState.Loading())
+    val participation by graph.profileRepository.settings.collectAsStateWithLifecycle(LoadState.Loading())
+    val connection by graph.connectionRepository.connection.collectAsStateWithLifecycle(LoadState.Loading())
+    val requests by graph.connectionRepository.requests.collectAsStateWithLifecycle(LoadState.Loading())
     val recaps by graph.signatureRepository.recaps.collectAsStateWithLifecycle(LoadState.Loading())
     val publicationFailed by publisherFailure.collectAsStateWithLifecycle()
     val recordingFailed by recordingFailure.collectAsStateWithLifecycle()
@@ -52,6 +55,8 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
     var discoveryBusy by remember { mutableStateOf(false) }
     var routedSession by remember { mutableStateOf<String?>(null) }
     var shownRecap by remember { mutableStateOf<String?>(null) }
+    var presentedCall by remember { mutableStateOf<String?>(null) }
+    var presentedIncoming by remember { mutableStateOf<String?>(null) }
 
     fun guarded(action: () -> Unit) { if (graph.currentPolicy() == DrivingPolicy.ALLOWED) action() }
     fun open(destination: String) { guarded { navController.navigate(destination) { launchSingleTop = true } } }
@@ -166,6 +171,8 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
         val target = rootRoute(session, profile) ?: return@LaunchedEffect
         if (target == HistoryDestination.FIRST_RUN) {
             routedSession = null
+            presentedCall = null
+            presentedIncoming = null
             shownRecap = null
             if (route != HistoryDestination.FIRST_RUN) navController.navigate(target) { popUpTo(0) { inclusive = true } }
         } else if (graph.currentPolicy() == DrivingPolicy.ALLOWED) {
@@ -176,6 +183,30 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
                 (onboarding && current != target)) {
                 routedSession = id
                 navController.navigate(target) { popUpTo(0) { inclusive = true }; launchSingleTop = true }
+            }
+        }
+    }
+    LaunchedEffect(session, connection, requests, participation, driving.policy) {
+        if (session !is SessionState.Active || driving.policy == DrivingPolicy.UNKNOWN) return@LaunchedEffect
+        val current = (connection as? LoadState.Ready)?.value
+        if (current != null && current.status == ConnectionStatus.CONNECTED && current.id != presentedCall) {
+            presentedCall = current.id
+            if (navController.currentDestination?.route?.startsWith("meet/") != true) {
+                navController.navigate(MeetDestination.CONNECTED) { launchSingleTop = true }
+            }
+        } else if (driving.policy == DrivingPolicy.RESTRICTED && current?.status != ConnectionStatus.CONNECTED &&
+            (participation as? LoadState.Ready)?.value?.receiveRequestsWhileDriving == true) {
+            val incoming = (requests as? LoadState.Ready)?.value?.firstOrNull {
+                it.direction == RequestDirection.INCOMING && it.status == ConnectionRequestStatus.PENDING
+            }
+            if (incoming != null && incoming.id != presentedIncoming) {
+                presentedIncoming = incoming.id
+                navController.navigate(MeetDestination.REQUESTS) {
+                    if (navController.currentDestination?.route == MeetDestination.REQUESTS)
+                        popUpTo(MeetDestination.REQUESTS) { inclusive = true }
+                    launchSingleTop = true
+                }
+                navController.currentBackStackEntry?.savedStateHandle?.set("meet.requestId", incoming.id)
             }
         }
     }

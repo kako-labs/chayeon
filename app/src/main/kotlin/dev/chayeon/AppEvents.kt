@@ -149,18 +149,6 @@ class AppEvents(private val graph: AppGraph, private val notifier: MessageNotifi
                         }
                     }
                     launch {
-                        graph.connectionRepository.connection.onEach { state ->
-                            if (state is LoadState.Ready) {
-                                val active = state.value?.takeIf { it.status != ConnectionStatus.ENDED }?.id
-                                pending.update { events -> events.filterNot { it.greeting && it.route == MeetDestination.CONNECTED && it.relationshipId != active } }
-                            }
-                        }.map { (it as? LoadState.Ready)?.value?.takeIf { it.status != ConnectionStatus.ENDED }?.id }.distinctUntilChanged()
-                            .flatMapLatest { connectionId -> if (connectionId == null) flowOf(LoadState.Ready(emptyList<ConnectionGreeting>(), 0)) else graph.connectionRepository.observeGreetings(connectionId) }
-                            .collect { state -> (state as? LoadState.Ready)?.value?.filter { it.author == MessageAuthor.PEER }?.forEach {
-                                receive(AppEvent(it.id, "인사가 도착했어요 · 확인하기", MeetDestination.CONNECTED, greeting = true, relationshipId = it.connectionId))
-                            } }
-                    }
-                    launch {
                         graph.afterRepository.connections.onEach { state ->
                             if (state is LoadState.Ready) {
                                 val ids = state.value.filter { it.status == AfterConnectionStatus.CONNECTED }.map { it.id }.toSet()

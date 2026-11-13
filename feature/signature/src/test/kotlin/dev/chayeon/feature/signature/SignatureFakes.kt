@@ -26,6 +26,7 @@ internal class FakeProfileRepository : ProfileRepository {
     override val profile = MutableStateFlow<LoadState<MyProfile?>>(SignatureScreenFixtures.ready(SignatureScreenFixtures.profile))
     override val settings = MutableStateFlow<LoadState<ParticipationSettings>>(LoadState.Ready(ParticipationSettings("settings", 1), 1))
     val publishCalls = mutableListOf<PublishSignatureRequest>()
+    val settingsCalls = mutableListOf<UpdateSettingsRequest>()
     var publishError: AppError? = null
     var beforePublish: suspend (PublishSignatureRequest) -> Unit = {}
 
@@ -42,7 +43,14 @@ internal class FakeProfileRepository : ProfileRepository {
 
     override suspend fun saveProfile(request: SaveProfileRequest): AppResult<MyProfile> = error("Not used")
     override suspend fun recordConsent(request: RecordConsentRequest): AppResult<ParticipationSettings> = error("Not used")
-    override suspend fun updateSettings(request: UpdateSettingsRequest): AppResult<ParticipationSettings> = error("Not used")
+    override suspend fun updateSettings(request: UpdateSettingsRequest): AppResult<ParticipationSettings> {
+        settingsCalls += request
+        val current = (settings.value as LoadState.Ready).value
+        val next = current.copy(version = current.version + 1, notifyRequests = request.notifyRequests,
+            notifyGreetings = request.notifyGreetings, receiveRequestsWhileDriving = request.receiveRequestsWhileDriving)
+        settings.value = LoadState.Ready(next, next.version)
+        return AppResult.Success(next)
+    }
 }
 
 internal class FakeSignatureRepository : SignatureRepository {

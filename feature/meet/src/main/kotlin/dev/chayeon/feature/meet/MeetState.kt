@@ -36,14 +36,7 @@ data class RequestUiState(
     val decline: MeetCommandState = MeetCommandState(),
     val cancel: MeetCommandState = MeetCommandState(),
     val homeSuppressed: Boolean = false,
-)
-
-data class GreetingUi(
-    val clientMessageId: String,
-    val code: PresetCode,
-    val author: MessageAuthor,
-    val delivery: DeliveryState,
-    val error: AppError? = null,
+    val receiveRequestsWhileDriving: Boolean = false,
 )
 
 data class ConnectedUiState(
@@ -52,13 +45,10 @@ data class ConnectedUiState(
     val ownProfile: PublicProfile? = null,
     val loading: Boolean = true,
     val observationError: AppError? = null,
-    val greetings: List<GreetingUi> = emptyList(),
-    val greetingsLoading: Boolean = true,
-    val greetingsError: AppError? = null,
-    val sendingPresets: Set<PresetCode> = emptySet(),
     val leave: MeetCommandState = MeetCommandState(),
     val canLeave: Boolean = false,
     val awaitingPark: Boolean = false,
+    val call: VoiceCallState = VoiceCallState(),
 )
 
 data class EndedUiState(

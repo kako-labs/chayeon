@@ -39,6 +39,14 @@ internal object MeetFixtures {
 }
 
 internal class FakeMeetDeps : MeetDeps, DiscoveryRepository, ConnectionRepository, ProfileRepository, DrivingStateProvider, ServerTimeProvider {
+    val callState = MutableStateFlow(VoiceCallState())
+    val muteCommands = mutableListOf<Boolean>()
+    var microphoneRequests = 0
+    override val voiceCallRepository = object : VoiceCallRepository {
+        override val state = callState
+        override suspend fun setMuted(muted: Boolean) { muteCommands += muted; callState.value = callState.value.copy(muted = muted) }
+        override suspend fun requestMicrophone(): Boolean { microphoneRequests++; return true }
+    }
     val homeZone = MutableStateFlow(HomeZoneState())
     override val homeZoneRepository = object : HomeZoneRepository {
         override val state = homeZone
@@ -62,7 +70,11 @@ internal class FakeMeetDeps : MeetDeps, DiscoveryRepository, ConnectionRepositor
     var monotonic = 10_000L
     override fun monotonicTimeMillis() = monotonic
     var greetingsSource: ((String) -> Flow<LoadState<List<ConnectionGreeting>>>)? = null
-    override fun observeGreetings(connectionId: String) = greetingsSource?.invoke(connectionId) ?: messages
+    val greetingObservations = mutableListOf<String>()
+    override fun observeGreetings(connectionId: String): Flow<LoadState<List<ConnectionGreeting>>> {
+        greetingObservations += connectionId
+        return greetingsSource?.invoke(connectionId) ?: messages
+    }
 
     val discoveryCommands = mutableListOf<SetDiscoveryRequest>()
     val refreshCommands = mutableListOf<RefreshDiscoveryRequest>()

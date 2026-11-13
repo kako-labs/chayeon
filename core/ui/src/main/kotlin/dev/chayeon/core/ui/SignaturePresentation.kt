@@ -88,12 +88,12 @@ data class ConnectionEndPresentation(val title: String, val body: String, val la
 fun ConnectionEndReason.presentation(peerNickname: String): ConnectionEndPresentation {
     val tail = "스친 인연에 시각과 기간만 남겨요. 위치와 경로는 남기지 않아요."
     return when (this) {
-        ConnectionEndReason.DISTANCE -> ConnectionEndPresentation("멀어져서 연결이 끝났어요", tail, "멀어짐")
-        ConnectionEndReason.PEER_LEFT -> ConnectionEndPresentation("$peerNickname 님이 연결을 마쳤어요", tail, "상대가 나감")
-        ConnectionEndReason.SELF_LEFT -> ConnectionEndPresentation("연결을 마쳤어요", tail, "내가 나감")
-        ConnectionEndReason.STATUS_UNKNOWN -> ConnectionEndPresentation("연결 상태를 확인할 수 없어 끝냈어요", "위치나 통신이 오래 끊겼어요. 멀어졌다고 판단한 것은 아니에요.", "확인 불가", "상태 확인 불가")
-        ConnectionEndReason.DISCOVERY_OFF -> ConnectionEndPresentation("발견을 꺼서 연결이 끝났어요", tail, "발견 끔")
-        ConnectionEndReason.BLOCKED -> ConnectionEndPresentation("연결을 마쳤어요", tail, "연결 종료")
+        ConnectionEndReason.DISTANCE -> ConnectionEndPresentation("서로 멀어져서 통화가 끝났어요", tail, "멀어짐")
+        ConnectionEndReason.PEER_LEFT -> ConnectionEndPresentation("$peerNickname 님이 통화를 마쳤어요", tail, "상대가 나감")
+        ConnectionEndReason.SELF_LEFT -> ConnectionEndPresentation("통화를 마쳤어요", tail, "내가 나감")
+        ConnectionEndReason.STATUS_UNKNOWN -> ConnectionEndPresentation("연결 상태를 확인할 수 없어 통화가 끝났어요", "위치나 통신이 오래 끊겼어요. 멀어졌다고 판단한 것은 아니에요.", "확인 불가", "상태 확인 불가")
+        ConnectionEndReason.DISCOVERY_OFF -> ConnectionEndPresentation("발견을 꺼서 통화가 끝났어요", tail, "발견 끔")
+        ConnectionEndReason.BLOCKED -> ConnectionEndPresentation("통화를 마쳤어요", tail, "연결 종료")
     }
 }
 

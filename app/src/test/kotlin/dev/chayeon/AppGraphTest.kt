@@ -58,7 +58,7 @@ class AppGraphTest {
         assertTrue(notifier.active.isEmpty())
     }
 
-    @Test fun restrictedSignalIsCancelledWhenItsConversationBecomesReadableAndIsAlreadyViewed() = runTest {
+    @Test fun restrictedAfterSignalIsCancelledWhenItsConversationBecomesReadableAndIsAlreadyViewed() = runTest {
         val fixture = TestGraph().apply { ready(); driving.value = DrivingState() }
         val signals = MutableStateFlow<List<String>>(emptyList())
         val notifier = FakeNotifier()
@@ -70,10 +70,10 @@ class AppGraphTest {
         assertEquals(setOf("greeting"), notifier.active)
         fixture.driving.value = DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK)
         events.viewing(null, "connection")
-        fixture.connection.value = LoadState.Ready(Connection("connection", 2, "request", fixture.publicProfile,
-            ConnectionStatus.CONNECTED, 0, Chemistry()), 2)
-        fixture.greetings.value = LoadState.Ready(listOf(ConnectionGreeting("greeting", 2, "connection", "client",
-            MessageAuthor.PEER, PresetCode.HELLO, 0, DeliveryState.SENT)), 2)
+        fixture.afterConnections.value = LoadState.Ready(listOf(AfterConnection("connection", 2, "request", "encounter", fixture.publicProfile,
+            AfterConnectionStatus.CONNECTED, 0, Chemistry())), 2)
+        fixture.afterMessages.value = LoadState.Ready(listOf(AfterMessage("greeting", 2, "connection", "client",
+            MessageAuthor.PEER, AfterMessageContent.Preset(PresetCode.HELLO), 0, DeliveryState.SENT)), 2)
         runCurrent()
         assertEquals(listOf("greeting"), notifier.cancelled)
         assertTrue(notifier.active.isEmpty())
@@ -86,7 +86,7 @@ class AppGraphTest {
         assertTrue(notifier.active.isEmpty())
     }
 
-    @Test fun restoredNotificationIsCancelledFromHistoricalMessageIdsAfterRestart() = runTest {
+    @Test fun restoredAfterNotificationIsCancelledFromHistoricalMessageIdsAfterRestart() = runTest {
         for (viewBeforeRestore in listOf(false, true)) {
             val fixture = TestGraph().apply { ready() }
             val notifier = FakeNotifier().apply { active += "historical" }
@@ -94,10 +94,10 @@ class AppGraphTest {
             events.start()
             runCurrent()
             if (viewBeforeRestore) events.viewing(null, "connection")
-            fixture.connection.value = LoadState.Ready(Connection("connection", 2, "request", fixture.publicProfile,
-                ConnectionStatus.CONNECTED, 0, Chemistry()), 2)
-            fixture.greetings.value = LoadState.Ready(listOf(ConnectionGreeting("historical", 2, "connection", "client",
-                MessageAuthor.PEER, PresetCode.HELLO, 0, DeliveryState.SENT)), 2)
+            fixture.afterConnections.value = LoadState.Ready(listOf(AfterConnection("connection", 2, "request", "encounter", fixture.publicProfile,
+                AfterConnectionStatus.CONNECTED, 0, Chemistry())), 2)
+            fixture.afterMessages.value = LoadState.Ready(listOf(AfterMessage("historical", 2, "connection", "client",
+                MessageAuthor.PEER, AfterMessageContent.Preset(PresetCode.HELLO), 0, DeliveryState.SENT)), 2)
             runCurrent()
             if (!viewBeforeRestore) {
                 assertEquals(setOf("historical"), notifier.active)
@@ -105,13 +105,13 @@ class AppGraphTest {
             }
             assertEquals(listOf("historical"), notifier.cancelled)
             assertTrue(notifier.active.isEmpty())
-            fixture.greetings.value = LoadState.Ready((fixture.greetings.value as LoadState.Ready).value, 3)
+            fixture.afterMessages.value = LoadState.Ready((fixture.afterMessages.value as LoadState.Ready).value, 3)
             runCurrent()
             assertEquals(listOf("historical"), notifier.cancelled)
         }
     }
 
-    @Test fun openingTheRelevantContentClearsOnlyItsBannerAndSuppressesNewArrivals() = runTest {
+    @Test fun openingTheRelevantAfterContentClearsOnlyItsBannerAndSuppressesNewArrivals() = runTest {
         val fixture = TestGraph().apply { ready() }
         val events = AppEvents(fixture.graph, FakeNotifier(), backgroundScope)
         events.start()
@@ -126,18 +126,18 @@ class AppGraphTest {
         runCurrent()
         assertNull(events.banner.value)
         requestView(); unrelated()
-        fixture.connection.value = LoadState.Ready(Connection("connection", 3, "request", fixture.publicProfile,
-            ConnectionStatus.CONNECTED, 0, Chemistry()), 3)
+        fixture.afterConnections.value = LoadState.Ready(listOf(AfterConnection("connection", 3, "request", "encounter", fixture.publicProfile,
+            AfterConnectionStatus.CONNECTED, 0, Chemistry())), 3)
         runCurrent()
-        fixture.greetings.value = LoadState.Ready(listOf(ConnectionGreeting("greeting", 4, "connection", "message",
-            MessageAuthor.PEER, PresetCode.HELLO, 0, DeliveryState.SENT)), 4)
+        fixture.afterMessages.value = LoadState.Ready(listOf(AfterMessage("greeting", 4, "connection", "message",
+            MessageAuthor.PEER, AfterMessageContent.Preset(PresetCode.HELLO), 0, DeliveryState.SENT)), 4)
         runCurrent()
         assertEquals("greeting", events.banner.value?.id)
         val conversation = events.viewing(null, "connection")
         runCurrent()
         assertNull(events.banner.value)
-        fixture.greetings.value = LoadState.Ready((fixture.greetings.value as LoadState.Ready).value +
-            ConnectionGreeting("reply", 5, "connection", "reply-message", MessageAuthor.PEER, PresetCode.NICE_TO_MEET_YOU, 0, DeliveryState.SENT), 5)
+        fixture.afterMessages.value = LoadState.Ready((fixture.afterMessages.value as LoadState.Ready).value +
+            AfterMessage("reply", 5, "connection", "reply-message", MessageAuthor.PEER, AfterMessageContent.Preset(PresetCode.NICE_TO_MEET_YOU), 0, DeliveryState.SENT), 5)
         runCurrent()
         assertNull(events.banner.value)
         conversation()
@@ -279,21 +279,45 @@ class AppGraphTest {
         assertEquals(1, fixture.publications.size)
     }
 
-    @Test fun endedRelationshipRemovesItsGreetingBanner() = runTest {
+    @Test fun endedAfterRelationshipRemovesItsGreetingBanner() = runTest {
         val fixture = TestGraph().apply { ready() }
         val events = AppEvents(fixture.graph, FakeNotifier(), backgroundScope)
         events.start()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { events.banner.collect {} }
-        val connection = Connection("connection", 1, "request", fixture.publicProfile, ConnectionStatus.CONNECTED, 0, Chemistry())
-        fixture.connection.value = LoadState.Ready(connection, 1)
-        fixture.greetings.value = LoadState.Ready(listOf(ConnectionGreeting("greeting", 1, connection.id, "client-message", MessageAuthor.PEER, PresetCode.HELLO, 1, DeliveryState.SENT)), 1)
+        val connection = AfterConnection("after", 1, "request", "encounter", fixture.publicProfile,
+            AfterConnectionStatus.CONNECTED, 0, Chemistry())
+        fixture.afterConnections.value = LoadState.Ready(listOf(connection), 1)
+        fixture.afterMessages.value = LoadState.Ready(listOf(AfterMessage("greeting", 1, connection.id,
+            "client-message", MessageAuthor.PEER, AfterMessageContent.Preset(PresetCode.HELLO), 1, DeliveryState.SENT)), 1)
         runCurrent()
         assertEquals("greeting", events.banner.value?.id)
-        fixture.connection.value = LoadState.Loading()
+        fixture.afterConnections.value = LoadState.Loading()
         runCurrent()
         assertEquals("greeting", events.banner.value?.id)
-        fixture.connection.value = LoadState.Ready(connection.copy(status = ConnectionStatus.ENDED), 2)
+        fixture.afterConnections.value = LoadState.Ready(listOf(connection.copy(status = AfterConnectionStatus.CLOSED)), 2)
         runCurrent()
         assertNull(events.banner.value)
+    }
+
+    @Test fun temporaryConnectionGreetingsNeverCreateBannersOrNotificationsInAnyDrivingPolicy() = runTest {
+        for (policy in DrivingPolicy.entries) {
+            val fixture = TestGraph().apply { ready(); driving.value = DrivingState(policy = policy) }
+            val notifier = FakeNotifier()
+            val events = AppEvents(fixture.graph, notifier, backgroundScope)
+            events.start()
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { events.banner.collect {} }
+            runCurrent()
+            fixture.connection.value = LoadState.Ready(Connection("temporary", 2, "request", fixture.publicProfile,
+                ConnectionStatus.CONNECTED, 0, Chemistry()), 2)
+            fixture.greetings.value = LoadState.Ready(listOf(ConnectionGreeting("temporary-greeting", 3,
+                "temporary", "client-message", MessageAuthor.PEER, PresetCode.HELLO, 1, DeliveryState.SENT)), 3)
+            runCurrent()
+            assertNull(events.banner.value)
+            assertTrue(notifier.active.isEmpty())
+            fixture.driving.value = DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK)
+            runCurrent()
+            assertNull(events.banner.value)
+            assertTrue(notifier.active.isEmpty())
+        }
     }
 }

@@ -16,6 +16,6 @@ dependencyResolutionManagement {
 rootProject.name = "Chayeon"
 include(":core:model", ":core:signature", ":core:engine", ":server")
 if (providers.gradleProperty("chayeon.serverOnly").orNull != "true") {
-    include(":app", ":core:ui", ":data:social", ":data:vehicle")
+    include(":app", ":core:ui", ":data:social", ":data:vehicle", ":data:voice")
     include(":feature:meet", ":feature:history", ":feature:signature")
 }

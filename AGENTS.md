@@ -14,14 +14,16 @@ Read before working: docs/architecture.md, docs/product/drive-signature.md, docs
 
 - Follow the module graph in docs/architecture.md. New modules and edges must be declared in allowedEdges.
 - Features depend on interfaces in core:model, never on data modules or other features. app owns wiring and top-level navigation; each feature exposes its own navigation graph.
-- android.car and the Vehicle SDK live only in data:vehicle. HTTP lives only in data:social.
+- android.car and the Vehicle SDK live only in data:vehicle. HTTP/WebSocket lives only in data:social; AudioRecord/AudioTrack and the call service live only in data:voice.
 - core:model and core:signature are pure Kotlin with no Android dependency.
 - UI uses screen-level ViewModels and immutable StateFlow UI state with unidirectional data flow. No shared global busy flag.
 - Identity comes from the auth token on the server. Never trust a client-supplied sender id or consent flag.
 
 ## Safety rules
 
-- Only DrivingPolicy.ALLOWED permits browsing, requesting, accepting, typing or editing. RESTRICTED and UNKNOWN block them. Speed 0 does not mean parked.
+- Only DrivingPolicy.ALLOWED permits browsing, sending requests, normal request acceptance, typing or editing. RESTRICTED permits mute/unmute and hang-up in an active call, plus answer/decline on the opt-in incoming screen only. UNKNOWN permits safe hang-up only. Speed 0 does not mean parked.
+- Voice is relayed only between the two participants of a currently CONNECTED temporary connection. Never record, persist or log audio. Open the microphone only during an active, unmuted server call with permission; SOLO never opens it. Home protection and every connection end stop capture and playback immediately.
+- Microphone consent is optional. Never launch permission dialogs while RESTRICTED or UNKNOWN. Driving incoming requests default OFF; home protection always blocks accepting.
 - No live score or coaching while driving. No decorative motion while driving.
 - Never reward speed or aggressive driving. Other users never see numbers, ranks or negative judgments.
 - Unsupported signals are UNSUPPORTED, never zero.

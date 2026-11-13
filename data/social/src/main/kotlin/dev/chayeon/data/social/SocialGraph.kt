@@ -63,7 +63,6 @@ class SocialGraph(
                 addAll(snapshot.afterRequests.filter { it.direction == RequestDirection.INCOMING && it.status == AfterRequestStatus.PENDING }.map { it.id })
             }
             if (snapshot?.settings?.notifyGreetings == true) {
-                addAll(snapshot.greetings.filter { it.author == MessageAuthor.PEER }.map { it.id })
                 addAll(snapshot.afterMessages.filter { it.author == MessageAuthor.PEER }.map { it.id })
             }
         }

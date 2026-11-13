@@ -74,7 +74,7 @@ class HomeZoneNavigationTest {
                 publicProfile.copy(id = "peer", nickname = "가상상대"), ConnectionStatus.CONNECTED, 0, Chemistry()), 1)
         }
         compose.setContent { ChayeonApp(fixture.graph) }
-        compose.onNodeWithText("가상상대 님과 이어져 있어요").assertIsDisplayed()
+        compose.onNodeWithText("통화 중").assertIsDisplayed()
         for (policy in listOf(DrivingPolicy.RESTRICTED, DrivingPolicy.UNKNOWN)) {
             compose.runOnIdle {
                 fixture.driving.value = DrivingState(policy = policy)
@@ -83,7 +83,8 @@ class HomeZoneNavigationTest {
             compose.onNodeWithText("쉬는 중").assertIsDisplayed()
             compose.onNodeWithText("가상상대").assertDoesNotExist()
             compose.onNodeWithText("가상상대 님과 이어져 있어요").assertDoesNotExist()
-            compose.onNodeWithText("나가기").assertIsEnabled()
+            compose.mainClock.advanceTimeBy(1_000)
+            compose.onNodeWithText("통화 끊기").assertIsDisplayed().assertIsEnabled()
             compose.onRoot().captureRoboImage("src/test/screenshots/home-zone-connection-${policy.name.lowercase()}.png")
         }
     }

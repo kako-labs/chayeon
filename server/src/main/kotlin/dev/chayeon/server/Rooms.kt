@@ -43,11 +43,13 @@ class RoomRegistry(
     private val clock: EngineClock = EngineClock(System::currentTimeMillis),
     private val enginePolicy: EnginePolicy = EnginePolicy(),
     private val demoEnabled: Boolean = true,
+    private val voiceStateReader: (ChayeonEngine) -> EngineState = ChayeonEngine::exportState,
 ) {
     private val rooms = mutableMapOf<String, HostedRoom>()
     private val tokens = mutableMapOf<String, Authorization>()
     private val random = SecureRandom()
     private val retired = linkedMapOf<String, RetiredReceipt>()
+    private val voice = VoiceRelay(::voiceIdentity)
 
     @Synchronized
     fun enter(request: EnterSessionRequest): AppResult<Session> {
@@ -78,6 +80,7 @@ class RoomRegistry(
         val token = existing ?: Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(32).also(random::nextBytes))
         tokens.entries.removeAll { it.value.roomCode == code && it.value.actor == actor && it.key != token }
         tokens[token] = Authorization(code, actor, session.id)
+        voice.prune()
         return AppResult.Success(session.copy(accessToken = token))
     }
 
@@ -103,6 +106,7 @@ class RoomRegistry(
             val personas = room.actors.filterValues { it == identity.actor }.keys
             personas.forEach { room.actors.remove(it); room.claims.remove(it) }
         }
+        voice.prune()
     }
 
     @Synchronized
@@ -122,6 +126,7 @@ class RoomRegistry(
                 revoke(identity, route == ApiRoutes.DELETE_ACCOUNT)
             }
         }
+        voice.prune()
         return response
     }
 
@@ -145,6 +150,45 @@ class RoomRegistry(
     fun tick() {
         expireIdle()
         rooms.values.forEach { it.engine.tick(clock.now()) }
+        voice.prune()
+    }
+
+    @Synchronized
+    internal fun voiceAllowed(header: String?, connectionId: String): Boolean {
+        val (_, engine) = authorize(header) ?: return false
+        engine.tick()
+        voice.prune()
+        return header != null && voiceIdentity(header, connectionId) != null
+    }
+
+    @Synchronized
+    internal fun joinVoice(header: String?, connectionId: String): VoiceSocket? =
+        if (voiceAllowed(header, connectionId)) voice.join(header!!, connectionId) else null
+
+    @Synchronized
+    internal fun relayVoice(socket: VoiceSocket, frame: ByteArray): Boolean = voice.relay(socket, frame)
+
+    @Synchronized
+    internal fun leaveVoice(socket: VoiceSocket) = voice.leave(socket)
+
+    @Synchronized
+    internal fun pruneVoice() = voice.prune()
+
+    private fun voiceIdentity(header: String, connectionId: String): VoiceIdentity? {
+        if (!header.startsWith("Bearer ")) return null
+        val identity = tokens[header.removePrefix("Bearer ")] ?: return null
+        val room = rooms[identity.roomCode] ?: return null
+        if (clock.now() - room.lastAccess >= policy.idleRoomMillis) return null
+        val state = voiceStateReader(room.engine)
+        val account = state.accounts[identity.actor] ?: return null
+        if (!account.active || account.deleted || account.session.id != identity.sessionId) return null
+        val connection = state.connections[connectionId] ?: return null
+        if (connection.status != ConnectionStatus.CONNECTED || identity.actor !in setOf(connection.first, connection.second)) return null
+        val participants = setOf(connection.first, connection.second)
+        if (participants.any { state.accounts[it]?.let { a -> !a.active || a.deleted } != false }) return null
+        if (state.blocks.values.any { it.owner in participants && it.peer in participants }) return null
+        room.lastAccess = clock.now()
+        return VoiceIdentity(identity.roomCode, connectionId, identity.actor)
     }
 
     private fun expireIdle() {
