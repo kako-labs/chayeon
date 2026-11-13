@@ -6,9 +6,8 @@ import subprocess
 
 from PIL import Image, ImageColor, ImageDraw, ImageFont
 
-CHAPTERS = ['주차', '발견', '인사', '다시 길 위로', '멀어짐', '애프터', '집으로', '집']
 DISCLOSURE = ['Pleos Connect 에뮬레이터에서 녹화했어요.',
-              '주행은 Virtual Console 신호이고, 상대는 앱이 만든 가상 계정이에요.',
+              '주행은 Virtual Console 신호이고, 상대는 앱이 만든 가상 계정과 미리 만든 목소리예요.',
               '실차에서는 확인하지 않았어요.']
 
 
@@ -66,7 +65,7 @@ def render_ffmpeg(kit, output):
     brand(ending, 340)
     draw = ImageDraw.Draw(ending)
     center(draw, '영상에 나온 차량 기능', 550, 24, theme['accent'], 500)
-    center(draw, '기어 · 속도 · 주행 신호 · 위치', 598, 34, theme['text'], 500)
+    center(draw, '기어 · 속도 · 주행 신호 · 위치 · Pleos 음성', 598, 34, theme['text'], 500)
     for i, text in enumerate(DISCLOSURE):
         center(draw, text, 855 + i * 45, 25, theme['secondary'], 500)
     ending.save(folder / 'ending.png')
@@ -80,7 +79,7 @@ def render_ffmpeg(kit, output):
         overlay = Image.new('RGBA', (1920, 1080))
         draw = ImageDraw.Draw(overlay)
         x = frame['x']
-        for chapter in CHAPTERS:
+        for chapter in timeline['CHAPTERS']:
             active = chapter == scene['chapter']
             face = font(21, 800 if active else 500)
             draw.text((x, 928), chapter, font=face, fill=theme['accent'] if active else blend(theme['secondary'], 0.5), anchor='lt')
@@ -115,14 +114,15 @@ def render_ffmpeg(kit, output):
                 ass.append(f'Dialogue: 0,{timestamp(local)},{timestamp(local + 0.7)},Tap,,0,0,0,,{drawing}')
         (folder / f'{stem}.ass').write_text('\n'.join(ass) + '\n')
         filters = f'[0:v]scale={frame["w"]}:{frame["h"]}:flags=lanczos,pad=1920:1080:{frame["x"]}:{frame["y"]}:color={theme["bg"]},setsar=1[base];[base][1:v]overlay=0:0,ass=out/ffmpeg/{stem}.ass,format=yuv420p[v]'
-        jobs.append((stem, ['-ss', str(scene['from'] / 30), '-i', 'public/rec/story.mp4', '-loop', '1', '-framerate', '30', '-i', f'out/ffmpeg/{stem}.png', '-filter_complex', filters, '-map', '[v]', '-frames:v', str(scene['duration'])]))
-    jobs.insert(0, ('00-title', ['-loop', '1', '-framerate', '30', '-i', 'out/ffmpeg/title.png', '-vf', 'fade=t=in:st=0:d=0.4,fade=t=out:st=3.166667:d=0.333333', '-frames:v', str(timeline['TITLE_FRAMES'])]))
-    jobs.append(('99-ending', ['-loop', '1', '-framerate', '30', '-i', 'out/ffmpeg/ending.png', '-frames:v', str(timeline['ENDING_FRAMES'])]))
+        jobs.append((stem, ['-ss', str(scene['from'] / 30), '-i', 'public/rec/story.mp4', '-loop', '1', '-framerate', '30', '-i', f'out/ffmpeg/{stem}.png', '-filter_complex', filters, '-map', '[v]', '-map', '0:a', '-frames:v', str(scene['duration']), '-t', f"{scene['duration'] / 30:.6f}"]))
+    silence = ['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo']
+    jobs.insert(0, ('00-title', ['-loop', '1', '-framerate', '30', '-i', 'out/ffmpeg/title.png', *silence, '-vf', 'fade=t=in:st=0:d=0.4,fade=t=out:st=3.166667:d=0.333333', '-map', '0:v', '-map', '1:a', '-frames:v', str(timeline['TITLE_FRAMES']), '-t', f"{timeline['TITLE_FRAMES'] / 30:.6f}"]))
+    jobs.append(('99-ending', ['-loop', '1', '-framerate', '30', '-i', 'out/ffmpeg/ending.png', *silence, '-map', '0:v', '-map', '1:a', '-frames:v', str(timeline['ENDING_FRAMES']), '-t', f"{timeline['ENDING_FRAMES'] / 30:.6f}"]))
 
     def encode(job):
         stem, args = job
         command = ['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-filter_complex_threads', '1', *args,
-                   '-an', '-c:v', 'libx264', '-threads', '2', '-preset', 'fast', '-crf', '18', '-pix_fmt', 'yuv420p',
+                   '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2', '-c:v', 'libx264', '-threads', '2', '-preset', 'fast', '-crf', '18', '-pix_fmt', 'yuv420p',
                    '-r', '30', '-video_track_timescale', '15360', str(folder / f'{stem}.mp4')]
         with (folder / f'{stem}.log').open('w') as log:
             subprocess.run(command, cwd=kit, stderr=log, stdout=log, check=True, timeout=600)
@@ -139,5 +139,8 @@ def render_ffmpeg(kit, output):
                 log.flush()
     (folder / 'concat.txt').write_text(''.join(f"file '{stem}.mp4'\n" for stem, _ in jobs))
     subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', str(folder / 'concat.txt'),
-                    '-c', 'copy', '-an', '-movflags', '+faststart', str(output / 'chayeon-story.mp4')], check=True)
+                    # The emulator plays the call stream quietly (voice peaks near -27 dBFS); lift it to a clear
+                    # level and keep peaks under -1 dBFS. Video is copied untouched.
+                    '-c:v', 'copy', '-af', 'volume=18dB,alimiter=limit=0.89:level=false', '-c:a', 'aac', '-b:a', '192k',
+                    '-movflags', '+faststart', str(output / 'chayeon-story.mp4')], check=True)
     (output / 'timeline.json').write_text(json.dumps(timeline, ensure_ascii=False, indent=2))

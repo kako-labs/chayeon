@@ -1,12 +1,12 @@
 # 차연 이야기 영상
 
-차연 릴리스 앱의 한 사람 하루를 따라가는 3분 9.3초 무음 영상 키트입니다. 모션케어 이야기 판의 고정 화면·하단 자막·1배속·탭 로그 방식을 사용합니다.
+차연 릴리스 앱의 한 사람 하루를 따라가는 3분 13초 영상 키트입니다. 고정 화면·하단 자막·1배속·탭 로그 방식에 앱 소리(통화 목소리, Pleos 안내)를 더했습니다.
 
 - 편집: `src/story/scenes.ts` (한 줄에 원본 구간, 길이, 장, 자막, 선택 강조)
-- 촬영: `tools/rec/story_take.py`, `tools/rec/screen.js`
+- 촬영: `tools/rec/story_take.py`(`--part auto|home`으로 나눠 찍기), `tools/rec/screen.js`, `tools/rec/audio.js`
 - 제작·복원: [만드는 법](docs/howto.md)
 - 실제 타임라인과 변경 이유: [이야기 표](docs/story.md)
-- 결과: `~/Documents_LOCAL/chayeon-video/chayeon-story.mp4`, `chayeon-story-preview.mp4`
+- 결과: `~/Documents_LOCAL/chayeon-video/v2/chayeon-story.mp4`, `chayeon-story-preview.mp4`
 
 ```sh
 cd demo-video

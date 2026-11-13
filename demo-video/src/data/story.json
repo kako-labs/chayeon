@@ -2,151 +2,400 @@
   "fps": 30,
   "width": 1920,
   "height": 1080,
-  "frames": 12494,
-  "received": 21321,
+  "frames": 38914,
+  "takes": [
+    "take-v2",
+    "take-v2f",
+    "take-v2h"
+  ],
   "marks": {
-    "parking": 2.023,
-    "signature-wait": 7.8994,
-    "signature-cut-start": 12.9087,
-    "signature-ready": 40.7919,
-    "discovery": 55.7097,
-    "peer-profile": 65.6255,
-    "greeting": 73.6263,
-    "road": 92.698,
-    "road-zero": 108.7014,
-    "road-park": 116.7181,
-    "panel-cut-start": 125.7016,
-    "distance": 131.2258,
-    "encounter": 148.8854,
-    "after": 152.8866,
-    "home-drive": 178.7756,
-    "drive-cut-start": 183.8073,
-    "drive-cut-end": 384.7927,
-    "recap": 389.0052,
-    "home": 395.0066,
-    "resting": 411.2906,
-    "end": 416.2921
+    "parking": 2.0942,
+    "signature-wait": 9.0866,
+    "signature-cut-start": 14.0882,
+    "signature-ready": 42.1019,
+    "my-profile": 61.5425,
+    "discovery": 83.0588,
+    "peer-profile": 99.6242,
+    "call": 106.6268,
+    "call-connected": 115.8641,
+    "road": 127.8657,
+    "road-zero": 145.8668,
+    "road-park": 152.8816,
+    "panel-cut-start": 160.9693,
+    "distance": 166.4011,
+    "after": 180.4876,
+    "exchanged": 205.7107,
+    "cooldown-cut-start": 211.7151,
+    "auto-settings": 934.716,
+    "auto-drive": 991.5644,
+    "auto-connected": 998.8821,
+    "drive-cut-start": 1018.4141,
+    "drive-cut-end": 1206.5695,
+    "recap": 1210.6879,
+    "home": 1256.4387,
+    "resting": 1291.8868,
+    "end": 1296.8899
   },
   "taps": [
     {
-      "sec": 5.0269,
-      "x": 2087,
-      "y": 758,
+      "sec": 6.1471,
+      "x": 2073,
+      "y": 937,
       "text": "시그니처 만들러 가기"
     },
     {
-      "sec": 7.4616,
+      "sec": 8.6501,
       "x": 1694,
-      "y": 649,
+      "y": 639,
       "text": "다음 움직임을 알려 주는 사람"
     },
     {
-      "sec": 48.8132,
-      "x": 1365,
-      "y": 1192,
+      "sec": 50.1127,
+      "x": 1375,
+      "y": 1174,
       "text": "상대에게 어떻게 보일지 고르기"
     },
     {
-      "sec": 51.255,
-      "x": 1286,
-      "y": 354,
+      "sec": 56.0798,
+      "x": 1192,
+      "y": 350,
       "text": "시그니처 공개"
     },
     {
-      "sec": 57.7473,
-      "x": 1066,
-      "y": 1221,
-      "text": "오늘의 인연"
-    },
-    {
-      "sec": 63.6165,
-      "x": 1150,
-      "y": 636,
-      "text": "별보는밤 프로필 보기"
-    },
-    {
-      "sec": 75.7737,
-      "x": 2022,
-      "y": 1116,
-      "text": "연결 요청 보내기"
-    },
-    {
-      "sec": 87.2077,
-      "x": 1913,
-      "y": 901,
-      "text": "안녕하세요"
-    },
-    {
-      "sec": 127.7581,
-      "x": 2465,
-      "y": 148,
-      "text": "시연 제어"
-    },
-    {
-      "sec": 130.239,
-      "x": 2102,
-      "y": 548,
-      "text": "서로 멀어져요"
-    },
-    {
-      "sec": 146.4461,
-      "x": 1968,
-      "y": 1226,
-      "text": "기록 보기"
-    },
-    {
-      "sec": 154.8973,
-      "x": 2105,
-      "y": 1104,
-      "text": "애프터 신청"
-    },
-    {
-      "sec": 157.3314,
-      "x": 1901,
-      "y": 1240,
-      "text": "애프터 신청 보내기"
-    },
-    {
-      "sec": 166.4646,
-      "x": 1901,
-      "y": 1240,
-      "text": "이어진 인연 보기"
-    },
-    {
-      "sec": 170.9339,
-      "x": 1015,
-      "y": 535,
-      "text": "안녕하세요"
-    },
-    {
-      "sec": 397.0122,
-      "x": 923,
-      "y": 240,
-      "text": "뒤로"
-    },
-    {
-      "sec": 399.4787,
-      "x": 2321,
-      "y": 1221,
+      "sec": 63.6033,
+      "x": 2237,
+      "y": 1204,
       "text": "내 프로필"
     },
     {
-      "sec": 401.9226,
+      "sec": 72.1158,
+      "x": 1192,
+      "y": 952,
+      "text": "내 시그니처 보기"
+    },
+    {
+      "sec": 74.5841,
+      "x": 1991,
+      "y": 650,
+      "text": "깜빡이 매너"
+    },
+    {
+      "sec": 85.1054,
+      "x": 947,
+      "y": 170,
+      "text": "뒤로"
+    },
+    {
+      "sec": 87.5735,
+      "x": 1175,
+      "y": 1204,
+      "text": "홈"
+    },
+    {
+      "sec": 97.1808,
+      "x": 1402,
+      "y": 1068,
+      "text": "프로필 보기"
+    },
+    {
+      "sec": 108.679,
+      "x": 2046,
+      "y": 1109,
+      "text": "통화 요청하기"
+    },
+    {
+      "sec": 162.9769,
+      "x": 2266,
+      "y": 174,
+      "text": "시연 제어"
+    },
+    {
+      "sec": 165.4193,
       "x": 2102,
-      "y": 747,
+      "y": 538,
+      "text": "서로 멀어져요"
+    },
+    {
+      "sec": 182.6438,
+      "x": 1341,
+      "y": 1101,
+      "text": "애프터 신청하기"
+    },
+    {
+      "sec": 189.2339,
+      "x": 2093,
+      "y": 688,
+      "text": "인스타그램 아이디 · 선택"
+    },
+    {
+      "sec": 193.9874,
+      "x": 1895,
+      "y": 1222,
+      "text": "애프터 신청 보내기"
+    },
+    {
+      "sec": 203.233,
+      "x": 1895,
+      "y": 1222,
+      "text": "이어진 인연 보기"
+    },
+    {
+      "sec": 853.8119,
+      "x": 2213,
+      "y": 1204,
+      "text": "내 프로필"
+    },
+    {
+      "sec": 856.3216,
+      "x": 1320,
+      "y": 1052,
+      "text": "설정"
+    },
+    {
+      "sec": 858.8093,
+      "x": 1991,
+      "y": 1072,
+      "text": "주행 중 연결"
+    },
+    {
+      "sec": 864.8799,
+      "x": 1218,
+      "y": 826,
+      "text": "조건에 맞으면 자동 연결"
+    },
+    {
+      "sec": 867.7359,
+      "x": 2017,
+      "y": 712,
+      "text": "깜빡이 매너 조건 사용"
+    },
+    {
+      "sec": 872.8631,
+      "x": 2403,
+      "y": 796,
+      "text": "깜빡이 매너 최소 점수 높이기"
+    },
+    {
+      "sec": 877.8992,
+      "x": 2403,
+      "y": 796,
+      "text": "깜빡이 매너 최소 점수 높이기"
+    },
+    {
+      "sec": 882.8322,
+      "x": 2403,
+      "y": 796,
+      "text": "깜빡이 매너 최소 점수 높이기"
+    },
+    {
+      "sec": 887.4048,
+      "x": 2403,
+      "y": 796,
+      "text": "깜빡이 매너 최소 점수 높이기"
+    },
+    {
+      "sec": 894.383,
+      "x": 947,
+      "y": 170,
+      "text": "뒤로"
+    },
+    {
+      "sec": 896.9006,
+      "x": 1175,
+      "y": 1204,
+      "text": "홈"
+    },
+    {
+      "sec": 884.7824,
+      "x": 2266,
+      "y": 174,
+      "text": "시연 제어"
+    },
+    {
+      "sec": 887.2186,
+      "x": 2102,
+      "y": 438,
+      "text": "가까이 있어요"
+    },
+    {
+      "sec": 895.7807,
+      "x": 1320,
+      "y": 1052,
+      "text": "설정"
+    },
+    {
+      "sec": 898.2451,
+      "x": 1991,
+      "y": 1072,
+      "text": "주행 중 연결"
+    },
+    {
+      "sec": 904.7195,
+      "x": 1632,
+      "y": 796,
+      "text": "깜빡이 매너 최소 점수 낮추기"
+    },
+    {
+      "sec": 909.2035,
+      "x": 1632,
+      "y": 796,
+      "text": "깜빡이 매너 최소 점수 낮추기"
+    },
+    {
+      "sec": 913.6475,
+      "x": 1632,
+      "y": 796,
+      "text": "깜빡이 매너 최소 점수 낮추기"
+    },
+    {
+      "sec": 918.0951,
+      "x": 1632,
+      "y": 796,
+      "text": "깜빡이 매너 최소 점수 낮추기"
+    },
+    {
+      "sec": 922.5544,
+      "x": 2017,
+      "y": 712,
+      "text": "깜빡이 매너 조건 사용"
+    },
+    {
+      "sec": 924.9929,
+      "x": 1218,
+      "y": 452,
+      "text": "끄기"
+    },
+    {
+      "sec": 927.4439,
+      "x": 947,
+      "y": 170,
+      "text": "뒤로"
+    },
+    {
+      "sec": 929.9054,
+      "x": 1175,
+      "y": 1204,
+      "text": "홈"
+    },
+    {
+      "sec": 936.7373,
+      "x": 2213,
+      "y": 1204,
+      "text": "내 프로필"
+    },
+    {
+      "sec": 939.3114,
+      "x": 1320,
+      "y": 1052,
+      "text": "설정"
+    },
+    {
+      "sec": 941.8735,
+      "x": 1991,
+      "y": 1072,
+      "text": "주행 중 연결"
+    },
+    {
+      "sec": 948.0529,
+      "x": 1218,
+      "y": 826,
+      "text": "조건에 맞으면 자동 연결"
+    },
+    {
+      "sec": 950.6792,
+      "x": 2017,
+      "y": 580,
+      "text": "여유로운 제동 조건 사용"
+    },
+    {
+      "sec": 955.4473,
+      "x": 2403,
+      "y": 664,
+      "text": "여유로운 제동 최소 점수 높이기"
+    },
+    {
+      "sec": 960.0751,
+      "x": 2403,
+      "y": 664,
+      "text": "여유로운 제동 최소 점수 높이기"
+    },
+    {
+      "sec": 964.5784,
+      "x": 2403,
+      "y": 664,
+      "text": "여유로운 제동 최소 점수 높이기"
+    },
+    {
+      "sec": 969.2339,
+      "x": 2403,
+      "y": 664,
+      "text": "여유로운 제동 최소 점수 높이기"
+    },
+    {
+      "sec": 973.8735,
+      "x": 2403,
+      "y": 664,
+      "text": "여유로운 제동 최소 점수 높이기"
+    },
+    {
+      "sec": 978.505,
+      "x": 2403,
+      "y": 664,
+      "text": "여유로운 제동 최소 점수 높이기"
+    },
+    {
+      "sec": 985.5658,
+      "x": 947,
+      "y": 170,
+      "text": "뒤로"
+    },
+    {
+      "sec": 988.103,
+      "x": 1175,
+      "y": 1204,
+      "text": "홈"
+    },
+    {
+      "sec": 1014.9613,
+      "x": 2090,
+      "y": 1170,
+      "text": "통화 끊기"
+    },
+    {
+      "sec": 1219.7539,
+      "x": 947,
+      "y": 170,
+      "text": "뒤로"
+    },
+    {
+      "sec": 1261.522,
+      "x": 1341,
+      "y": 1218,
+      "text": "홈으로"
+    },
+    {
+      "sec": 1268.1793,
+      "x": 2213,
+      "y": 1204,
+      "text": "내 프로필"
+    },
+    {
+      "sec": 1282.3307,
+      "x": 1991,
+      "y": 1130,
       "text": "집 보호 구역"
     },
     {
-      "sec": 404.422,
-      "x": 2102,
-      "y": 923,
+      "sec": 1284.8669,
+      "x": 2093,
+      "y": 948,
       "text": "집 보호 시작하기"
     },
     {
-      "sec": 408.8588,
-      "x": 1066,
-      "y": 1221,
-      "text": "오늘의 인연"
+      "sec": 1289.3948,
+      "x": 1175,
+      "y": 1204,
+      "text": "홈"
     }
   ],
   "console": [
@@ -157,13 +406,13 @@
       "accelerator": 0,
       "brake": 0,
       "steering": 0,
-      "sec": -1.8682
+      "sec": -1.916
     },
     {
       "method": "PUT",
       "route": "/vehicle/gear",
       "gear": "Park",
-      "sec": -1.865
+      "sec": -1.9128
     },
     {
       "method": "PUT",
@@ -172,13 +421,13 @@
       "accelerator": 0,
       "brake": 0,
       "steering": 0,
-      "sec": 93.7032
+      "sec": 127.8665
     },
     {
       "method": "PUT",
       "route": "/vehicle/gear",
       "gear": "Drive",
-      "sec": 93.7089
+      "sec": 127.8719
     },
     {
       "method": "PUT",
@@ -187,13 +436,13 @@
       "accelerator": 15,
       "brake": 0,
       "steering": 0,
-      "sec": 94.7134
+      "sec": 128.8795
     },
     {
       "method": "PUT",
       "route": "/vehicle/gear",
       "gear": "Drive",
-      "sec": 94.7182
+      "sec": 128.885
     },
     {
       "method": "PUT",
@@ -202,13 +451,13 @@
       "accelerator": 15,
       "brake": 0,
       "steering": 0,
-      "sec": 95.7278
+      "sec": 129.8925
     },
     {
       "method": "PUT",
       "route": "/vehicle/gear",
       "gear": "Drive",
-      "sec": 95.7313
+      "sec": 129.8964
     },
     {
       "method": "PUT",
@@ -217,13 +466,13 @@
       "accelerator": 15,
       "brake": 0,
       "steering": 0,
-      "sec": 96.7427
+      "sec": 130.904
     },
     {
       "method": "PUT",
       "route": "/vehicle/gear",
       "gear": "Drive",
-      "sec": 96.7461
+      "sec": 130.9083
     },
     {
       "method": "PUT",
@@ -232,13 +481,13 @@
       "accelerator": 15,
       "brake": 0,
       "steering": 0,
-      "sec": 97.7537
+      "sec": 131.9183
     },
     {
       "method": "PUT",
       "route": "/vehicle/gear",
       "gear": "Drive",
-      "sec": 97.7575
+      "sec": 131.9277
     },
     {
       "method": "PUT",
@@ -247,13 +496,13 @@
       "accelerator": 0,
       "brake": 0,
       "steering": 0,
-      "sec": 108.7022
+      "sec": 145.8679
     },
     {
       "method": "PUT",
       "route": "/vehicle/gear",
       "gear": "Drive",
-      "sec": 108.7068
+      "sec": 145.8734
     },
     {
       "method": "PUT",
@@ -262,13 +511,13 @@
       "accelerator": 0,
       "brake": 0,
       "steering": 0,
-      "sec": 116.7193
+      "sec": 152.8825
     },
     {
       "method": "PUT",
       "route": "/vehicle/gear",
       "gear": "Park",
-      "sec": 116.7242
+      "sec": 152.8876
     },
     {
       "method": "PUT",
@@ -277,13 +526,88 @@
       "accelerator": 0,
       "brake": 0,
       "steering": 0,
-      "sec": 178.7769
+      "sec": 932.7262
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Park",
+      "sec": 932.7297
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 0,
+      "accelerator": 0,
+      "brake": 0,
+      "steering": 0,
+      "sec": 881.1785
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Park",
+      "sec": 881.1817
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 0,
+      "accelerator": 0,
+      "brake": 0,
+      "steering": 0,
+      "sec": 991.566
     },
     {
       "method": "PUT",
       "route": "/vehicle/gear",
       "gear": "Drive",
-      "sec": 178.7834
+      "sec": 991.5727
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 10,
+      "accelerator": 15,
+      "brake": 0,
+      "steering": 0,
+      "sec": 992.583
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Drive",
+      "sec": 992.5887
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 20,
+      "accelerator": 15,
+      "brake": 0,
+      "steering": 0,
+      "sec": 993.5946
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Drive",
+      "sec": 993.5985
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 30,
+      "accelerator": 15,
+      "brake": 0,
+      "steering": 0,
+      "sec": 994.6041
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Drive",
+      "sec": 994.6081
     },
     {
       "method": "PUT",
@@ -292,13 +616,13 @@
       "accelerator": 15,
       "brake": 0,
       "steering": 0,
-      "sec": 179.7908
+      "sec": 995.6202
     },
     {
       "method": "PUT",
       "route": "/vehicle/gear",
       "gear": "Drive",
-      "sec": 179.7946
+      "sec": 995.6262
     },
     {
       "method": "PUT",
@@ -307,13 +631,13 @@
       "accelerator": 0,
       "brake": 0,
       "steering": 0,
-      "sec": 384.7955
+      "sec": 1206.5705
     },
     {
       "method": "PUT",
       "route": "/vehicle/gear",
       "gear": "Drive",
-      "sec": 384.7989
+      "sec": 1206.575
     },
     {
       "method": "PUT",
@@ -322,13 +646,13 @@
       "accelerator": 0,
       "brake": 0,
       "steering": 0,
-      "sec": 385.8115
+      "sec": 1207.5843
     },
     {
       "method": "PUT",
       "route": "/vehicle/gear",
       "gear": "Park",
-      "sec": 385.8147
+      "sec": 1207.5891
     },
     {
       "method": "PUT",
@@ -337,95 +661,238 @@
       "accelerator": 0,
       "brake": 0,
       "steering": 0,
-      "sec": 416.5494
+      "sec": 1254.444
     },
     {
       "method": "PUT",
       "route": "/vehicle/gear",
       "gear": "Park",
-      "sec": 416.5535
+      "sec": 1254.4492
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 0,
+      "accelerator": 0,
+      "brake": 0,
+      "steering": 0,
+      "sec": 1252.5431
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Park",
+      "sec": 1252.5459
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/controls",
+      "speed": 0,
+      "accelerator": 0,
+      "brake": 0,
+      "steering": 0,
+      "sec": 1297.1566
+    },
+    {
+      "method": "PUT",
+      "route": "/vehicle/gear",
+      "gear": "Park",
+      "sec": 1297.1612
     }
   ],
   "clocks": [
     {
-      "t": 1794501738615.676,
+      "t": 1794579084573.711,
       "kind": "clock",
-      "emulatorMinusHostMs": -3128.70654296875,
+      "emulatorMinusHostMs": -3042.68408203125,
       "samples": [
         {
-          "offsetMs": -3128.70654296875,
-          "roundTripMs": 21.445068359375
+          "offsetMs": -3041.46240234375,
+          "roundTripMs": 28.680908203125
         },
         {
-          "offsetMs": -3128.31640625,
-          "roundTripMs": 21.764892578125
+          "offsetMs": -3043.337890625,
+          "roundTripMs": 23.057861328125
         },
         {
-          "offsetMs": -3128.7138671875,
-          "roundTripMs": 21.017822265625
+          "offsetMs": -3043.61083984375,
+          "roundTripMs": 23.471923828125
         },
         {
-          "offsetMs": -3126.62353515625,
-          "roundTripMs": 24.787109375
+          "offsetMs": -3042.576171875,
+          "roundTripMs": 24.446044921875
         },
         {
-          "offsetMs": -3128.81640625,
-          "roundTripMs": 21.591064453125
+          "offsetMs": -3042.636474609375,
+          "roundTripMs": 25.6591796875
         },
         {
-          "offsetMs": -3129.17138671875,
-          "roundTripMs": 21.109130859375
+          "offsetMs": -3043.07958984375,
+          "roundTripMs": 25.208984375
         },
         {
-          "offsetMs": -3127.69287109375,
-          "roundTripMs": 21.924072265625
+          "offsetMs": -3042.68408203125,
+          "roundTripMs": 25.988037109375
         }
       ]
     },
     {
-      "t": 1794502155381.656,
+      "t": 1794580754989.57,
       "kind": "clock",
-      "emulatorMinusHostMs": -3130.72265625,
+      "emulatorMinusHostMs": -3053.85302734375,
       "samples": [
         {
-          "offsetMs": -3130.44970703125,
-          "roundTripMs": 28.906982421875
+          "offsetMs": -3053.85302734375,
+          "roundTripMs": 24.446044921875
         },
         {
-          "offsetMs": -3128.3740234375,
-          "roundTripMs": 28.921875
+          "offsetMs": -3052.84130859375,
+          "roundTripMs": 25.512939453125
         },
         {
-          "offsetMs": -3129.135498046875,
-          "roundTripMs": 26.5927734375
+          "offsetMs": -3052.17041015625,
+          "roundTripMs": 27.135009765625
         },
         {
-          "offsetMs": -3131.886474609375,
-          "roundTripMs": 24.89892578125
+          "offsetMs": -3053.4365234375,
+          "roundTripMs": 23.3828125
         },
         {
-          "offsetMs": -3130.72265625,
-          "roundTripMs": 22.762939453125
+          "offsetMs": -3054.134521484375,
+          "roundTripMs": 23.9990234375
         },
         {
-          "offsetMs": -3131.98095703125,
-          "roundTripMs": 21.744140625
+          "offsetMs": -3054.24658203125,
+          "roundTripMs": 24.208984375
         },
         {
-          "offsetMs": -3131.7431640625,
-          "roundTripMs": 21.765869140625
+          "offsetMs": -3053.94580078125,
+          "roundTripMs": 23.174072265625
+        }
+      ]
+    },
+    {
+      "t": 1794581165853.152,
+      "kind": "clock",
+      "emulatorMinusHostMs": -3056.75439453125,
+      "samples": [
+        {
+          "offsetMs": -3057.33837890625,
+          "roundTripMs": 23.397216796875
+        },
+        {
+          "offsetMs": -3056.75439453125,
+          "roundTripMs": 23.423095703125
+        },
+        {
+          "offsetMs": -3056.23681640625,
+          "roundTripMs": 23.531982421875
+        },
+        {
+          "offsetMs": -3056.5234375,
+          "roundTripMs": 23.02490234375
+        },
+        {
+          "offsetMs": -3056.9736328125,
+          "roundTripMs": 21.861083984375
+        },
+        {
+          "offsetMs": -3057.89013671875,
+          "roundTripMs": 21.946044921875
+        },
+        {
+          "offsetMs": -3056.49755859375,
+          "roundTripMs": 23.2548828125
+        }
+      ]
+    },
+    {
+      "t": 1794581208741.475,
+      "kind": "clock",
+      "emulatorMinusHostMs": -3055.384033203125,
+      "samples": [
+        {
+          "offsetMs": -3052.97412109375,
+          "roundTripMs": 31.911865234375
+        },
+        {
+          "offsetMs": -3053.863525390625,
+          "roundTripMs": 29.84912109375
+        },
+        {
+          "offsetMs": -3056.24462890625,
+          "roundTripMs": 30.897216796875
+        },
+        {
+          "offsetMs": -3055.7373046875,
+          "roundTripMs": 26.071044921875
+        },
+        {
+          "offsetMs": -3055.384033203125,
+          "roundTripMs": 29.18017578125
+        },
+        {
+          "offsetMs": -3050.0439453125,
+          "roundTripMs": 40.1240234375
+        },
+        {
+          "offsetMs": -3055.76953125,
+          "roundTripMs": 27.31103515625
         }
       ]
     }
   ],
   "release": [
     {
-      "t": 1794501738461.399,
+      "t": 1794579084396.583,
       "kind": "release",
-      "sha256": "51101238ff3cda094817842fd05f1a3eaf376e1636815712f77cdd778fa5a879",
+      "sha256": "fc27b5c5adadaeb117c07e8ee79fdb0da4e7eccd96414cabf361276853baf149",
+      "installedApkMatches": true,
+      "serial": "emulator-5570",
+      "user": 10
+    },
+    {
+      "t": 1794580705264.607,
+      "kind": "release",
+      "sha256": "fc27b5c5adadaeb117c07e8ee79fdb0da4e7eccd96414cabf361276853baf149",
+      "installedApkMatches": true,
+      "serial": "emulator-5570",
+      "user": 10
+    },
+    {
+      "t": 1794581165692.025,
+      "kind": "release",
+      "sha256": "fc27b5c5adadaeb117c07e8ee79fdb0da4e7eccd96414cabf361276853baf149",
       "installedApkMatches": true,
       "serial": "emulator-5570",
       "user": 10
     }
-  ]
+  ],
+  "audioPeaks": {
+    "parking": 4,
+    "signature-wait": 4,
+    "signature-cut-start": 4,
+    "signature-ready": 4,
+    "my-profile": 4,
+    "discovery": 4,
+    "peer-profile": 4,
+    "call": 1207,
+    "call-connected": 4,
+    "road": 1510,
+    "road-zero": 4,
+    "road-park": 1448,
+    "panel-cut-start": 4,
+    "distance": 4,
+    "after": 4,
+    "exchanged": 4,
+    "cooldown-cut-start": 4,
+    "auto-settings": 4,
+    "auto-drive": 1303,
+    "auto-connected": 1362,
+    "drive-cut-start": 4,
+    "drive-cut-end": 1449,
+    "recap": 4,
+    "home": 4,
+    "resting": 4
+  }
 }

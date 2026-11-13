@@ -11,7 +11,7 @@ import time
 
 def render(kit, output):
     command = ['pnpm', 'exec', 'remotion', 'render', 'src/index.ts', 'ChayeonStory',
-               str(output / 'chayeon-story.mp4'), '--concurrency=4', '--crf=18', '--muted']
+               str(output / 'chayeon-story.mp4'), '--concurrency=4', '--crf=18', '--audio-codec=aac', '--sample-rate=48000']
     with (output / 'render.log').open('w') as log:
         process = subprocess.Popen(command, cwd=kit, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                    start_new_session=True)
@@ -73,13 +73,14 @@ def main():
                 render_ffmpeg(kit, output)
     video = output / 'chayeon-story.mp4'
     info = json.loads(subprocess.check_output(['ffprobe', '-v', 'error', '-show_format', '-show_streams', '-of', 'json', str(video)]))
-    stream = info['streams'][0]
-    assert len(info['streams']) == 1 and stream['codec_type'] == 'video'
+    stream = next(s for s in info['streams'] if s['codec_type'] == 'video')
+    audio = [s for s in info['streams'] if s['codec_type'] == 'audio']
+    assert len(info['streams']) == 2 and len(audio) == 1 and audio[0]['sample_rate'] == '48000', 'Expected one video and one 48 kHz audio stream'
     assert (stream['width'], stream['height'], stream['r_frame_rate']) == (1920, 1080, '30/1')
     assert 165 <= float(info['format']['duration']) <= 195
     (output / 'probe.json').write_text(json.dumps(info, indent=2))
     subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-i', str(video), '-vf', 'scale=1280:720',
-                    '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '27', '-an', '-movflags', '+faststart',
+                    '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '27', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart',
                     str(output / 'chayeon-story-preview.mp4')], check=True)
     sheets = output / 'sheets'
     sheets.mkdir(exist_ok=True)

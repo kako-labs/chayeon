@@ -30,6 +30,7 @@ export CHAYEON_EMULATOR_SERIAL=emulator-5570
 python3 demo-video/tools/rec/story_take.py ~/Documents_LOCAL/chayeon-video/preparation --prepare
 python3 demo-video/tools/rec/story_take.py ~/Documents_LOCAL/chayeon-video/render-sources/take
 python3 demo-video/tools/rec/prepare.py ~/Documents_LOCAL/chayeon-video/render-sources/take
+# 나눠 찍었다면 순서대로 모두 넘깁니다: prepare.py take-v2 take-v2f take-v2h
 ```
 
 - APK: `apk/chayeon-release.apk`. 온보딩은 녹화 전에 끝냅니다.
@@ -38,7 +39,7 @@ python3 demo-video/tools/rec/prepare.py ~/Documents_LOCAL/chayeon-video/render-s
 - 시계 차이는 촬영 전후 각각 7번 측정합니다. 영상과 탭은 같은 호스트 시계를 사용하며, 기기 시계 차이는 증빙으로 보존합니다.
 - 1920×1080 gRPC 프레임을 최신 화면으로 갱신하고, 벽시계에 맞춰 30fps로 바로 인코딩합니다. 변화가 없는 동안 같은 프레임을 반복하는 것이 정상입니다.
 - 이 환경에서는 VideoToolbox 압축 세션이 실패하여 `libx264`, ultrafast, CRF 20, GOP 15를 사용합니다. 프레임 덤프를 만들지 않습니다.
-- 원본은 `screen.mp4`, `screen.json`, `events.json`입니다. `prepare.py`는 로그를 첫 프레임 기준으로 정규화하고 `public/rec/story.mp4`로 복사합니다.
+- 원본은 `screen.mp4`, `screen.json`, `events.json`, 앱 소리 `audio.pcm`, `audio.json`(패킷별 시각)입니다. `prepare.py`는 로그를 첫 프레임 기준으로 정규화하고 `public/rec/story.mp4`로 복사합니다.
 - 촬영을 다시 하면 실제 시각이 달라지므로 `scenes.ts`를 새 마커와 맞춰 검토해야 합니다.
 
 ## 편집 원칙
