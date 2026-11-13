@@ -25,7 +25,7 @@ internal fun SignatureFrame(
     recap: Boolean = false,
     backEnabled: Boolean = true,
     ratio: Float = .58f,
-    scene: Scene = Scene.PLAIN,
+    scene: Scene = Scene.PARKING,
     primary: @Composable () -> Unit,
     secondary: (@Composable () -> Unit)? = null,
 ) {
@@ -33,6 +33,7 @@ internal fun SignatureFrame(
     ScreenScaffold(
         showSourceLabels = chrome.showSourceLabels,
         scene = scene,
+        sceneDimmed = scene == Scene.PARKING,
         contentPadding = PaddingValues(horizontal = ChayeonDimensions.SceneScreenHorizontal,
             vertical = ChayeonDimensions.SceneScreenBottom),
         modifier = Modifier.testTag("signature-screen"),

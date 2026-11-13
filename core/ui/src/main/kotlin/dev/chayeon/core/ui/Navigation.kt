@@ -180,10 +180,11 @@ fun ScreenScaffold(
     scene: Scene = LocalScene.current,
     sceneScrim: SceneScrim = LocalSceneScrim.current,
     contentPadding: PaddingValues = PaddingValues(horizontal = ChayeonSpacing.Screen, vertical = ChayeonSpacing.Small),
+    sceneDimmed: Boolean = false,
 ) {
     CompositionLocalProvider(LocalSourceLabels provides showSourceLabels) {
         SceneBackground(if (LocalDrivingPolicy.current == DrivingPolicy.ALLOWED) scene else Scene.ROAD,
-            modifier.fillMaxSize(), scrim = sceneScrim) {
+            modifier.fillMaxSize(), dimmed = sceneDimmed || LocalDrivingPolicy.current != DrivingPolicy.ALLOWED, scrim = sceneScrim) {
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val narrow = maxWidth < ChayeonSpacing.NarrowBreakpoint
                 Column(Modifier.fillMaxSize().padding(contentPadding), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {

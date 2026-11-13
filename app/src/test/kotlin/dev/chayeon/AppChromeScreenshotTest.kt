@@ -53,13 +53,13 @@ class AppChromeScreenshotTest {
     @Test @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
     fun narrowServer() = capture("narrow-server", synthetic = true)
 
-    @Test fun sceneRoutingKeepsPrivateSettingsPlainAndHomeProtectionLocal() {
+    @Test fun sceneRoutingUsesParkingForSignatureAndKeepsHomeProtectionLocal() {
         assertEquals(Scene.PARKING, appScene(MeetDestination.HOME, false))
         assertEquals(Scene.HOME, appScene(MeetDestination.HOME, true))
         assertEquals(Scene.HOME, appScene(HistoryDestination.HOME_ZONE, false))
         assertEquals(Scene.DAWN, appScene(HistoryDestination.PROFILE_SETUP, false))
         assertEquals(Scene.DAWN, appScene(HistoryDestination.RELATIONSHIPS, false))
-        assertEquals(Scene.PLAIN, appScene(SignatureDestination.TRAIT, false))
+        assertEquals(Scene.PARKING, appScene(SignatureDestination.TRAIT, false))
         assertEquals(Scene.ROAD, appScene(MeetDestination.ENDED, false))
     }
 }

@@ -29,7 +29,7 @@ fun MyProfileScreen(
     val scope = rememberCoroutineScope()
     val readySignature = state.signature.readyValue()
     val building = readySignature?.isRecording == true
-    SignatureFrame("내 프로필", state.driving.policy, chrome, scene = if (building) Scene.ROAD else Scene.PLAIN,
+    SignatureFrame("내 프로필", state.driving.policy, chrome, scene = if (building) Scene.ROAD else Scene.PARKING,
         primary = {
             SignatureColumn {
                 when (val loaded = state.profile) {

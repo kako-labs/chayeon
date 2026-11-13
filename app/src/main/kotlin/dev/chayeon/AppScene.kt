@@ -11,7 +11,8 @@ internal fun appScene(route: String?, homeProtected: Boolean): Scene = when {
     route == MeetDestination.DRIVING || route == MeetDestination.ENDED -> Scene.ROAD
     route in setOf(HistoryDestination.FIRST_RUN, HistoryDestination.PROFILE_SETUP, HistoryDestination.CONSENT,
         HistoryDestination.RELATIONSHIPS, HistoryDestination.PERSON, HistoryDestination.AFTER_REQUEST) -> Scene.DAWN
-    route?.startsWith("signature/") == true || route == HistoryDestination.PROFILE_EDIT -> Scene.PLAIN
+    route?.startsWith("signature/") == true -> Scene.PARKING
+    route == HistoryDestination.PROFILE_EDIT -> Scene.PLAIN
     else -> Scene.PARKING
 }
 

@@ -47,7 +47,6 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
     val participation by graph.profileRepository.settings.collectAsStateWithLifecycle(LoadState.Loading())
     val connection by graph.connectionRepository.connection.collectAsStateWithLifecycle(LoadState.Loading())
     val requests by graph.connectionRepository.requests.collectAsStateWithLifecycle(LoadState.Loading())
-    val encounters by graph.encounterRepository.encounters.collectAsStateWithLifecycle(LoadState.Loading())
     val afterRequests by graph.afterRepository.requests.collectAsStateWithLifecycle(LoadState.Loading())
     val recaps by graph.signatureRepository.recaps.collectAsStateWithLifecycle(LoadState.Loading())
     val publicationFailed by publisherFailure.collectAsStateWithLifecycle()
@@ -148,10 +147,7 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
                 }
                 meetGraph(graph.meetDeps, chrome, navController) { exit ->
                     when (exit) {
-                        is MeetExit.OpenEncounter -> {
-                            val peerId = (encounters as? LoadState.Ready)?.value?.find { it.id == exit.encounterId }?.peer?.id
-                            open(peerId?.let(HistoryDestination::person) ?: HistoryDestination.RELATIONSHIPS)
-                        }
+                        is MeetExit.OpenEncounter -> open(HistoryDestination.afterRequest(exit.encounterId))
                         is MeetExit.OpenSafety -> open(HistoryDestination.safety(exit.peerProfileId))
                         MeetExit.OpenDemo -> if (graph.demoEnabled) open(DEMO_ROUTE)
                         MeetExit.CreateSignature -> open(if (graph.demoEnabled) CREATE_SIGNATURE_ROUTE else SignatureDestination.MY_SIGNATURE)

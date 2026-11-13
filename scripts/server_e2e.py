@@ -337,7 +337,7 @@ def prove_lease_and_offline_restore(device, console, peer, transport, device_por
     set_synthetic_home(device, server=True)
     home_position(device, False)
     device.card("이어가는별")
-    device.tap("연결 요청 보내기")
+    device.tap("통화 요청하기")
     deadline = time.monotonic() + 20
     while True:
         pending = next((r for r in peer.sync()["connectionRequests"] if r["status"] == "PENDING" and r["direction"] == "INCOMING"
@@ -382,7 +382,9 @@ def prove_lease_and_offline_restore(device, console, peer, transport, device_por
         device.tap("내 프로필")
         device.tap("집 보호 구역", scroll=True)
         device.wait("위치를 확인할 때까지 쉬고 있어요", timeout=15)
-        device.capture("home-offline-restore", ["집 보호 구역", "위치를 확인할 때까지 쉬고 있어요", "집 지우기"])
+        device.capture("home-offline-restore", ["집 보호 구역", "위치를 확인할 때까지 쉬고 있어요"])
+        device.reveal("집 지우기")
+        device.capture("home-offline-actions", ["집 보호 구역", "집 지우기"])
         requests_after_stop = transport.count() - request_count
         if requests_after_stop != 0:
             raise AssertionError("reverse 제거 뒤에도 앱의 통신이 연결돼 있어요")
@@ -446,7 +448,7 @@ def prove_server_home(device, console, peer):
             device.tap("집에서 멀어지기", scroll=True)
             device.tap("홈")
         device.card("이어가는별")
-        device.tap("연결 요청 보내기")
+        device.tap("통화 요청하기")
         deadline = time.monotonic() + 20
         request = None
         while time.monotonic() < deadline:
@@ -511,8 +513,8 @@ def prove_server_home(device, console, peer):
             console.gear("Park")
         else:
             device.shell("input", "keyevent", "KEYCODE_BACK")
-        device.wait("서로 멀어져서 통화가 끝났어요")
-        device.tap("오늘의 인연으로")
+        device.wait("서로 멀어져서\n통화가 끝났어요")
+        device.tap("홈으로")
         if mode != "ordinary":
             assert_home_rest(device)
     if observations[0]["states"] != observations[1]["states"] or observations[1]["states"] != observations[2]["states"]:
@@ -541,7 +543,6 @@ def prove_server_home(device, console, peer):
 
 
 def prove_after_exchange(device, console, peer, transport):
-    device.tap("애프터 신청")
     own_id = enter_instagram_contact(device)
     peer_id = secrets.token_hex(12)
     transport.private_contact_values = (own_id, peer_id)
@@ -579,7 +580,7 @@ def prove_after_exchange(device, console, peer, transport):
     device.tap("이어진 인연 보기")
     device.wait("@" + peer_id)
     device.wait("인스타그램 QR 코드")
-    device.capture("06-http-contact-exchange", ["인스타그램", "@" + peer_id, "인스타그램 QR 코드"])
+    device.capture("06-http-contact-exchange", ["이어가는별님의 인스타그램", "@" + peer_id, "인스타그램 QR 코드"])
     console.gear("Drive")
     device.wait("주차하면", exact=False)
     assert_contacts_hidden(device, (own_id, peer_id))
@@ -697,13 +698,13 @@ def run(port=18765, serial=None):
             voice.assert_closed()
             voice.close()
             voice = None
-            device.wait("기록 보기")
-            device.capture("04-http-ended", ["기록 보기"])
+            device.wait("애프터 신청하기")
+            device.capture("04-http-ended", ["애프터 신청하기"])
             if len(peer.sync()["encounters"]) != 1:
                 raise AssertionError("HTTP 상대의 만남 기록이 한 건이 아니에요")
-            device.tap("기록 보기")
-            device.wait("애프터 신청")
-            device.capture("05-http-encounter", ["이어가는별", "애프터 신청"])
+            device.tap("애프터 신청하기")
+            device.wait("애프터 신청 보내기")
+            device.capture("05-http-after-request", ["이어가는별", "애프터 신청 보내기", "인스타그램 아이디 · 선택"])
             prove_after_exchange(device, console, peer, transport)
             prove_lease_and_offline_restore(device, console, peer, transport, port)
             prove_server_home(device, console, peer)

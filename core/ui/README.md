@@ -182,7 +182,7 @@ LazyColumn(state = list, modifier = Modifier.scrollEdgeFade(list)) { /* Screen i
 | API | 역할 |
 |---|---|
 | `SceneBackground(scene, modifier, dimmed, scrim, content)` | PARKING·ROAD·HOME·DAWN·PLAIN, crop 이미지와 정적 스크림 |
-| `ScreenScaffold(..., scene, sceneScrim)` | 장면을 본문 뒤에 배치해요. 기본값은 앱의 `LocalScene`이며 제한·불명에서는 ROAD를 강제해요 |
+| `ScreenScaffold(..., scene, sceneScrim, sceneDimmed)` | 장면을 본문 뒤에 배치해요. 기본값은 앱의 `LocalScene`이며 제한·불명에서는 ROAD와 어두운 스크림을 강제해요. `sceneDimmed = true`로 주차 화면에도 같은 어두운 처리를 적용해요 |
 | `Mascot(pose, modifier)` | WAVE·THREAD·CALL·SLEEP·BYE·KNOT, 한국어 설명과 부드러운 붉은 그림자 |
 | `AvatarDish(avatar, modifier, decorative)` | 기존 API로 새 idle 에셋을 표시해요 |
 | `CallAvatar(avatar, mirrored, modifier)` | 헤드셋·실 끝이 있는 call 에셋, 오른쪽 상대는 좌우 반전 |

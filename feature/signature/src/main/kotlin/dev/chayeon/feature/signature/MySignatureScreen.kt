@@ -31,7 +31,7 @@ fun MySignatureScreen(
     onDemo: () -> Unit,
     onRetry: () -> Unit,
 ) {
-    SignatureFrame("내 시그니처", state.driving.policy, chrome, onBack, scene = if (state.signature.readyValue()?.isRecording == true) Scene.ROAD else Scene.PLAIN,
+    SignatureFrame("내 시그니처", state.driving.policy, chrome, onBack, scene = if (state.signature.readyValue()?.isRecording == true) Scene.ROAD else Scene.PARKING,
         primary = {
             when (val loaded = state.signature) {
                 is LoadState.Loading -> SignatureMessage("주행의 이야기를 모으고 있어요", "매듭과 특성을 불러오고 있어요.")

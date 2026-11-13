@@ -35,7 +35,7 @@ class SourcePresentationTest {
         fixture.discovery.value = DiscoveryState(mode = DiscoveryMode.ON, status = DiscoveryStatus.AVAILABLE,
             candidates = listOf(Candidate("candidate", 1, peer, Chemistry(), emptySet())), locationSource = LocationSource.SYNTHETIC)
         compose.setContent { ChayeonApp(fixture.graph) }
-        compose.onNodeWithText("근처에서 1명이 발견을 켰어요").assertExists()
+        compose.onNodeWithText("근처에 인연이 있어요").assertExists()
         assertSoloSurface()
         val button = compose.onNodeWithContentDescription("시연 제어").assertHasClickAction().getUnclippedBoundsInRoot()
         assertTrue(button.right - button.left >= 76.dp && button.bottom - button.top >= 76.dp)
@@ -44,11 +44,11 @@ class SourcePresentationTest {
         compose.runOnIdle { fixture.sessions.value = SessionState.Active(fixture.active.copy(mode = SessionMode.SERVER_DEMO)) }
         compose.onNodeWithText("시연용 가상 상대 · 합성 주행").assertExists()
         compose.onNodeWithText("합성 위치").assertExists()
-        compose.onNodeWithText("근처에서 1명이 발견을 켰어요").assertExists()
+        compose.onNodeWithText("근처에 인연이 있어요").assertExists()
         compose.onRoot().captureRoboImage("src/test/screenshots/app-server-home.png")
         compose.runOnIdle { fixture.sessions.value = SessionState.Active(fixture.active) }
-        compose.onNodeWithText("프로필 보기").performClick()
-        compose.onNodeWithText("별보는밤").assertExists()
+        compose.onNodeWithContentDescription("프로필 보기").performScrollTo().performClick()
+        compose.onAllNodesWithText("별보는밤").assertCountEquals(2)
         assertSoloSurface()
         compose.onRoot().captureRoboImage("src/test/screenshots/app-solo-candidate.png")
         compose.runOnIdle {
@@ -61,7 +61,7 @@ class SourcePresentationTest {
         assertSoloSurface()
         compose.onRoot().captureRoboImage("src/test/screenshots/app-solo-connected.png")
         compose.runOnIdle { fixture.sessions.value = SessionState.Active(fixture.active.copy(mode = SessionMode.SERVER_DEMO)) }
-        compose.onNodeWithText("시연용 가상 상대").assertExists()
+        compose.onNodeWithText("시연용 가상 상대 · 합성 주행").assertExists()
         compose.onRoot().captureRoboImage("src/test/screenshots/app-server-connected.png")
     }
 }

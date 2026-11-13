@@ -85,7 +85,7 @@ class Device:
         self.tap(label, last=True)
 
     def tap(self, label, exact=True, scroll=False, last=False, description_only=False):
-        for attempt in range(8):
+        for attempt in range(14):
             tree = self.tree()
             # Consent writes can trigger a runtime dialog after the explicit permission drain.
             if label not in self.PERMISSION_ACTIONS and any(
@@ -122,38 +122,37 @@ class Device:
             if scroll and attempt > 0:
                 # Two-column screens scroll each pane on its own, so alternate between the right and left pane.
                 x = "2250" if attempt % 2 else "1300"
-                self.shell("input", "swipe", x, "1120", x, "470", "350")
+                self.shell("input", "swipe", x, "1120", x, "800", "350")
             time.sleep(0.4)
         raise AssertionError("누를 항목을 찾지 못했어요: " + label)
 
-    def card(self, title, button="프로필 보기", navigate=True):
-        for _ in range(7):
-            tree = self.tree()
-            node = self.find(title, tree)
+    def reveal(self, label, x="2250"):
+        """Reveal a read-only assertion target without activating its action."""
+        for _ in range(8):
+            node = self.find(label)
             if node is not None:
-                if not navigate:
-                    return
-                x1, y1, x2, y2 = map(int, re.findall(r"\d+", node.get("bounds")))
-                parents = {child: parent for parent in tree.iter() for child in parent}
-                target = node
-                while target is not None and target.get("clickable") != "true":
-                    target = parents.get(target)
-                if target is not None and target.get("enabled") == "true":
-                    self.shell("input", "tap", str((x1 + x2) // 2), str((y1 + y2) // 2))
-                    return
-                center = (x1 + x2) // 2
-                choices = []
-                for target in tree.iter("node"):
-                    if target.get("text") != button:
-                        continue
-                    bx1, by1, bx2, by2 = map(int, re.findall(r"\d+", target.get("bounds")))
-                    if abs((bx1 + bx2) // 2 - center) < 300 and by1 > y2:
-                        choices.append((by1 - y2, (bx1 + bx2) // 2, (by1 + by2) // 2))
-                if choices:
-                    _, x, y = min(choices)
-                    self.shell("input", "tap", str(x), str(y))
-                    return
-            self.shell("input", "swipe", "2250", "1120", "2250", "470", "350")
+                return node
+            self.shell("input", "swipe", x, "1120", x, "800", "350")
+            time.sleep(0.4)
+        raise AssertionError("스크롤해도 찾지 못했어요: " + label)
+
+    def card(self, title, navigate=True):
+        """Find a peer in the single-card carousel, then open its accessible profile action."""
+        seen = set()
+        for _ in range(12):
+            tree = self.tree()
+            if self.find(title, tree) is not None:
+                if navigate:
+                    self.tap("프로필 보기", description_only=True, scroll=True)
+                return
+            page = next((label for label in self.labels(tree) if label.startswith("오늘의 인연  ")), None)
+            if page is None:
+                self.shell("input", "swipe", "2250", "1120", "2250", "470", "350")
+                continue
+            if page in seen:
+                break
+            seen.add(page)
+            self.tap("다음 사람 보기", scroll=True)
         raise AssertionError("카드를 찾지 못했어요: " + title)
 
     def permissions(self):
@@ -263,6 +262,7 @@ def enter_nickname(device):
     device.shell("input", "tap", str((x1 + x2) // 2), str((y1 + y2) // 2))
     device.shell("input", "text", "DawnDriver")
     device.shell("input", "keyevent", "KEYCODE_BACK")
+    device.shell("input", "keyevent", "KEYCODE_TAB")
 
 
 def enter_solo(device, prefix=""):
@@ -319,25 +319,17 @@ def assert_no_arrival_banner(device):
 
 def create_signature(device, choice, prefix=""):
     device.tap("발견 꺼짐", last=True)
-    device.wait("별보는밤")
+    device.wait("근처에 인연이 있어요")
     tree = device.tree()
-    invitation = device.find("내 시그니처 만들기", tree)
-    candidate = device.find("별보는밤", tree)
-    if invitation is None or candidate is None:
-        raise AssertionError("시그니처 초대와 후보가 홈에 함께 보이지 않아요")
-    if int(re.findall(r"\d+", invitation.get("bounds"))[1]) >= int(re.findall(r"\d+", candidate.get("bounds"))[1]):
-        raise AssertionError("시그니처 초대가 후보 위에 있지 않아요")
-    if any("잘 맞는 점" in label for label in device.labels(tree)):
+    if device.find("내 시그니처 만들기", tree) is None:
+        raise AssertionError("시그니처 초대가 홈에 보이지 않아요")
+    if any(label.startswith(("둘 다 ", "한 분은 ")) for label in device.labels(tree)):
         raise AssertionError("내 시그니처를 공개하기 전에 궁합이 보여요")
-    care = device.find("공기까지 신경 쓰는 드라이버", tree)
-    if care is None or abs(int(re.findall(r"\d+", care.get("bounds"))[1]) - int(re.findall(r"\d+", candidate.get("bounds"))[1])) > 110:
-        raise AssertionError("첫 홈 카드 줄에 차량 관리 칭호가 없어요")
     assert_demo_icon(device, tree)
     assert_solo_surface(device, tree)
-    device.capture(prefix + "04-home-invitation", ["내 시그니처 만들기", "근처에서 5명이 발견을 켰어요", "공기까지 신경 쓰는 드라이버"])
-    # The scheduled incoming row shifts the invitation. Resolve tap bounds after it arrives.
-    device.wait("받은 연결 요청 보기", timeout=20)
-    device.tap("시그니처 만들러 가기")
+    device.capture(prefix + "04-home-invitation", ["내 시그니처 만들기", "근처에 인연이 있어요", "지금 근처", "5명"])
+    device.wait("받은 통화 요청 보기", timeout=20)
+    device.tap("시그니처 만들러 가기", scroll=True)
     device.wait("어떤 주행이 나를 닮았나요?")
     tree = device.tree()
     for hidden in ["시연 제어", "기어 제어", "합성 위치", "지원하지 않는 신호"]:
@@ -395,16 +387,26 @@ def create_signature(device, choice, prefix=""):
     device.capture(prefix + "05-evidence-chart", ["주행별 " + title_trait])
     device.tap("뒤로")
     device.tap("홈")
-    device.wait("잘 맞는 점", exact=False)
+    device.wait("근처에 인연이 있어요")
     if device.find("내 시그니처 만들기", device.tree()) is not None:
         raise AssertionError("공개 후에도 시그니처 초대가 남아 있어요")
+    device.card("별보는밤", navigate=False)
+    device.shell("input", "swipe", "2250", "1120", "2250", "470", "350")
     assert_solo_surface(device)
-    device.capture(prefix + "06-cast", ["별보는밤", "잘 맞는 점", "드라이버"])
+    chemistry = {
+        "다음 움직임을 알려 주는 사람": "둘 다 깜빡이를 챙겨요",
+        "편안하게 달리는 사람": "한 분은 편안하게 달리고, 한 분은 함께 타는 공기까지 신경 써요",
+        "떠나기 전에 챙기는 사람": "둘 다 함께 타는 공기까지 신경 써요",
+    }[choice]
+    device.wait(chemistry)
+    device.capture(prefix + "06-cast", ["별보는밤", "오늘의 인연", chemistry])
     return title
 
 
 def configure_auto_connect(device, minimum=90):
     device.tap("내 프로필")
+    if device.find("설정", device.tree()) is not None:
+        device.tap("설정")
     device.tap("주행 중 연결", scroll=True)
     device.wait("달리는 동안 어떻게 이어질까요?")
     device.tap("조건에 맞으면 자동 연결", scroll=True)
@@ -433,7 +435,7 @@ def set_synthetic_home(device, server=False):
 def assert_home_rest(device):
     device.wait("쉬는 중")
     tree = device.tree()
-    if any(device.find(label, tree) is not None for label in ["프로필 보기", "지금 연결할 수 있는 사람"]):
+    if any(device.find(label, tree) is not None for label in ["프로필 보기", "통화 요청하기", "다음 사람 보기"]):
         raise AssertionError("집 보호 중 후보가 보여요")
 
 
@@ -446,18 +448,18 @@ def home_position(device, inside, external=False):
         device.tap("집 근처로 오기" if inside else "집에서 멀어지기", scroll=True)
         device.tap("홈")
     if not inside:
-        device.wait("별보는밤", timeout=20)
+        device.wait("근처에 인연이 있어요", timeout=20)
 
 
 def prove_home_zone(device, console, include_driving=True):
     set_synthetic_home(device)
     assert_home_rest(device)
-    device.capture("home-zone-presence-guard", ["집 근처에서는 쉬고 있어요", "벗어나면 다시 찾을 수 있어요", "쉬는 중"])
+    device.capture("home-zone-presence-guard", ["집 근처에서는\n쉬고 있어요", "벗어나면 다시 찾을 수 있어요", "쉬는 중"])
     for driving in ((False, True) if include_driving else (False,)):
         home_position(device, False)
         device.card("별보는밤")
-        device.wait("연결 요청 보내기")
-        device.tap("연결 요청 보내기")
+        device.wait("통화 요청하기")
+        device.tap("통화 요청하기")
         device.wait("통화 중")
         if driving:
             console.gear("Drive")
@@ -475,11 +477,11 @@ def prove_home_zone(device, console, include_driving=True):
             device.tap("시연 제어", description_only=True)
             device.tap("집 근처로 오기", scroll=True)
             device.shell("input", "keyevent", "KEYCODE_BACK")
-        device.wait("서로 멀어져서 통화가 끝났어요")
+        device.wait("서로 멀어져서\n통화가 끝났어요")
         if device.find("집", device.tree(), exact=False) is not None:
             raise AssertionError("연결 종료 화면에 집 사유가 보여요")
-        device.capture("home-zone-ended-" + ("driving" if driving else "parked"), ["서로 멀어져서 통화가 끝났어요"])
-        device.tap("오늘의 인연으로")
+        device.capture("home-zone-ended-" + ("driving" if driving else "parked"), ["서로 멀어져서\n통화가 끝났어요"])
+        device.tap("홈으로")
         assert_home_rest(device)
     home_position(device, False)
     device.capture("home-zone-return", ["별보는밤", "발견 켜짐"])
@@ -600,9 +602,9 @@ def run(with_real_drive=False, skip_build=False, apk=None, serial=None):
         enter_solo(device)
         first_title = create_signature(device, "다음 움직임을 알려 주는 사람")
         device.card("별보는밤")
-        device.wait("연결 요청 보내기")
+        device.wait("통화 요청하기")
         assert_solo_surface(device)
-        device.capture("07-candidate", ["별보는밤", "함께하면 잘 맞는 점", "시그니처 매듭", "둘 다 함께 타는 공기까지 신경 써요"])
+        device.capture("07-candidate", ["별보는밤", "함께하면 잘 맞는 점", "둘 다 함께 타는 공기까지 신경 써요"])
         if any("한 분은 편안하게 달리고" in label for label in device.labels(device.tree())):
             raise AssertionError("공유한 실내 공기 특성이 서로 다른 특성으로도 표시돼요")
         device.tap("목록으로")
@@ -653,12 +655,11 @@ def run(with_real_drive=False, skip_build=False, apk=None, serial=None):
         device.wait("연결 상태를 확인하고 있어요", timeout=8)
         assert_no_arrival_banner(device)
         device.capture("15-checking", ["연결 상태를 확인하고 있어요"])
-        device.wait("서로 멀어져서 통화가 끝났어요")
-        device.capture("16-distance-ended", ["서로 멀어져서 통화가 끝났어요"])
-        device.tap("기록 보기")
-        device.wait("애프터 신청")
-        device.capture("17-encounter", ["별보는밤", "멀어짐", "애프터 신청"])
-        device.tap("애프터 신청")
+        device.wait("서로 멀어져서\n통화가 끝났어요")
+        device.capture("16-distance-ended", ["서로 멀어져서\n통화가 끝났어요"])
+        device.tap("애프터 신청하기")
+        device.wait("애프터 신청 보내기")
+        device.capture("17-after-request", ["별보는밤", "애프터 신청 보내기", "인스타그램 아이디 · 선택"])
         enter_instagram_contact(device)
         device.tap("애프터 신청 보내기")
         device.wait("이어진 인연 보기")
@@ -666,7 +667,7 @@ def run(with_real_drive=False, skip_build=False, apk=None, serial=None):
         device.wait("@byeol-night.drive")
         device.wait("인스타그램 QR 코드")
         assert_no_arrival_banner(device)
-        device.capture("18-after-contact", ["인스타그램", "@byeol-night.drive", "인스타그램 QR 코드", "관계 끝내기"])
+        device.capture("18-after-contact", ["별보는밤님의 인스타그램", "@byeol-night.drive", "인스타그램 QR 코드", "관계 끝내기"])
         console.gear("Drive")
         assert_contacts_hidden(device, ("byeol-night.drive",))
         device.capture("18-after-restricted", ["주차하면"])
@@ -686,11 +687,11 @@ def run(with_real_drive=False, skip_build=False, apk=None, serial=None):
         assert_contacts_hidden(device, ("byeol-night.drive",))
         device.tap("내 프로필")
         device.tap("홈")
-        device.wait("잘 맞는 점", exact=False)
+        device.wait("근처에 인연이 있어요")
         tree = device.tree()
         if device.find("별보는밤", tree) is not None:
             raise AssertionError("차단한 상대가 발견 화면에 남아 있어요")
-        device.capture("21-peer-removed", ["잘 맞는 점"])
+        device.capture("21-peer-removed", ["근처에 인연이 있어요", "오늘의 인연"])
         if with_real_drive:
             before = device.trip_summary() if debug_proof else None
             print("RUN platform drive: 210 seconds", flush=True)
@@ -725,6 +726,7 @@ def enter_instagram_contact(device):
     device.tap("인스타그램 아이디 · 선택", scroll=True, description_only=True)
     device.shell("input", "text", value)
     device.shell("input", "keyevent", "KEYCODE_BACK")
+    device.shell("input", "keyevent", "KEYCODE_TAB")
     device.wait("한 번 공유한 아이디는 되돌릴 수 없어요.")
     return value
 

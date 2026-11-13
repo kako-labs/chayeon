@@ -24,6 +24,28 @@ import org.robolectric.annotation.GraphicsMode
 class NavigationSmokeTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun endedCallOpensAfterRequestForItsEncounterDirectly() {
+        val fixture = TestGraph().apply {
+            ready()
+            val encounter = Encounter("ended-encounter", 2, "ended-call", publicProfile, 0, 60_000,
+                ConnectionEndReason.DISTANCE, Chemistry(), emptySet(), AfterEligibility.AVAILABLE)
+            encounters.value = LoadState.Ready(listOf(encounter), 2)
+            connection.value = LoadState.Ready(Connection("ended-call", 2, "request", publicProfile,
+                ConnectionStatus.CONNECTED, 0, Chemistry(), encounterId = encounter.id), 2)
+        }
+        compose.setContent { ChayeonApp(fixture.graph) }
+        compose.onNodeWithText("통화 끊기").assertExists()
+        compose.runOnIdle {
+            val connection = (fixture.connection.value as LoadState.Ready).value!!
+            fixture.connection.value = LoadState.Ready(connection.copy(status = ConnectionStatus.ENDED,
+                endedAtEpochMillis = 60_000, endReason = ConnectionEndReason.DISTANCE, version = 3), 3)
+        }
+        compose.onNodeWithText("애프터 신청하기").performClick()
+        compose.onNodeWithText("애프터 신청 보내기").assertExists().assertIsNotEnabled()
+        compose.onNodeWithContentDescription("인스타그램 아이디 · 선택").assertExists()
+        compose.runOnIdle { assertEquals(listOf("ended-encounter"), fixture.observedEncounters) }
+    }
+
     @Test fun creationScreenOnlyShowsChoicesAndProgressWithCareFirst() {
         compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f, showSourceLabels = false) {
             SignatureCreationScreen(DemoUiState(DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK)), {}, {})
@@ -126,7 +148,7 @@ class NavigationSmokeTest {
         fixture = TestGraph(console).apply { ready() }
         compose.setContent { ChayeonApp(fixture.graph) }
         compose.onNodeWithText("내 프로필").performClick()
-        compose.onNodeWithText("시그니처 만들기").performClick()
+        compose.onNodeWithText("시그니처 만들기").performScrollTo().performClick()
         compose.onNodeWithText("편안하게 달리는 사람").performClick()
         compose.waitUntil { count == 3 }
         compose.onNodeWithText("이 주행이 매듭이 됐어요").assertIsDisplayed()

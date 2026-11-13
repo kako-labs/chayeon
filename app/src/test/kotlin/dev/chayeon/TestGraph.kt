@@ -17,6 +17,8 @@ internal class TestGraph(vehicleConsole: VehicleConsole = EmptyVehicleConsole())
     val settings = MutableStateFlow<LoadState<ParticipationSettings>>(LoadState.Ready(ParticipationSettings("settings", 0), 0))
     val requests = MutableStateFlow<LoadState<List<ConnectionRequest>>>(LoadState.Ready(emptyList(), 0))
     val connection = MutableStateFlow<LoadState<Connection?>>(LoadState.Ready(null, 0))
+    val encounters = MutableStateFlow<LoadState<List<Encounter>>>(LoadState.Ready(emptyList(), 0))
+    val observedEncounters = mutableListOf<String>()
     val afterRequests = MutableStateFlow<LoadState<List<AfterRequest>>>(LoadState.Ready(emptyList(), 0))
     val afterConnections = MutableStateFlow<LoadState<List<AfterConnection>>>(LoadState.Ready(emptyList(), 0))
     val discovery = MutableStateFlow(DiscoveryState())
@@ -58,7 +60,13 @@ internal class TestGraph(vehicleConsole: VehicleConsole = EmptyVehicleConsole())
             override val requests = this@TestGraph.requests
             override val connection = this@TestGraph.connection
         },
-        EmptyEncounterRepository(), object : AfterRepository by EmptyAfterRepository() {
+        object : EncounterRepository by EmptyEncounterRepository() {
+            override val encounters = this@TestGraph.encounters
+            override fun observeEncounter(encounterId: String): kotlinx.coroutines.flow.Flow<LoadState<Encounter?>> {
+                observedEncounters += encounterId
+                return encounters.map { state -> LoadState.Ready((state as? LoadState.Ready)?.value?.find { it.id == encounterId }, state.version) }
+            }
+        }, object : AfterRepository by EmptyAfterRepository() {
             override val connections = afterConnections
             override val requests = afterRequests
 

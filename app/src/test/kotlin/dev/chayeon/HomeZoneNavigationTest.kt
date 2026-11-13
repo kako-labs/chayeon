@@ -55,11 +55,11 @@ class HomeZoneNavigationTest {
             discovery.value = DiscoveryState(mode = DiscoveryMode.ON)
         }
         compose.setContent { ChayeonApp(fixture.graph) }
-        compose.onNodeWithText("집 근처에서는 쉬고 있어요").assertIsDisplayed()
+        compose.onNodeWithText("집 근처에서는\n쉬고 있어요").assertIsDisplayed()
         for (policy in listOf(DrivingPolicy.RESTRICTED, DrivingPolicy.UNKNOWN)) {
             compose.runOnIdle { fixture.driving.value = DrivingState(policy = policy) }
             compose.onNodeWithText("쉬는 중").assertIsDisplayed()
-            compose.onNodeWithText("집 근처에서는 쉬고 있어요").assertDoesNotExist()
+            compose.onNodeWithText("집 근처에서는\n쉬고 있어요").assertDoesNotExist()
             compose.onNodeWithText("집 보호 구역").assertDoesNotExist()
             compose.onNodeWithContentDescription("시연 제어").assertDoesNotExist()
             compose.onRoot().captureRoboImage("src/test/screenshots/home-zone-${policy.name.lowercase()}.png")
