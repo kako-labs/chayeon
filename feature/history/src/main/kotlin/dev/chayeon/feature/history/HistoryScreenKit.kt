@@ -37,6 +37,8 @@ internal fun HistoryFrame(
     step: Int? = null,
     tab: NavigationItem? = null,
     ratio: Float = 1f,
+    scene: Scene = Scene.DAWN,
+    showHeading: Boolean = true,
     onLeave: (() -> Unit)? = null,
     headerPeer: PublicProfile? = null,
     bottom: (@Composable () -> Unit)? = null,
@@ -48,22 +50,25 @@ internal fun HistoryFrame(
     BackHandler(enabled = state.driving.policy != DrivingPolicy.ALLOWED) {}
     ScreenScaffold(
         showSourceLabels = chrome.showSourceLabels,
+        scene = scene,
+        contentPadding = PaddingValues(horizontal = ChayeonDimensions.SceneScreenHorizontal,
+            vertical = ChayeonDimensions.SceneScreenBottom),
         modifier = Modifier.testTag("screen"),
         topBar = {
             chrome.topBar()
-            if (state.driving.policy == DrivingPolicy.ALLOWED) {
+            if (state.driving.policy == DrivingPolicy.ALLOWED && showHeading) {
                 FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                     verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.ChipHorizontal)) {
                         if (onBack != null) BackButton(onBack)
                         if (headerPeer != null) AvatarDish(MochiAvatar.from(headerPeer.avatar), Modifier.size(ChayeonSpacing.Touch))
                         if (title == "차연") AppHeader(Modifier.widthIn(max = ChayeonDimensions.ChemistryKnot)) else Column {
-                            GradientText(title, style = ChayeonType.Title)
+                            ChayeonText(title, style = ChayeonType.SceneBrand)
                             ChayeonText(subtitle, style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
                             if (LocalSourceLabels.current && headerPeer != null) ChayeonText(headerPeer.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
                         }
                     }
-                    if (step != null) StepIndicator(step)
+                    if (step != null) ProfileSteps(step)
                 }
             }
         },
@@ -78,7 +83,7 @@ internal fun HistoryFrame(
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
                     StateCard(if (state.driving.policy == DrivingPolicy.RESTRICTED) ExperienceState.DRIVING_RESTRICTED else ExperienceState.DRIVING_UNKNOWN,
                         Modifier.fillMaxWidth())
-                    if (onLeave != null) JellyButton("나가기", onLeave, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, allowWhenRestricted = true)
+                    if (onLeave != null) HistoryButton("나가기", onLeave, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, allowWhenRestricted = true)
                 }
             } else {
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -95,7 +100,7 @@ internal fun HistoryFrame(
                                 Box(Modifier.weight(ratio).fillMaxHeight()) { primary() }
                                 Box(Modifier.weight(1f).fillMaxHeight()) { secondary() }
                             }
-                        } else Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+                        } else Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap * 2)) {
                             ScrollPane(Modifier.weight(ratio)) { primary() }
                             if (secondary != null) ScrollPane(Modifier.weight(1f)) { secondary() }
                         }
@@ -148,8 +153,10 @@ internal fun StretchPanels(content: @Composable () -> Unit) {
 
 @Composable
 internal fun OnboardingActions(label: String, enabled: Boolean, onContinue: () -> Unit) {
-    Box(Modifier.fillMaxWidth().testTag("onboarding-actions")) {
-        JellyButton(label, onContinue, Modifier.fillMaxWidth().testTag("onboarding-primary"), enabled = enabled)
+    BoxWithConstraints(Modifier.fillMaxWidth().testTag("onboarding-actions"), contentAlignment = Alignment.CenterEnd) {
+        val width = if (maxWidth >= ChayeonSpacing.NarrowBreakpoint - ChayeonDimensions.SceneScreenHorizontal * 2)
+            (maxWidth - ChayeonSpacing.Gap * 2) / 2 else maxWidth
+        PrimaryButton(label, onContinue, Modifier.width(width).testTag("onboarding-primary"), enabled = enabled)
     }
 }
 
@@ -162,10 +169,10 @@ internal fun ContentColumn(modifier: Modifier = Modifier, content: @Composable C
 internal fun CommandFeedback(command: CommandState, onRetry: () -> Unit, success: String? = null) {
     if (command.running) ChayeonText("처리하고 있어요", Modifier.semantics { liveRegion = LiveRegionMode.Polite }, ChayeonType.Secondary)
     command.error?.let { error ->
-        GlassCard(Modifier.fillMaxWidth()) {
+        GlassPanel(Modifier.fillMaxWidth()) {
             ContentColumn {
                 ChayeonText(error.copy(), style = ChayeonType.Secondary)
-                JellyButton("다시 시도", onRetry, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
+                HistoryButton("다시 시도", onRetry, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
             }
         }
     }
@@ -185,11 +192,11 @@ internal fun AppError.copy(): String = when (this) {
 @Composable
 internal fun <T> Loaded(value: LoadState<T>, emptyTitle: String = "아직 기록이 없어요", content: @Composable (T) -> Unit) {
     when (value) {
-        is LoadState.Loading -> GlassCard(Modifier.fillMaxWidth()) {
+        is LoadState.Loading -> GlassPanel(Modifier.fillMaxWidth()) {
             InfoRow(ChayeonIcon.CLOCK, "불러오고 있어요", body = "잠시만 기다려 주세요")
         }
         is LoadState.Failed -> if (value.error == AppError.Network) StateCard(ExperienceState.NETWORK_FAILURE, Modifier.fillMaxWidth())
-            else GlassCard(Modifier.fillMaxWidth()) { InfoRow(ChayeonIcon.REFRESH, "불러오지 못했어요", body = value.error.copy()) }
+            else GlassPanel(Modifier.fillMaxWidth()) { InfoRow(ChayeonIcon.REFRESH, "불러오지 못했어요", body = value.error.copy()) }
         is LoadState.Ready -> if (value.value == null || ((value.value as? Collection<*>)?.isEmpty() == true)) {
             EmptyCard(emptyTitle, "새 소식이 생기면 여기에 보여요")
         } else content(value.value)
@@ -198,7 +205,7 @@ internal fun <T> Loaded(value: LoadState<T>, emptyTitle: String = "아직 기록
 
 @Composable
 internal fun EmptyCard(title: String, body: String) {
-    GlassCard(Modifier.fillMaxWidth()) { ContentColumn {
+    GlassPanel(Modifier.fillMaxWidth()) { ContentColumn {
         IconOrb(ChayeonIcon.THREAD, variant = OrbVariant.GLASS)
         SectionTitle(title, subtitle = body)
     } }
@@ -232,7 +239,7 @@ internal fun PeerChemistry(chemistry: Chemistry, mine: PublicProfile?, peer: Pub
     val first = mine?.signature
     val second = peer.signature
     if (first != null && second != null) ChemistryCard(chemistry, first, second, Modifier.fillMaxWidth())
-    else if (chemistry.lines.isNotEmpty()) GlassCard(Modifier.fillMaxWidth()) {
+    else if (chemistry.lines.isNotEmpty()) GlassPanel(Modifier.fillMaxWidth()) {
         ContentColumn {
             SectionTitle("함께하면 잘 맞는 점")
             chemistry.lines.forEach { InfoRow(ChayeonIcon.KNOT, it.text) }
@@ -256,14 +263,14 @@ internal fun HistoryConfirm(state: HistoryUiState, onConfirm: () -> Unit, onDism
     )) {
         Box(Modifier.widthIn(max = ChayeonDimensions.ConfirmWidth).padding(ChayeonSpacing.Large)
             .semantics { paneTitle = confirmation.title }) {
-            HeroPanel {
+            GlassPanel {
                 val scroll = rememberScrollState()
                 Column(Modifier.scrollEdgeFade(scroll).verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
                     IconOrb(ChayeonIcon.WARNING, variant = OrbVariant.WHITE)
                     SectionTitle(confirmation.title, subtitle = body)
-                    JellyButton(if (busy) "처리하고 있어요" else confirmation.actionLabel, onConfirm,
+                    HistoryButton(if (busy) "처리하고 있어요" else confirmation.actionLabel, onConfirm,
                         Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = !busy)
-                    JellyButton("돌아가기", onDismiss, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = !busy)
+                    HistoryButton("돌아가기", onDismiss, Modifier.fillMaxWidth(), JellyVariant.SECONDARY, enabled = !busy)
                 }
             }
         }

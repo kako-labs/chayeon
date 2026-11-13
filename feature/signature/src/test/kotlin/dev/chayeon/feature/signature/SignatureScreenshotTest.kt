@@ -53,9 +53,13 @@ class SignatureScreenshotTest {
                         }, signatureLoad, settings = f.ready(f.settings.copy(receiveRequestsWhileDriving = variant == "incoming_on",
                             consents = if (variant == "recording_off") emptyList() else f.settings.consents)), consoleAvailable = true), chrome, {}, {}, {}, {})
                     "driving_settings" -> DriveSettingsScreen(MyProfileUiState(driving = driving,
-                        settings = f.ready(ParticipationSettings("settings", 1,
+                        settings = when (variant) {
+                            "loading" -> LoadState.Loading()
+                            "failure" -> LoadState.Failed(AppError.Network)
+                            "empty" -> f.ready(ParticipationSettings("settings", 1))
+                            else -> f.ready(ParticipationSettings("settings", 1,
                             drivingConnectMode = if (variant == "off") DrivingConnectMode.OFF else if (variant == "ring") DrivingConnectMode.RING else DrivingConnectMode.AUTO,
-                            autoConnectConditions = AutoConnectConditions(mapOf(TraitId.GENTLE_RIDE to 80, TraitId.SIGNAL_MANNERS to 90), true)))),
+                            autoConnectConditions = AutoConnectConditions(mapOf(TraitId.GENTLE_RIDE to 80, TraitId.SIGNAL_MANNERS to 90), true))) }),
                         chrome, {}, {}, { _, _ -> }, {}, {})
                     "signature" -> MySignatureScreen(SignatureUiState(driving, signatureLoad, true, recordingEnabled = true), chrome, {}, {}, {}, {}, {})
                     "trait" -> TraitDetailScreen(TraitDetailUiState(driving, if (variant == "preference") TraitId.LONG_ROAD else f.evidence.trait,
@@ -103,6 +107,9 @@ class SignatureScreenshotTest {
         if (screen == "trait" && variant == "trips") compose.onNodeWithText("최근 주행").performScrollTo()
         compose.onNodeWithTag("signature-screen").captureRoboImage("src/test/screenshots/${screen}_$variant.png")
     }
+    @Test fun settings_loading() = capture("driving_settings", "loading")
+    @Test fun settings_failure() = capture("driving_settings", "failure")
+    @Test fun settings_empty() = capture("driving_settings", "empty")
     @Test fun settings_interests() = capture("driving_settings", "interests")
     @Test fun settings_auto() = capture("driving_settings", "auto")
     @Test fun settings_ring() = capture("driving_settings", "ring")

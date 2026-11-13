@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -23,12 +24,17 @@ internal fun SignatureFrame(
     onBack: (() -> Unit)? = null,
     recap: Boolean = false,
     backEnabled: Boolean = true,
+    ratio: Float = .58f,
+    scene: Scene = Scene.PLAIN,
     primary: @Composable () -> Unit,
     secondary: (@Composable () -> Unit)? = null,
 ) {
     val allowed = policy == DrivingPolicy.ALLOWED && LocalDrivingPolicy.current == DrivingPolicy.ALLOWED
     ScreenScaffold(
         showSourceLabels = chrome.showSourceLabels,
+        scene = scene,
+        contentPadding = PaddingValues(horizontal = ChayeonDimensions.SceneScreenHorizontal,
+            vertical = ChayeonDimensions.SceneScreenBottom),
         modifier = Modifier.testTag("signature-screen"),
         topBar = {
             chrome.topBar()
@@ -36,18 +42,28 @@ internal fun SignatureFrame(
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.ChipHorizontal)) {
                     if (onBack != null) BackButton(onBack, enabled = backEnabled)
-                    GradientText(title, Modifier.semantics { heading() }, ChayeonType.Title)
+                    ChayeonText(title, Modifier.semantics { heading() }, ChayeonType.SceneBrand)
                 }
             }
         },
         bottomBar = { if (!recap) chrome.bottomBar(NavigationItem.PROFILE) },
         primary = {
-            if (allowed) primary() else SignatureLocked(
+            if (allowed) BoxWithConstraints(Modifier.fillMaxSize()) {
+                if (!constraints.hasBoundedHeight) {
+                    Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
+                        primary()
+                        secondary?.invoke()
+                    }
+                } else Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap * 2)) {
+                    Box(Modifier.weight(ratio).fillMaxHeight()) { primary() }
+                    if (secondary != null) Box(Modifier.weight(1f).fillMaxHeight()) { secondary() }
+                }
+            } else SignatureLocked(
                 if (policy == DrivingPolicy.RESTRICTED || LocalDrivingPolicy.current == DrivingPolicy.RESTRICTED)
                     DrivingPolicy.RESTRICTED else DrivingPolicy.UNKNOWN,
             )
         },
-        secondary = if (allowed) secondary else null,
+
     )
 }
 
@@ -63,7 +79,7 @@ internal fun SignatureColumn(enabled: Boolean = true, content: @Composable Colum
 
 @Composable
 internal fun SignatureLocked(policy: DrivingPolicy) {
-    HeroPanel(Modifier.fillMaxWidth()) {
+    GlassPanel(Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().padding(vertical = ChayeonSpacing.Hero),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Screen)) {
@@ -85,11 +101,11 @@ internal fun SignatureMessage(
     action: String? = null,
     onAction: () -> Unit = {},
 ) {
-    GlassCard(Modifier.fillMaxWidth()) {
+    GlassPanel(Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
             IconOrb(icon, variant = OrbVariant.GLASS)
             SectionTitle(title, subtitle = body)
-            if (action != null) JellyButton(action, onAction, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
+            if (action != null) SignatureButton(action, onAction, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
         }
     }
 }

@@ -17,13 +17,12 @@ fun TraitDetailScreen(
 ) {
     val evidence = state.evidence.readyValue()
     val score = evidence?.score.takeIf { state.trait.isScored && evidence != null && evidence.validTripCount >= 3 && evidence.availability != TraitAvailability.UNSUPPORTED }
-    SignatureFrame(state.trait.presentation.name, state.driving.policy, chrome, onBack,
+    SignatureFrame(state.trait.presentation.name, state.driving.policy, chrome, onBack, recap = true, ratio = .48f,
         primary = {
             SignatureColumn {
-                HeroPanel(Modifier.fillMaxWidth()) {
-                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+                GlassPanel(Modifier.fillMaxWidth()) {
+                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start,
                         verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-                        IconOrb(state.trait.presentation.icon, Modifier.size(ChayeonDimensions.PeerSmall), OrbVariant.GLASS)
                         ChayeonText(if (state.visible) "상대에게 보이는 점수" else "나에게만 보이는 기록", style = ChayeonType.Label, color = ChayeonColors.Pink)
                         if (evidence != null) {
                             ChayeonText("시그니처 근거: ${evidence.source.label}", style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
@@ -31,10 +30,10 @@ fun TraitDetailScreen(
                                 evidence.availability == TraitAvailability.UNSUPPORTED -> ChayeonText("이 차량에서 제공되지 않아요", color = ChayeonColors.Secondary)
                                 score != null -> {
                                     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
-                                        GradientText("$score", style = ChayeonType.Hero)
+                                        ChayeonText("$score", style = ChayeonType.Headline)
                                         ChayeonText("/ 100", style = ChayeonType.Section, color = ChayeonColors.Secondary)
                                     }
-                                    ScoreBar(score)
+                                    ScoreStageLadder(score)
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                         ChayeonText("60 보여요", style = ChayeonType.Minimum)
                                         ChayeonText("75 꾸준해요", style = ChayeonType.Minimum)
@@ -51,15 +50,16 @@ fun TraitDetailScreen(
                     }
                 }
                 if (evidence != null && evidence.availability != TraitAvailability.UNSUPPORTED) {
-                    GlassCard(Modifier.fillMaxWidth()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
                                 CountTile(state.trait.countLabels.supported, "${evidence.sampleCount}번", Modifier.weight(1f))
                                 CountTile(state.trait.countLabels.passing, "${evidence.passingSampleCount}번", Modifier.weight(1f))
                             }
-                            CountTile("반영한 주행", "${evidence.validTripCount}회", Modifier.fillMaxWidth())
-                            ChayeonText("최근 30일 · ${evidencePeriod(evidence.window)}", style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
-                        }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
+                                CountTile("반영한 주행", "${evidence.validTripCount}회", Modifier.weight(1f))
+                                CountTile("기간", "최근 30일", Modifier.weight(1f))
+                            }
+                            ChayeonText(evidencePeriod(evidence.window), style = ChayeonType.Minimum, color = ChayeonColors.InfoText)
                     }
                 }
                 InfoRow(ChayeonIcon.LOCK, "주행 기록은 차 안에만 남아요",
@@ -78,7 +78,7 @@ fun TraitDetailScreen(
                             detail.availability == TraitAvailability.UNSUPPORTED -> SignatureMessage("이 차량에서 제공되지 않아요", "이 특성에 필요한 신호를 읽을 수 없어요. 다른 특성의 기록은 계속 볼 수 있어요.")
                             else -> {
                                 if (score != null) TraitTripChart(detail)
-                                GlassCard(Modifier.fillMaxWidth()) {
+                                GlassPanel(Modifier.fillMaxWidth()) {
                                     Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
                                         SectionTitle("최근 주행")
                                         TripTableRow("언제", "시간", state.trait.countLabels.supported, state.trait.countLabels.passing, "반영")
@@ -93,7 +93,7 @@ fun TraitDetailScreen(
                                         ChayeonText("3분 미만이거나 2km 미만인 주행은 넣지 않아요. 주행 요약에서 뺄 수 있어요.", style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
                                     }
                                 }
-                                GlassCard(Modifier.fillMaxWidth()) {
+                                GlassPanel(Modifier.fillMaxWidth()) {
                                     Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
                                         SectionTitle("읽은 신호")
                                         detail.signals.sortedBy { it.ordinal }.forEach { ChayeonText(it.noteLabel(), style = ChayeonType.Minimum) }
@@ -114,15 +114,15 @@ fun TraitDetailScreen(
 
 @Composable
 private fun CountTile(label: String, value: String, modifier: Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
+    GlassPanel(modifier, contentPadding = PaddingValues(ChayeonSpacing.Large)) {
         ChayeonText(label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
-        ChayeonText(value, style = ChayeonType.Section)
+        ChayeonText(value, style = ChayeonType.TileValue)
     }
 }
 
 @Composable
 private fun TripTableRow(whenText: String, duration: String, supported: String, passing: String, inclusion: String) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(vertical = ChayeonSpacing.Compact), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small), verticalAlignment = Alignment.CenterVertically) {
         ChayeonText(whenText, Modifier.weight(1.2f), ChayeonType.Minimum)
         ChayeonText(duration, Modifier.weight(1f), ChayeonType.Minimum)
         ChayeonText(supported, Modifier.weight(1.3f), ChayeonType.Minimum)

@@ -41,7 +41,7 @@ fun TripRecapScreen(
                             SignatureMessage("아직 마친 주행이 없어요", "주행을 마치고 주차하면 이곳에서 함께 돌아봐요.",
                                 action = "내 시그니처 보기", onAction = onSignature)
                         } else {
-                            HeroPanel(Modifier.fillMaxWidth()) {
+                            GlassPanel(Modifier.fillMaxWidth()) {
                                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
                                     SignatureSource(recap.source)
@@ -65,7 +65,7 @@ fun TripRecapScreen(
             SignatureColumn {
                 val recap = state.recap.readyValue()
                 if (recap != null) {
-                    GlassCard(Modifier.fillMaxWidth()) {
+                    GlassPanel(Modifier.fillMaxWidth()) {
                         Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
                             SectionTitle(if (recap.included) "이번 주행이 남긴 이야기" else "내 기록에서 제외했어요")
                             when {
@@ -88,10 +88,10 @@ fun TripRecapScreen(
                         ChayeonText("공개 내용도 함께 반영하고 있어요.", style = ChayeonType.Secondary,
                             color = ChayeonColors.Secondary)
                     }
-                    JellyButton(if (state.markingSeen) "확인하고 있어요" else "내 시그니처 보기", onSignature,
+                    SignatureButton(if (state.markingSeen) "확인하고 있어요" else "내 시그니처 보기", onSignature,
                         Modifier.fillMaxWidth().testTag("recap-open-signature"), enabled = !state.markingSeen && !state.excluding && !state.pendingChanges)
                     if (recap.included && recap.source == DataSource.VEHICLE) {
-                        JellyButton(if (state.excluding) "주행을 빼고 있어요" else "내가 운전하지 않았어요", onExclude,
+                        SignatureButton(if (state.excluding) "주행을 빼고 있어요" else "내가 운전하지 않았어요", onExclude,
                             Modifier.fillMaxWidth().testTag("exclude-trip"), JellyVariant.SECONDARY,
                             enabled = !state.excluding && !state.markingSeen)
                         ChayeonText("다른 사람이 운전했다면 내 시그니처에서 뺄 수 있어요.",

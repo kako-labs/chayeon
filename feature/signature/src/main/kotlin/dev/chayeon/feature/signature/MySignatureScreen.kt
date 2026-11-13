@@ -31,17 +31,22 @@ fun MySignatureScreen(
     onDemo: () -> Unit,
     onRetry: () -> Unit,
 ) {
-    SignatureFrame("내 시그니처", state.driving.policy, chrome, onBack,
+    SignatureFrame("내 시그니처", state.driving.policy, chrome, onBack, scene = if (state.signature.readyValue()?.isRecording == true) Scene.ROAD else Scene.PLAIN,
         primary = {
             when (val loaded = state.signature) {
                 is LoadState.Loading -> SignatureMessage("주행의 이야기를 모으고 있어요", "매듭과 특성을 불러오고 있어요.")
                 is LoadState.Failed -> SignatureFailure(loaded.error, "시그니처를 불러오지 못했어요", onRetry)
                 is LoadState.Ready -> {
                     val signature = loaded.value
-                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    if (signature.isRecording) SignatureColumn {
+                        StatusChip(if (state.recordingEnabled) "주행 기록 켜짐" else "주행 기록 꺼짐", variant = StatusVariant.PLAIN)
+                        HeroHeadline("달릴수록\n프로필이 쌓여요", "평소처럼 운전하면 차가 읽은 신호로 프로필이 만들어져요.", style = ChayeonType.SceneTitle)
+                        Mascot(MascotPose.THREAD, Modifier.fillMaxWidth().height(ChayeonDimensions.SceneMascot))
+                        SignatureButton("공개 범위", onVisibility, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
+                    } else BoxWithConstraints(Modifier.fillMaxWidth()) {
                         val bounded = constraints.hasBoundedHeight
                         val knotSize = if (bounded) minOf(ChayeonDimensions.ChemistryKnot, maxHeight * .55f) else ChayeonDimensions.ChemistryKnot
-                        HeroPanel(Modifier.fillMaxWidth().then(if (bounded) Modifier.fillMaxHeight() else Modifier),
+                        GlassPanel(Modifier.fillMaxWidth().then(if (bounded) Modifier.fillMaxHeight() else Modifier),
                             contentPadding = PaddingValues(ChayeonSpacing.Screen)) {
                             val scroll = rememberScrollState()
                             Column(Modifier.fillMaxWidth().then(if (bounded) Modifier.fillMaxHeight().scrollEdgeFade(scroll).verticalScroll(scroll) else Modifier),
@@ -51,7 +56,7 @@ fun MySignatureScreen(
                                 SignatureKnot(signature.knotSeed, Modifier.size(knotSize), reveal = false)
                                 GradientText(signature.displayTitle, style = ChayeonType.Title)
                                 SignatureSource(signature.displaySource)
-                                JellyButton("공개 범위", onVisibility, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
+                                SignatureButton("공개 범위", onVisibility, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
                             }
                         }
                     }

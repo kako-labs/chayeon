@@ -26,7 +26,7 @@ fun SignatureVisibilityScreen(
                     is LoadState.Failed -> SignatureFailure(loaded.error, "공개 설정을 불러오지 못했어요", onRetry)
                     is LoadState.Ready -> {
                         val visibility = state.visibility ?: loaded.value.visibility
-                        GlassCard(Modifier.fillMaxWidth()) {
+                        GlassPanel(Modifier.fillMaxWidth()) {
                             GelToggle(visibility.publishSignature, onPublished, "시그니처 공개",
                                 Modifier.fillMaxWidth().testTag("publish-toggle"), enabled = !state.savingVisibility && !state.publishing)
                             ChayeonText(if (state.savingVisibility || state.publishing) "공개 내용을 반영하고 있어요."
@@ -38,10 +38,10 @@ fun SignatureVisibilityScreen(
                         state.error?.let { SignatureFailure(it, "공개 내용을 반영하지 못했어요", onRetry) }
                         if (state.pendingChanges && state.publicationKnown && state.error == null &&
                             !state.savingVisibility && !state.publishing) {
-                            JellyButton("공개 내용 반영", onRetry, Modifier.fillMaxWidth(), JellyVariant.WHITE)
+                            SignatureButton("공개 내용 반영", onRetry, Modifier.fillMaxWidth(), JellyVariant.WHITE)
                         }
                         TraitCategory.entries.forEach { category ->
-                            GlassCard(Modifier.fillMaxWidth()) {
+                            GlassPanel(Modifier.fillMaxWidth()) {
                                 Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
                                     SectionTitle(category.label)
                                     TraitId.entries.filter { it.presentation.category == category }.forEach { trait ->
@@ -70,7 +70,7 @@ fun SignatureVisibilityScreen(
         },
         secondary = {
             SignatureColumn {
-                HeroPanel(Modifier.fillMaxWidth().testTag("public-preview"), contentPadding = PaddingValues(ChayeonSpacing.Screen)) {
+                GlassPanel(Modifier.fillMaxWidth().testTag("public-preview"), contentPadding = PaddingValues(ChayeonSpacing.Screen)) {
                     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
                         SectionTitle("상대에게 이렇게 보여요", subtitle = "내가 고른 공개 내용의 미리보기예요")
@@ -102,7 +102,7 @@ fun SignatureVisibilityScreen(
                     }
                 }
                 if (state.signature is LoadState.Ready && (state.pendingChanges || state.error != null)) TopBanner("아직 반영되지 않은 내용이 있어요. 다시 시도해 주세요.", icon = ChayeonIcon.REFRESH)
-                GlassCard(Modifier.fillMaxWidth()) {
+                GlassPanel(Modifier.fillMaxWidth()) {
                     InfoRow(ChayeonIcon.LOCK, "공개한 특성의 점수만 보여요",
                         body = "60점부터 공개할 수 있어요. 읽은 신호, 주행별 횟수와 개인 메모는 나만 볼 수 있어요. 취향은 점수 없이 보여요.")
                 }
