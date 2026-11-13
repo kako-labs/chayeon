@@ -79,8 +79,12 @@ class SignatureVisibilityViewModel(private val deps: SignatureDeps) : ViewModel(
     }
 
     fun setTraitPublished(trait: TraitId, visible: Boolean) = changeVisibility { current ->
-        current.copy(visibleTraits = if (visible) current.visibleTraits + trait else current.visibleTraits - trait,
-            publishSignature = current.publishSignature || visible)
+        when {
+            // Turning on one trait while nothing is public must publish only that trait, not every default-visible one.
+            visible && !current.publishSignature -> current.copy(visibleTraits = setOf(trait), publishSignature = true)
+            visible -> current.copy(visibleTraits = current.visibleTraits + trait)
+            else -> current.copy(visibleTraits = current.visibleTraits - trait)
+        }
     }
 
     fun setPublished(published: Boolean) = changeVisibility { it.copy(publishSignature = published) }

@@ -81,6 +81,22 @@ class SignatureViewModelTest {
     }
 
     @Test
+    fun `turning on one trait while the signature is unpublished publishes only that trait`() = scenario {
+        val deps = SignatureTestDeps()
+        val current = (deps.signatureRepository.signature.value as LoadState.Ready).value
+        deps.signatureRepository.signature.value = LoadState.Ready(
+            current.copy(visibility = VisibilitySettings(version = current.visibility.version)), current.version)
+        val model = keep(SignatureVisibilityViewModel(deps))
+        observe(model.uiState)
+        runCurrent()
+        model.setTraitPublished(TraitId.GENTLE_RIDE, true)
+        runCurrent()
+        val request = deps.signatureRepository.visibilityCalls.last()
+        assertEquals(setOf(TraitId.GENTLE_RIDE), request.visibleTraits)
+        assertTrue(request.publishSignature)
+    }
+
+    @Test
     fun `policy changes between rendering and tapping reject publication and edits`() = scenario {
         val deps = SignatureTestDeps()
         val model = keep(SignatureVisibilityViewModel(deps))
