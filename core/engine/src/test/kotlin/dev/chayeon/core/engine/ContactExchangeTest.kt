@@ -103,7 +103,7 @@ class ContactExchangeTest {
             val command = request(f, save = action == "delete")
             val pending = f.engine.requestAfter("a", command).ok()
             val peerCommand = UpdateSettingsRequest(f.meta(), false)
-            f.engine.updateSettings("b", peerCommand).ok()
+            val originalSettings = f.engine.updateSettings("b", peerCommand).ok()
             val accept = RespondAfterRequest(f.meta(), pending.id, RequestDecision.ACCEPT, theirs)
             val id = f.engine.respondAfter("b", accept).ok().afterConnectionId!!
             when (action) {
@@ -116,7 +116,8 @@ class ContactExchangeTest {
             assertNull(peer.ownSharedContacts)
             assertHidden(EngineJson.encodeToString(f.engine.respondAfter("b", accept)), mine)
             assertHidden(EngineJson.encodeToString(f.engine.requestAfter("a", command)), mine)
-            if (action == "delete") assertEquals(AppError.AlreadyClosed, f.engine.updateSettings("b", peerCommand).error())
+            // Another person's unrelated retry keeps its original result after someone else deletes their account.
+            if (action == "delete") assertEquals(originalSettings, f.engine.updateSettings("b", peerCommand).ok())
             val stored = EngineJson.encodeToString(f.engine.exportState())
             assertHidden(stored, mine)
             assertHidden(stored, theirs)

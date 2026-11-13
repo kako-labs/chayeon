@@ -171,8 +171,8 @@ internal fun Room.deleteAccount(actor: String, r: DeleteAccountRequest): Command
                 firstReason = AfterCloseReason.ACCOUNT_DELETED, secondReason = AfterCloseReason.ACCOUNT_DELETED)
             else connection
         },
-        blocks = state.blocks.filterValues { it.owner != actor }, commands = state.commands.filterNot { it.actor == actor }.map { command ->
-            command.copy(result = EngineJson.encodeToJsonElement<AppResult<CommandReceipt>>(AppResult.Failure(AppError.AlreadyClosed)))
-        })
+        // Only the deleted actor's cached results are dropped. Other people's retries must keep their own results;
+        // anything that projected this account (contacts, profile) is rebuilt from current state on replay.
+        blocks = state.blocks.filterValues { it.owner != actor }, commands = state.commands.filterNot { it.actor == actor })
     return CommandReceipt(r.meta.commandId, v)
 }

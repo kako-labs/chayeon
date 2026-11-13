@@ -120,7 +120,9 @@ class Device:
                     time.sleep(0.4)
                     return
             if scroll and attempt > 0:
-                self.shell("input", "swipe", "2250", "1120", "2250", "470", "350")
+                # Two-column screens scroll each pane on its own, so alternate between the right and left pane.
+                x = "2250" if attempt % 2 else "1300"
+                self.shell("input", "swipe", x, "1120", x, "470", "350")
             time.sleep(0.4)
         raise AssertionError("누를 항목을 찾지 못했어요: " + label)
 
