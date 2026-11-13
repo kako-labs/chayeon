@@ -139,8 +139,6 @@ def render_ffmpeg(kit, output):
                 log.flush()
     (folder / 'concat.txt').write_text(''.join(f"file '{stem}.mp4'\n" for stem, _ in jobs))
     subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', str(folder / 'concat.txt'),
-                    # The emulator plays the call stream quietly (voice peaks near -27 dBFS); lift it to a clear
-                    # level and keep peaks under -1 dBFS. Video is copied untouched.
-                    '-c:v', 'copy', '-af', 'volume=18dB,alimiter=limit=0.89:level=false', '-c:a', 'aac', '-b:a', '192k',
-                    '-movflags', '+faststart', str(output / 'chayeon-story.mp4')], check=True)
+                    # Delivered silent (owner decision 2026-11-14): captions and the screen carry the story.
+                    '-c:v', 'copy', '-an', '-movflags', '+faststart', str(output / 'chayeon-story.mp4')], check=True)
     (output / 'timeline.json').write_text(json.dumps(timeline, ensure_ascii=False, indent=2))

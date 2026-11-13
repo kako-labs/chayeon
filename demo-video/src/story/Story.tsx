@@ -16,7 +16,7 @@ const Shot = ({scene}: {scene: Scene}) => {
   const taps = recording.taps.filter(t => sourceTime >= t.sec && sourceTime < t.sec + 0.7);
   return <AbsoluteFill>
     <div style={{position: 'absolute', left: FRAME.x, top: FRAME.y, width: FRAME.w, height: FRAME.h}}>
-      <OffthreadVideo src={staticFile('rec/story.mp4')} trimBefore={scene.from} playbackRate={1} style={{width: FRAME.w, height: FRAME.h, objectFit: 'contain'}} />
+      <OffthreadVideo src={staticFile('rec/story.mp4')} trimBefore={scene.from} playbackRate={1} muted style={{width: FRAME.w, height: FRAME.h, objectFit: 'contain'}} />
       {taps.map((tap, i) => <div key={i} style={{position: 'absolute', left: tap.x * FRAME.w / 2560 - 21, top: tap.y * FRAME.h / 1440 - 21, width: 42, height: 42, borderRadius: '50%', border: `3px solid ${THEME.accent}`, background: 'rgba(255,154,166,0.15)', opacity: 1 - (sourceTime - tap.sec) / 0.7}} />)}
       {scene.highlight ? <div style={{position: 'absolute', left: scene.highlight[0] * FRAME.w / 2560, top: scene.highlight[1] * FRAME.h / 1440, width: scene.highlight[2] * FRAME.w / 2560, height: scene.highlight[3] * FRAME.h / 1440, border: `2px solid ${THEME.accent}`, borderRadius: 6}} /> : null}
     </div>
