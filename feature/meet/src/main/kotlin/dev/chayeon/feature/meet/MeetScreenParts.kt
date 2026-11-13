@@ -1,38 +1,11 @@
 package dev.chayeon.feature.meet
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -74,75 +47,6 @@ internal fun MeetError(error: AppError?) {
 }
 
 @Composable
-internal fun MeetPeerSignature(peer: PublicProfile) {
-    PeerHeader(peer, size = PeerHeaderSize.SMALL)
-    val signature = peer.signature
-    if (signature != null) CompositionLocalProvider(LocalDecorativeMotion provides false) {
-        SignatureHero(signature, Modifier.fillMaxWidth())
-    }
-    else HeroPanel(Modifier.fillMaxWidth()) {
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
-            AvatarDish(MochiAvatar.from(peer.avatar), Modifier.size(ChayeonDimensions.PeerLarge))
-            ChayeonText("시그니처를 만드는 중이에요", style = ChayeonType.Section)
-            ChayeonText("공개한 주행 특성이 생기면 여기에 보여요", style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
-        }
-    }
-}
-
-@Composable
-internal fun MeetTraits(signature: PublicSignature?) {
-    if (signature == null || signature.traits.isEmpty()) return
-    GlassCard(Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-            SectionTitle("주행으로 보여주는 모습", subtitle = "공개하기로 고른 특성만 보여요")
-            TraitCategory.entries.forEach { category ->
-                val traits = signature.traits.filter { it.trait.presentation.category == category }
-                if (traits.isNotEmpty()) {
-                    ChayeonText(category.label, style = ChayeonType.Label, color = ChayeonColors.Pink)
-                    traits.forEach { trait ->
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-                            TraitBadge(trait.trait, trait.level, size = TraitBadgeSize.DETAIL)
-                            ChayeonText(trait.trait.presentation.publicPhrase, Modifier.weight(1f), ChayeonType.Secondary, ChayeonColors.Secondary)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-internal fun MeetChemistry(chemistry: Chemistry, own: PublicSignature?, peer: PublicSignature?) {
-    if (chemistry.lines.isEmpty()) return
-    if (own != null && peer != null) CompositionLocalProvider(LocalDecorativeMotion provides false) {
-        ChemistryCard(chemistry, own, peer, Modifier.fillMaxWidth())
-    }
-    else GlassCard(Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-            SectionTitle("함께하면 잘 맞는 점")
-            chemistry.lines.forEach { InfoRow(ChayeonIcon.KNOT, it.text) }
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-internal fun MeetInterests(peer: PublicProfile, shared: Set<InterestId> = emptySet()) {
-    if (peer.interests.isEmpty()) return
-    GlassCard(Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-            SectionTitle("좋아하는 것")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.TagGap),
-                verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.TagGap)) {
-                peer.interests.sortedBy { it.ordinal }.forEach { InterestTag(it.label, matched = it in shared) }
-            }
-        }
-    }
-}
-
-@Composable
 internal fun MeetPrivacy() {
     ChayeonText("위치와 차량 정보는 서로에게 보이지 않아요", style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
 }
@@ -150,95 +54,51 @@ internal fun MeetPrivacy() {
 @Composable
 internal fun MeetDiscoveryHero(state: HomeUiState, onToggle: (Boolean) -> Unit) {
     val enabled = state.discovery.mode == DiscoveryMode.ON
-    val resting = enabled && state.homeZone.suppressed
-    val compact = state.profileLoaded && state.profile?.signature == null
-    HeroPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues()) {
-        BoxWithConstraints(Modifier.fillMaxWidth().heightIn(min = if (compact) ChayeonDimensions.Avatar else ChayeonDimensions.HeroKnot + ChayeonSpacing.Screen)) {
-            val wide = maxWidth >= ChayeonSpacing.NarrowBreakpoint
-            if (wide) Box(Modifier.matchParentSize()) {
-                Image(painterResource(ChayeonAssets.KeyVisual), null,
-                    Modifier.align(Alignment.CenterEnd).width(ChayeonDimensions.ChemistryKnot + ChayeonDimensions.PeerSmall).fillMaxHeight()
-                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                        .drawWithContent {
-                            drawContent()
-                            // A fitted image leaves its dark rectangle on the tinted panel, so fade every edge.
-                            val mask = if (compact) {
-                                Brush.radialGradient(.58f to ChayeonColors.White, 1f to ChayeonColors.Transparent, center = center, radius = size.height / 2f)
-                            } else {
-                                Brush.horizontalGradient(0f to ChayeonColors.Transparent, .38f to ChayeonColors.White)
+    val resting = state.homeZone.suppressed
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val wide = maxWidth >= ChayeonSpacing.NarrowBreakpoint
+        Box(Modifier.fillMaxWidth().then(if (wide && !resting) Modifier.height(ChayeonDimensions.SceneMascot - ChayeonDimensions.SceneShadow) else if (wide) Modifier.heightIn(min = ChayeonDimensions.SceneMascot + ChayeonDimensions.PeerLarge) else Modifier)) {
+            if (wide) Mascot(if (resting) MascotPose.SLEEP else MascotPose.WAVE,
+                Modifier.align(Alignment.CenterEnd).size(ChayeonDimensions.SceneMascot))
+            Column(Modifier.fillMaxWidth(if (wide) .56f else 1f).padding(top = if (resting) ChayeonSpacing.Touch else ChayeonSpacing.Large),
+                verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
+                DiscoveryChip(enabled, onToggle, Modifier.width(ChayeonDimensions.Knot), resting = resting, enabled = !state.toggle.inProgress)
+                HeroHeadline(
+                    title = if (resting) when (state.homeZone.status) {
+                        HomeZoneStatus.PERMISSION_OFF -> "위치 사용이 꺼져 있어 쉬고 있어요"
+                        HomeZoneStatus.LOCATION_UNKNOWN -> "위치를 확인할 때까지 쉬고 있어요"
+                        else -> "집 근처에서는\n쉬고 있어요"
+                    } else if (!enabled) "지금은 아무에게도 보이지 않아요" else when (state.discovery.status) {
+                        DiscoveryStatus.AVAILABLE -> "근처에 인연이 있어요"
+                        DiscoveryStatus.ALREADY_CONNECTED -> "지금 이어진 인연이 있어요"
+                        else -> "새로운 인연을 천천히 만나봐요"
+                    },
+                    supportingLine = if (resting) when (state.homeZone.status) {
+                        HomeZoneStatus.PERMISSION_OFF -> "위치 권한과 내 프로필의 위치 사용 동의를 확인해 주세요"
+                        HomeZoneStatus.LOCATION_UNKNOWN -> "위치 서비스를 켜고 잠시 기다려 주세요. 그동안 발견을 쉬어요"
+                        else -> "벗어나면 다시 찾을 수 있어요"
+                    } else if (enabled) "발견을 켠 운전자끼리만 서로 보여요" else "켜면 닉네임과 공개한 시그니처, 관심사가 보여요",
+                )
+                if (resting) {
+                    GlassPanel(Modifier.fillMaxWidth()) {
+                        InfoRow(ChayeonIcon.LOCK, "집 위치는 이 차에만 있어요", body = "서버와 상대에게는 보내지 않아요")
+                    }
+                    if (LocalSourceLabels.current && state.homeZone.source == LocationSource.SYNTHETIC) InfoLine("합성 위치 · 가상 집")
+                } else if (enabled && state.discovery.status == DiscoveryStatus.AVAILABLE) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
+                        StatTile(ChayeonIcon.PEOPLE, "지금 근처", nearbyCountLabel(state.discovery.candidates), Modifier.weight(.8f))
+                        GlassPanel(Modifier.weight(1.2f)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
+                                InfoLine("내 칭호")
+                                ChayeonText(state.profile?.signature?.title ?: "시그니처를 만드는 중이에요", style = ChayeonType.SceneName)
                             }
-                            drawRect(mask, blendMode = BlendMode.DstIn)
-                        }, contentScale = if (compact) ContentScale.Fit else ContentScale.Crop,
-                    alignment = if (compact) Alignment.Center else Alignment.TopCenter)
-            }
-            Column(Modifier.padding(ChayeonSpacing.Large).fillMaxWidth(if (wide) .66f else 1f), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
-                StatusChip(if (resting) "쉬는 중" else if (enabled) "오늘의 인연" else "발견 꺼짐", variant = if (enabled && !resting) StatusVariant.ACTIVE else StatusVariant.PLAIN)
-                GradientText(if (!enabled) "지금은 아무에게도 보이지 않아요" else if (resting) when (state.homeZone.status) {
-                    HomeZoneStatus.PERMISSION_OFF -> "위치 사용이 꺼져 있어 쉬고 있어요"
-                    HomeZoneStatus.LOCATION_UNKNOWN -> "위치를 확인할 때까지 쉬고 있어요"
-                    else -> "집 근처에서는 쉬고 있어요"
-                } else when (state.discovery.status) {
-                    DiscoveryStatus.AVAILABLE -> discoveryHeadline(state.discovery.candidates)
-                    DiscoveryStatus.ALREADY_CONNECTED -> "지금 이어진 인연이 있어요"
-                    else -> "새로운 인연을 천천히 만나봐요"
-                }, style = if (compact) ChayeonType.Section else ChayeonType.Title)
-                ChayeonText(if (resting) when (state.homeZone.status) {
-                    HomeZoneStatus.PERMISSION_OFF -> "위치 권한과 내 프로필의 위치 사용 동의를 확인해 주세요"
-                    HomeZoneStatus.LOCATION_UNKNOWN -> "위치 서비스를 켜고 잠시 기다려 주세요. 그동안 발견을 쉬어요"
-                    else -> "벗어나면 다시 찾을 수 있어요"
-                } else if (enabled) "서로 수락하면 대화가 시작돼요" else "켜면 닉네임과 공개한 시그니처, 관심사가 보여요",
-                    style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
-                if (LocalSourceLabels.current && resting && state.homeZone.source == LocationSource.SYNTHETIC) StatusChip("합성 위치 · 가상 집", variant = StatusVariant.PLAIN)
-                GlassCard(Modifier.width(ChayeonDimensions.Knot), contentPadding = PaddingValues(horizontal = ChayeonSpacing.Compact, vertical = ChayeonSpacing.Tiny)) {
-                    GelToggle(enabled, onToggle, if (state.toggle.inProgress) "바꾸고 있어요" else if (enabled) "발견 켜짐" else "발견 꺼짐",
-                        Modifier.fillMaxWidth(), enabled = !state.toggle.inProgress)
+                        }
+                    }
                 }
                 MeetError(state.toggle.error)
+                if (!wide && resting) Mascot(MascotPose.SLEEP, Modifier.size(ChayeonDimensions.PeerLarge).align(Alignment.CenterHorizontally))
             }
-
         }
-    }
-}
-
-@Composable
-internal fun MeetRelationStage(own: PublicProfile?, peer: PublicProfile, stage: ThreadStage, title: String, subtitle: String,
-    modifier: Modifier = Modifier, animate: Boolean = true, centered: Boolean = false, largeAvatars: Boolean = centered, largeNames: Boolean = false, footer: (@Composable () -> Unit)? = null) {
-    HeroPanel(modifier.fillMaxWidth(), contentPadding = PaddingValues(ChayeonSpacing.Large)) {
-        Column(Modifier.fillMaxWidth().align(Alignment.Center), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium),
-            horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start) {
-            GradientText(title, style = if (centered) ChayeonType.Hero.copy(textAlign = TextAlign.Center) else ChayeonType.Title)
-            if (subtitle.isNotEmpty()) ChayeonText(subtitle, style = if (centered) ChayeonType.Secondary.copy(textAlign = TextAlign.Center) else ChayeonType.Secondary, color = ChayeonColors.Secondary)
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                if (maxWidth >= ChayeonSpacing.NarrowBreakpoint) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-                        MeetRelationAvatar(own, "나", large = largeAvatars, largeName = largeNames)
-                        ThreadView(stage, Modifier.weight(1f), animateTransition = animate)
-                        MeetRelationAvatar(peer, peer.nickname, large = largeAvatars, largeName = largeNames)
-                    }
-                } else {
-                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
-                        MeetRelationAvatar(peer, peer.nickname, large = stage == ThreadStage.CONNECTED, largeName = largeNames)
-                        Box(Modifier.size(ChayeonDimensions.Avatar), contentAlignment = Alignment.Center) {
-                            ThreadView(stage, Modifier.width(ChayeonDimensions.Avatar).rotate(90f), animateTransition = animate)
-                        }
-                        MeetRelationAvatar(own, "나", largeName = largeNames)
-                    }
-                }
-            }
-            footer?.invoke()
-        }
-    }
-}
-
-@Composable
-private fun MeetRelationAvatar(profile: PublicProfile?, fallback: String, large: Boolean = false, largeName: Boolean = false) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
-        if (profile != null) AvatarDish(MochiAvatar.from(profile.avatar), Modifier.size(if (large) ChayeonDimensions.PeerLarge else ChayeonDimensions.Avatar))
-        else IconOrb(ChayeonIcon.PROFILE, Modifier.size(ChayeonDimensions.Avatar), OrbVariant.GLASS)
-        ChayeonText(profile?.nickname ?: fallback, style = if (largeName) ChayeonType.Title else ChayeonType.Section)
-        if (LocalSourceLabels.current && profile != null) ChayeonText(profile.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
     }
 }
 
@@ -255,32 +115,4 @@ internal fun MeetTwoColumns(first: @Composable () -> Unit, second: @Composable (
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-internal fun MeetHomeCandidate(candidate: Candidate, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val peer = candidate.profile
-    val signature = peer.signature
-    GlassCard(modifier) {
-        Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-                AvatarDish(MochiAvatar.from(peer.avatar), Modifier.size(ChayeonDimensions.PeerSmall))
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Tiny)) {
-                    ChayeonText(peer.nickname, style = ChayeonType.Section)
-                    ChayeonText(signature?.title ?: "시그니처를 만드는 중이에요", style = ChayeonType.Label)
-                    if (LocalSourceLabels.current) ChayeonText(peer.kind.label + (signature?.let { " · ${it.source.label}" } ?: ""),
-                        style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
-                }
-            }
-            PublishedScoreChips(signature)
-            if (candidate.chemistry.lines.isNotEmpty()) ChayeonText("잘 맞는 점 ${candidate.chemistry.lines.size}가지",
-                style = ChayeonType.Label, color = ChayeonColors.Pink)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.TagGap), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.TagGap)) {
-                peer.interests.sortedBy { it.ordinal }.forEach { InterestTag(it.label, matched = it in candidate.sharedInterests) }
-            }
-            JellyButton("프로필 보기", onClick, Modifier.fillMaxWidth())
-        }
-    }
-}
-
-internal fun discoveryHeadline(candidates: List<Candidate>): String =
-    "근처에서 ${candidates.size}명이 발견을 켰어요"
+internal fun nearbyCountLabel(candidates: List<Candidate>): String = "${candidates.size}명"

@@ -29,29 +29,21 @@ internal fun ConnectedUiState.callTopics(): CallTopics {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun MeetCallTopics(state: ConnectedUiState, onSafety: () -> Unit) {
+internal fun MeetCallTopics(state: ConnectedUiState) {
     val topics = state.callTopics()
     if (topics.isEmpty) return
-    GlassCard(Modifier.fillMaxWidth().testTag("call-topics")) {
-        Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-                SectionTitle("이야깃거리", Modifier.weight(1f))
-                JellyButton("차단·신고", onSafety, variant = JellyVariant.SECONDARY)
-            }
-            if (topics.sharedInterests.isNotEmpty()) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.TagGap),
-                    verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.TagGap)) {
-                    topics.sharedInterests.sortedBy { it.ordinal }.forEach { InterestTag(it.label, matched = true) }
-                }
-            }
-            topics.chemistryLines.forEach { ChayeonText(it, style = ChayeonType.Body, color = ChayeonColors.Secondary) }
-            if (topics.ownTitle != null || topics.peerTitle != null) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large),
-                    verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
-                    topics.ownTitle?.let { ChayeonText("나 · $it", style = ChayeonType.Secondary, color = ChayeonColors.Pink) }
-                    topics.peerTitle?.let { ChayeonText("${state.connection?.peer?.nickname.orEmpty()} · $it", style = ChayeonType.Secondary, color = ChayeonColors.Pink) }
-                }
+    Column(Modifier.fillMaxWidth().testTag("call-topics"), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium),
+            verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small), itemVerticalAlignment = Alignment.CenterVertically) {
+            InfoLine("이야깃거리")
+            topics.chemistryLines.forEach { ChayeonText(it, style = ChayeonType.SceneStatus) }
+            topics.sharedInterests.sortedBy { it.ordinal }.forEach { InterestTag(it.label, matched = true) }
+        }
+        if (topics.ownTitle != null || topics.peerTitle != null) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large),
+                verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
+                topics.ownTitle?.let { ChayeonText("나 · $it", style = ChayeonType.Secondary, color = ChayeonColors.Pink) }
+                topics.peerTitle?.let { ChayeonText("${state.connection?.peer?.nickname.orEmpty()} · $it", style = ChayeonType.Secondary, color = ChayeonColors.Pink) }
             }
         }
     }

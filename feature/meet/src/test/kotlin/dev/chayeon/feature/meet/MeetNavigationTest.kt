@@ -17,6 +17,7 @@ import androidx.navigation.compose.rememberNavController
 import dev.chayeon.core.model.*
 import dev.chayeon.core.ui.ChayeonTheme
 import dev.chayeon.core.ui.previewChrome
+import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -50,6 +51,46 @@ class MeetNavigationTest {
     private fun awaitRoute(route: String) {
         compose.waitUntil(5_000) { controller.currentBackStackEntry?.destination?.route == route }
         compose.waitForIdle()
+    }
+
+    @Test fun homeCallActionUsesExistingRequestCommandAndExactTarget() {
+        launch()
+        compose.onNodeWithText("통화 요청하기").assertIsEnabled().performClick()
+        awaitRoute(MeetDestination.REQUESTS)
+        compose.runOnIdle {
+            assertEquals(MeetFixtures.candidate.id, deps.requestCommands.single().candidateId)
+            assertEquals("request", controller.currentBackStackEntry?.savedStateHandle?.get<String>("meet.requestId"))
+        }
+    }
+
+    @Test fun homeRequestLocksPagingDuringSendAndRetriesSameCommand() {
+        val response = CompletableDeferred<AppResult<ConnectionRequest>>()
+        deps.discovery.value = MeetFixtures.discovery.copy(candidates = listOf(MeetFixtures.candidate,
+            MeetFixtures.candidate.copy(id = "second", profile = MeetFixtures.peer.copy(nickname = "별보는밤"))))
+        deps.requestResult = { response.await() }
+        launch()
+        compose.onNodeWithText("통화 요청하기").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("다음 사람 보기").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("프로필 보기").assertIsNotEnabled()
+        compose.runOnIdle { response.complete(AppResult.Failure(AppError.Network)) }
+        compose.waitForIdle()
+        compose.onNodeWithText(AppError.Network.userMessage).assertExists()
+        compose.onNodeWithText("다음 사람 보기").assertIsEnabled()
+        deps.requestResult = { AppResult.Success(MeetFixtures.request.copy(direction = RequestDirection.OUTGOING)) }
+        compose.onNodeWithText("통화 요청하기").performClick()
+        awaitRoute(MeetDestination.REQUESTS)
+        compose.runOnIdle {
+            assertEquals(2, deps.requestCommands.size)
+            assertEquals(deps.requestCommands.first(), deps.requestCommands.last())
+        }
+    }
+
+    @Test fun homeProfileStillOpensCandidateWithoutSending() {
+        launch()
+        compose.onNodeWithContentDescription("프로필 보기").performClick()
+        awaitRoute(MeetDestination.CANDIDATE)
+        compose.runOnIdle { assertEquals(0, deps.requestCommands.size) }
     }
 
     @Test fun drivingReturnsToHomeWithoutChangingDiscovery() {
@@ -102,7 +143,7 @@ class MeetNavigationTest {
         compose.onNodeWithText(MeetFixtures.peer.nickname).assertDoesNotExist()
         compose.runOnIdle { deps.drivingState.value = MeetFixtures.parked }
         awaitRoute(MeetDestination.ENDED)
-        compose.onNodeWithText("기록 보기").assertExists()
+        compose.onNodeWithText("애프터 신청하기").assertExists()
     }
 
     @Test fun serverRequestConnectionAndEndDriveNavigationOnlyOnce() {
@@ -110,7 +151,7 @@ class MeetNavigationTest {
         compose.runOnIdle { deps.requests.value = LoadState.Ready(listOf(MeetFixtures.request), 2) }
         compose.waitForIdle()
         compose.runOnIdle { assertEquals(MeetDestination.HOME, controller.currentDestination?.route) }
-        compose.onNodeWithText("받은 연결 요청 보기").performClick()
+        compose.onNodeWithText("받은 통화 요청 보기").performClick()
         awaitRoute(MeetDestination.REQUESTS)
         compose.runOnIdle {
             assertEquals("request", controller.currentBackStackEntry?.savedStateHandle?.get<String>("meet.requestId"))
@@ -120,9 +161,9 @@ class MeetNavigationTest {
         awaitRoute(MeetDestination.CONNECTED)
         compose.runOnIdle { deps.connection.value = LoadState.Ready(MeetFixtures.ended, 4) }
         awaitRoute(MeetDestination.ENDED)
-        compose.onNodeWithText("기록 보기").performClick()
+        compose.onNodeWithText("애프터 신청하기").performClick()
         compose.runOnIdle { assertEquals(listOf(MeetExit.OpenEncounter("encounter")), exits) }
-        compose.onNodeWithText("오늘의 인연으로").performClick()
+        compose.onNodeWithText("홈으로").performClick()
         awaitRoute(MeetDestination.HOME)
         compose.runOnIdle { deps.connection.value = LoadState.Ready(MeetFixtures.ended.copy(version = 5), 5) }
         compose.waitForIdle()
@@ -134,7 +175,7 @@ class MeetNavigationTest {
         launch()
         compose.runOnIdle { controller.navigate(MeetDestination.candidate("candidate")) }
         awaitRoute(MeetDestination.CANDIDATE)
-        compose.onNodeWithText("연결 요청 보내기").performClick()
+        compose.onNodeWithText("통화 요청하기").performClick()
         awaitRoute(MeetDestination.REQUESTS)
         compose.runOnIdle {
             assertEquals("request", controller.currentBackStackEntry?.savedStateHandle?.get<String>("meet.requestId"))

@@ -28,6 +28,31 @@ class MeetInteractionTest {
 
     @After fun clearModels() { compose.runOnIdle { store.clear() } }
 
+    @Test fun recommendationPagesOnePersonAndKeepsDetailAccessAfterRefresh() {
+        val first = MeetFixtures.candidate
+        val second = first.copy(id = "second", profile = first.profile.copy(nickname = "별보는밤"))
+        val state = mutableStateOf(HomeUiState(MeetFixtures.parked,
+            MeetFixtures.discovery.copy(candidates = listOf(first, second)), MeetFixtures.own, profileLoaded = true))
+        val opened = mutableListOf<String>()
+        compose.setContent {
+            ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
+                HomeScreen(state.value, previewChrome(), {}, {}, { opened += it }, {}, {}, {}, {})
+            }
+        }
+        compose.onNodeWithText(first.profile.nickname).assertIsDisplayed()
+        compose.onNodeWithText(second.profile.nickname).assertDoesNotExist()
+        compose.onNodeWithText("다음 사람 보기").performClick()
+        compose.onNodeWithText(first.profile.nickname).assertDoesNotExist()
+        compose.onNodeWithText(second.profile.nickname).assertIsDisplayed()
+        compose.onNodeWithText("오늘의 인연  2 / 2").assertExists()
+        compose.onNodeWithContentDescription("프로필 보기").performClick()
+        assertEquals(listOf(second.id), opened)
+        compose.runOnIdle { state.value = state.value.copy(discovery = state.value.discovery.copy(candidates = listOf(first))) }
+        compose.onNodeWithText(first.profile.nickname).assertIsDisplayed()
+        compose.onNodeWithText("오늘의 인연  1 / 1").assertExists()
+        compose.onNodeWithText("다음 사람 보기").assertIsNotEnabled()
+    }
+
     @Test fun demoAwayExplainsEmptyListAndOpensConsole() {
         var opened = false
         compose.setContent {
@@ -92,27 +117,27 @@ class MeetInteractionTest {
             }
         }
         val invitation = compose.onNodeWithText("내 시그니처 만들기").assertIsDisplayed().getUnclippedBoundsInRoot()
-        val candidates = compose.onNodeWithText("지금 연결할 수 있는 사람").getUnclippedBoundsInRoot()
+        val candidates = compose.onNodeWithTag("recommendation-page").getUnclippedBoundsInRoot()
         assertTrue(invitation.bottom <= candidates.top)
         compose.onNodeWithText("시그니처 만들러 가기").performClick()
         assertTrue(opened)
         compose.runOnIdle { state.value = state.value.copy(profile = MeetFixtures.own) }
         compose.onNodeWithText("내 시그니처 만들기").assertDoesNotExist()
-        compose.onNodeWithText("프로필 보기").assertExists()
+        compose.onNodeWithContentDescription("프로필 보기").assertExists()
     }
 
-    @Test fun everyPublicTraitAndPhraseIsVisibleWithoutScrolling() {
+    @Test fun everyPublicTraitAndPhraseRemainsReachable() {
         val state = CandidateUiState(MeetFixtures.parked, MeetFixtures.completeCandidate, MeetFixtures.own, canRequest = true)
         compose.setContent {
             ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { CandidateScreen(state, previewChrome(), {}, {}, {}) }
         }
         TraitId.entries.forEach {
-            compose.onNodeWithText(it.presentation.name).assertIsDisplayed()
-            compose.onNodeWithText(it.presentation.publicPhrase).assertIsDisplayed()
+            compose.onNodeWithText(it.presentation.name).performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText(it.presentation.publicPhrase).performScrollTo().assertIsDisplayed()
         }
-        MeetFixtures.completeCandidate.chemistry.lines.forEach { compose.onNodeWithText(it.text).assertIsDisplayed() }
-        compose.onNodeWithText("좋아하는 것", substring = true).assertIsDisplayed()
-        compose.onNodeWithText("연결 요청 보내기").assertIsDisplayed()
+        MeetFixtures.completeCandidate.chemistry.lines.forEach { compose.onNodeWithText(it.text).performScrollTo().assertIsDisplayed() }
+        compose.onNodeWithText(InterestId.JAZZ.label).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("통화 요청하기").assertIsDisplayed()
     }
 
     @Test fun homeToggleUpdatesDiscoveryAndStopsShowingCandidates() {
@@ -127,7 +152,7 @@ class MeetInteractionTest {
         compose.waitUntil(timeoutMillis = 5_000) { deps.discoveryCommands.size == 1 }
         compose.onNode(hasText("발견 꺼짐") and hasClickAction()).assertExists()
         compose.onNodeWithText("내 카드를 직접 공개해요").assertExists()
-        compose.onNodeWithText("프로필 보기").assertDoesNotExist()
+        compose.onNodeWithContentDescription("프로필 보기").assertDoesNotExist()
         assertEquals(DiscoveryMode.OFF, deps.discoveryCommands.single().mode)
         compose.onNode(hasText("발견 꺼짐") and hasClickAction()).performClick()
         compose.waitUntil(timeoutMillis = 5_000) { deps.discoveryCommands.size == 2 }
@@ -146,14 +171,14 @@ class MeetInteractionTest {
         compose.waitForIdle()
         compose.runOnIdle { assertEquals(AppError.Network, model.uiState.value.refresh.error) }
         compose.onNodeWithText("서버에 연결하지 못했어요").assertIsDisplayed()
-        compose.onNodeWithText("프로필 보기").assertDoesNotExist()
+        compose.onNodeWithContentDescription("프로필 보기").assertDoesNotExist()
         deps.refreshResult = {
             deps.discovery.value = MeetFixtures.discovery
             AppResult.Success(MeetFixtures.discovery)
         }
         compose.onNodeWithText("다시 시도").performClick()
         compose.waitUntil(timeoutMillis = 5_000) { deps.refreshCommands.size == 2 && model.uiState.value.refresh.error == null }
-        compose.onNodeWithText("프로필 보기").assertExists()
+        compose.onNodeWithContentDescription("프로필 보기").assertExists()
         assertEquals(deps.refreshCommands.first(), deps.refreshCommands.last())
     }
 
@@ -162,12 +187,12 @@ class MeetInteractionTest {
         deps.requestResult = { AppResult.Failure(AppError.Network) }
         val model = keep(CandidateViewModel(deps, MeetFixtures.candidate.id))
         showCandidate(model)
-        compose.onNodeWithText("연결 요청 보내기").performClick()
+        compose.onNodeWithText("통화 요청하기").performClick()
         compose.waitForIdle()
         compose.runOnIdle { assertEquals(AppError.Network, model.uiState.value.request.error) }
         compose.onNodeWithText(AppError.Network.userMessage).assertIsDisplayed()
         deps.requestResult = { AppResult.Success(MeetFixtures.request.copy(direction = RequestDirection.OUTGOING)) }
-        compose.onNodeWithText("연결 요청 보내기").performClick()
+        compose.onNodeWithText("통화 요청하기").performClick()
         compose.waitUntil(timeoutMillis = 5_000) { deps.requestCommands.size == 2 && model.uiState.value.request.error == null }
         assertEquals(2, deps.requestCommands.size)
         assertEquals(MeetFixtures.candidate.id, deps.requestCommands.first().candidateId)
@@ -181,7 +206,7 @@ class MeetInteractionTest {
         val model = keep(RequestViewModel(deps))
         showRequest(model)
         compose.onNodeWithText("집 근처에서 쉬는 동안에는 수락할 수 없어요").assertIsDisplayed()
-        compose.onNodeWithText("수락하고 연결").assertIsNotEnabled()
+        compose.onNodeWithText("수락하고 통화하기").assertIsNotEnabled()
         compose.runOnIdle { model.accept() }
         compose.waitForIdle()
         assertTrue(deps.respondCommands.isEmpty())
@@ -196,12 +221,12 @@ class MeetInteractionTest {
         deps.respondResult = { AppResult.Failure(AppError.Network) }
         val model = keep(RequestViewModel(deps))
         showRequest(model)
-        compose.onNodeWithText("수락하고 연결").performClick()
+        compose.onNodeWithText("수락하고 통화하기").performClick()
         compose.waitForIdle()
         compose.runOnIdle { assertEquals(AppError.Network, model.uiState.value.accept.error) }
         compose.onNodeWithText(AppError.Network.userMessage).assertIsDisplayed()
         deps.respondResult = { AppResult.Success(MeetFixtures.request.copy(status = ConnectionRequestStatus.ACCEPTED)) }
-        compose.onNodeWithText("수락하고 연결").performClick()
+        compose.onNodeWithText("수락하고 통화하기").performClick()
         compose.waitUntil(timeoutMillis = 5_000) { deps.respondCommands.size == 2 }
         assertEquals(RequestDecision.ACCEPT, deps.respondCommands.first().decision)
         assertEquals(MeetFixtures.request.id, deps.respondCommands.first().requestId)
@@ -220,7 +245,7 @@ class MeetInteractionTest {
         showRequest(keep(RequestViewModel(deps)))
         compose.onNodeWithText("거절").performClick()
         compose.waitUntil(timeoutMillis = 5_000) { deps.respondCommands.size == 1 }
-        compose.onNodeWithText("수락하고 연결").assertDoesNotExist()
+        compose.onNodeWithText("수락하고 통화하기").assertDoesNotExist()
         compose.onNodeWithText("이번에는 연결되지 않았어요").assertExists()
         assertEquals(MeetFixtures.request.id, deps.respondCommands.single().requestId)
     }
@@ -239,7 +264,7 @@ class MeetInteractionTest {
         compose.waitUntil(timeoutMillis = 5_000) { deps.cancelCommands.size == 1 }
         compose.onNodeWithText("요청을 취소했어요").assertExists()
         compose.onNodeWithText("상대가 요청을 취소했어요").assertDoesNotExist()
-        compose.onNodeWithText("수락하고 연결").assertDoesNotExist()
+        compose.onNodeWithText("수락하고 통화하기").assertDoesNotExist()
         assertEquals(request.id, deps.cancelCommands.single().requestId)
     }
 
@@ -251,7 +276,7 @@ class MeetInteractionTest {
             ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { RequestScreen(state, previewChrome(), { accepts++ }, {}, {}, {}, {}) }
         }
         compose.onNodeWithContentDescription("응답 결과를 확인하고 있어요").assertExists()
-        compose.onNodeWithText("수락하고 연결").assertIsEnabled().performClick()
+        compose.onNodeWithText("수락하고 통화하기").assertIsEnabled().performClick()
         compose.onNodeWithText("응답 시간이 지나 요청이 끝났어요").assertDoesNotExist()
         assertEquals(1, accepts)
     }
@@ -340,9 +365,9 @@ class MeetInteractionTest {
         compose.setContent {
             ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { EndedScreen(state, previewChrome(), { homes++ }, { opened += it }) }
         }
-        compose.onNodeWithText("기록 보기").performClick()
+        compose.onNodeWithText("애프터 신청하기").performClick()
         assertEquals(listOf(MeetFixtures.ended.encounterId), opened)
-        compose.onNodeWithText("오늘의 인연으로").performClick()
+        compose.onNodeWithText("홈으로").performClick()
         assertEquals(1, homes)
     }
 
@@ -357,7 +382,7 @@ class MeetInteractionTest {
             ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { CandidateScreen(state, previewChrome(), { requests++ }, {}, {}) }
         }
         TraitId.entries.forEach { trait -> compose.onNodeWithText(trait.presentation.publicPhrase).performScrollTo().assertIsDisplayed() }
-        compose.onNodeWithText("연결 요청 보내기").assertIsDisplayed().performClick()
+        compose.onNodeWithText("통화 요청하기").assertIsDisplayed().performClick()
         assertEquals(1, requests)
     }
 
@@ -389,7 +414,7 @@ class MeetInteractionTest {
         compose.onNodeWithText("발견 켜짐").assertExists()
         compose.runOnIdle { state.value = state.value.copy(driving = MeetFixtures.parked.copy(policy = DrivingPolicy.UNKNOWN)) }
         compose.onNodeWithText("발견 켜짐").assertDoesNotExist()
-        compose.onNodeWithText("프로필 보기").assertDoesNotExist()
+        compose.onNodeWithContentDescription("프로필 보기").assertDoesNotExist()
         compose.onNodeWithText("주행 상태를 확인하고 있어요").assertExists()
         assertEquals(0, toggles)
     }

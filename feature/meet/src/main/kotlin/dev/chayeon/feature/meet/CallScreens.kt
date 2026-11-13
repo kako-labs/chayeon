@@ -14,43 +14,47 @@ import dev.chayeon.core.model.*
 import dev.chayeon.core.ui.*
 
 @Composable
-internal fun MeetCallHero(state: ConnectedUiState, driving: Boolean = false, onSafety: (() -> Unit)? = null) {
+internal fun MeetCallHero(state: ConnectedUiState, driving: Boolean = false) {
     val connection = state.connection ?: return
-    val title = when {
-        connection.status == ConnectionStatus.ENDED -> "통화가 끝났어요"
-        connection.status == ConnectionStatus.CHECKING -> "연결 상태를 확인하고 있어요"
-        state.call.status == CallStatus.CONNECTING || state.call.status == CallStatus.RECONNECTING -> "통화를 연결하고 있어요"
-        state.call.muted -> "음소거 중"
-        else -> "통화 중"
-    }
+    val title = state.callStatusTitle()
     if (driving) {
-        HeroPanel(Modifier.fillMaxWidth()) {
-            Column(Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-                GradientText(title, style = ChayeonType.Title)
-                AvatarDish(MochiAvatar.from(connection.peer.avatar), Modifier.size(ChayeonDimensions.PeerLarge))
-                ChayeonText(connection.peer.nickname, style = ChayeonType.Title)
-                connection.peer.signature?.let { signature ->
-                    ChayeonText(signature.title, style = ChayeonType.Section)
-                    PublishedScoreChips(signature, limit = 2, large = true)
-                }
-                if (LocalSourceLabels.current) ChayeonText(connection.peer.kind.label,
-                    style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+        Column(Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
+            AvatarDish(MochiAvatar.from(connection.peer.avatar), Modifier.size(ChayeonDimensions.PeerLarge))
+            ChayeonText(connection.peer.nickname, style = ChayeonType.SceneTitle)
+            connection.peer.signature?.let { signature ->
+                ChayeonText(signature.title, style = ChayeonType.SceneName, color = ChayeonColors.Secondary)
+                PublishedScoreChips(signature, limit = 2, large = true)
             }
+            ChayeonText(title, style = ChayeonType.SceneBrand, color = ChayeonColors.Pink)
+            MeetSourceLabel(connection.peer)
         }
         return
     }
-    Column(Modifier.semantics { liveRegion = LiveRegionMode.Polite }, verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-        MeetRelationStage(state.ownProfile, connection.peer,
-            if (connection.status == ConnectionStatus.ENDED) ThreadStage.ENDED else ThreadStage.CONNECTED,
-            title, if (driving) "" else "근처에 있는 동안 목소리로 이야기해요",
-            animate = !driving, centered = true, largeAvatars = true, largeNames = !driving,
-            footer = if (!driving && state.callTopics().isEmpty && onSafety != null) ({
-                Row(Modifier.fillMaxWidth().testTag("call-safety"), horizontalArrangement = Arrangement.End) {
-                    JellyButton("차단·신고", onSafety, variant = JellyVariant.SECONDARY)
-                }
-            }) else null)
+    Column(Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
+        ChayeonText("${connection.peer.nickname}님과 이야기하는 중", style = ChayeonType.CallTitle)
+        ChayeonText("근처에 있는 동안 목소리로 이어져요", style = ChayeonType.SceneBody, color = ChayeonColors.Secondary)
+        val own = state.ownProfile
+        if (own != null) CallHero(CallParticipant(MochiAvatar.from(own.avatar), own.nickname, own.signature?.title),
+            CallParticipant(MochiAvatar.from(connection.peer.avatar), connection.peer.nickname, connection.peer.signature?.title))
+        else CallAvatar(MochiAvatar.from(connection.peer.avatar), mirrored = true)
+        MeetSourceLabel(connection.peer)
+    }
+}
+
+@Composable
+internal fun MeetCallDetails(state: ConnectedUiState, onSafety: () -> Unit) {
+    GlassPanel(Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
+            Row(Modifier.fillMaxWidth().testTag("call-safety"), verticalAlignment = Alignment.CenterVertically) {
+                ChayeonText("${state.connection?.peer?.nickname.orEmpty()}님의 운전", Modifier.weight(1f), style = ChayeonType.SceneName)
+                OutlineButton("차단·신고", onSafety, compact = true)
+            }
+            PublishedScoreChips(state.connection?.peer?.signature)
+            MeetCallTopics(state)
+        }
     }
 }
 
@@ -58,20 +62,17 @@ internal fun MeetCallHero(state: ConnectedUiState, driving: Boolean = false, onS
 internal fun MeetCallControls(state: ConnectedUiState, onMute: () -> Unit, onLeave: () -> Unit) {
     val active = state.connection?.status == ConnectionStatus.CONNECTED && !state.awaitingPark
     val muteLabel = if (state.call.muted) "음소거 해제" else "음소거"
+    val driving = state.driving.policy != DrivingPolicy.ALLOWED
     MeetTwoColumns(
         first = {
-            JellyButton(muteLabel, onMute,
-                Modifier.fillMaxWidth().heightIn(min = ChayeonDimensions.ToggleWidth).semantics { contentDescription = muteLabel },
-                if (state.call.muted) JellyVariant.WHITE else JellyVariant.SECONDARY,
+            MeetVoiceControl(muteLabel, onMute,
                 enabled = active && state.driving.policy != DrivingPolicy.UNKNOWN && !state.leave.inProgress,
-                allowWhenRestricted = state.driving.policy == DrivingPolicy.RESTRICTED)
+                driving = driving, endCall = false)
         },
         second = {
-            JellyButton(if (state.leave.inProgress) "통화를 마치고 있어요" else "통화 끊기", onLeave,
-                Modifier.fillMaxWidth().heightIn(min = ChayeonDimensions.ToggleWidth).semantics { contentDescription = "통화 끊기" },
-                JellyVariant.PRIMARY,
+            MeetVoiceControl(if (state.leave.inProgress) "통화를 마치고 있어요" else "통화 끊기", onLeave,
                 enabled = (state.canLeave || state.connection?.status?.let { it != ConnectionStatus.ENDED } == true) && !state.leave.inProgress,
-                allowWhenRestricted = true)
+                driving = driving, endCall = true)
         },
     )
 }
@@ -84,7 +85,7 @@ internal fun MeetConnectedDriving(state: ConnectedUiState, chrome: ScreenChrome,
     }
     CompositionLocalProvider(LocalDecorativeMotion provides false) {
         ScreenScaffold(showSourceLabels = chrome.showSourceLabels, modifier = Modifier.testTag("meet-screen"),
-            topBar = chrome.topBar,
+            topBar = chrome.topBar, scene = Scene.ROAD, contentPadding = meetScenePadding,
             bottomBar = {
                 Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Compact)) {
                     MeetError(state.leave.error)
@@ -108,36 +109,55 @@ internal fun MeetIncomingDriving(state: RequestUiState, chrome: ScreenChrome, on
     val busy = state.accept.inProgress || state.decline.inProgress
     CompositionLocalProvider(LocalDecorativeMotion provides false) {
         ScreenScaffold(showSourceLabels = chrome.showSourceLabels, modifier = Modifier.testTag("meet-screen"),
-            topBar = chrome.topBar,
+            topBar = chrome.topBar, scene = Scene.ROAD, contentPadding = meetScenePadding,
             bottomBar = {
                 Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
                     if (state.homeSuppressed) TopBanner("집 근처에서 쉬는 동안에는 수락할 수 없어요")
                     MeetError(state.accept.error)
                     MeetError(state.decline.error)
                     MeetTwoColumns(
-                        first = { JellyButton("거절", onDecline,
+                        first = { OutlineButton("거절", onDecline,
                             Modifier.fillMaxWidth().heightIn(min = ChayeonDimensions.ToggleWidth).semantics { contentDescription = "거절" },
-                            JellyVariant.SECONDARY, enabled = !busy, allowWhenRestricted = true) },
-                        second = { JellyButton("받기", onAccept,
+                            enabled = !busy, access = ButtonAccess.RESTRICTED_CALL, driving = true) },
+                        second = { PrimaryButton("받기", onAccept,
                             Modifier.fillMaxWidth().heightIn(min = ChayeonDimensions.ToggleWidth).semantics { contentDescription = "받기" },
-                            enabled = !busy && !state.homeSuppressed, allowWhenRestricted = true) },
+                            enabled = !busy && !state.homeSuppressed, access = ButtonAccess.RESTRICTED_CALL, driving = true, icon = ChayeonIcon.PHONE) },
                     )
                 }
             }, primary = {
                 MeetPane(centered = true) {
-                    HeroPanel(Modifier.fillMaxWidth()) {
+                    Box(Modifier.fillMaxWidth()) {
                         Column(Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Large)) {
-                            ChayeonText("통화 요청", style = ChayeonType.Section, color = ChayeonColors.Pink)
+                            ChayeonText("통화 요청", style = ChayeonType.SceneBrand, color = ChayeonColors.Pink)
                             AvatarDish(MochiAvatar.from(peer.avatar), Modifier.size(ChayeonDimensions.PeerLarge))
-                            GradientText(peer.nickname, style = ChayeonType.Hero)
-                            ChayeonText(peer.signature?.title ?: "시그니처를 만드는 중이에요", style = ChayeonType.Section)
+                            ChayeonText(peer.nickname, style = ChayeonType.SceneTitle)
+                            ChayeonText(peer.signature?.title ?: "시그니처를 만드는 중이에요", style = ChayeonType.SceneName, color = ChayeonColors.Secondary)
                             PublishedScoreChips(peer.signature, limit = 2, large = true)
-                            if (LocalSourceLabels.current) ChayeonText(peer.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+                            MeetSourceLabel(peer)
                         }
                     }
                 }
             })
+    }
+}
+
+private fun ConnectedUiState.callStatusTitle(): String {
+    val connection = connection
+    return when {
+        connection?.status == ConnectionStatus.ENDED -> "통화가 끝났어요"
+        connection?.status == ConnectionStatus.CHECKING -> "연결 상태를 확인하고 있어요"
+        call.status == CallStatus.CONNECTING || call.status == CallStatus.RECONNECTING -> "통화를 연결하고 있어요"
+        call.muted -> "음소거 중"
+        else -> "통화 중"
+    }
+}
+
+@Composable
+internal fun MeetCallStatus(state: ConnectedUiState, elapsedMillis: Long?) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
+        StatusChip(state.callStatusTitle(), variant = StatusVariant.ACTIVE)
+        elapsedMillis?.let { InfoLine("%02d:%02d".format(it / 60_000, (it / 1_000) % 60)) }
     }
 }

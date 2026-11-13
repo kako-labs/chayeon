@@ -63,6 +63,28 @@ class MeetScreenshotTest {
         EndedScreen(state, chrome, {}, {})
     }
 
+    @Test @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
+    fun homeZoneNarrow() = home("zone_narrow", home.copy(homeZone = HomeZoneState(HomeZoneStatus.INSIDE, HomeZoneRadius.MEDIUM, LocationSource.DEVICE)))
+
+    @Test @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
+    fun homeOffNarrow() = home("off_narrow", home.copy(discovery = DiscoveryState()))
+
+    @Test @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
+    fun homeFailureNarrow() = discovery("failure_narrow", DiscoveryStatus.NETWORK_FAILURE)
+
+    @Test @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
+    fun homeNarrowActions() = capture("home_narrow_actions", scrollTo = "수락하면 바로 통화가 연결돼요") {
+        HomeScreen(home, it, {}, {}, {}, {}, {}, {}, {})
+    }
+
+    @Test fun parkedCallElapsedTime() = capture("connected_elapsed") {
+        ConnectedScreen(connected, it, {}, {}, elapsedMillis = 192_000)
+    }
+
+    @Test fun serverIncomingRequest() = capture("request_server", showSourceLabels = true) {
+        RequestScreen(incoming, it, {}, {}, {}, {}, {})
+    }
+
     @Test fun homePopulated() = home("populated", home.copy(discovery = MeetFixtures.discovery.copy(candidates = listOf(
         MeetFixtures.candidate,
         MeetFixtures.candidate.copy(id = "candidate-sea", profile = MeetFixtures.peer.copy(id = "peer-sea", nickname = "바다보러가요", avatar = AvatarId.SEA)),

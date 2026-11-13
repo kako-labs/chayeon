@@ -4,6 +4,7 @@ import android.graphics.BitmapFactory
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.github.takahirom.roborazzi.RoborazziOptions
 import com.github.takahirom.roborazzi.RoborazziTaskType
@@ -39,7 +40,7 @@ class MeetMotionTest {
         }
     }
 
-    @Test fun connectionReachesAndThenLightFlows() {
+    @Test fun callHeroRemainsStaticWithAnimatorEnabled() {
         compose.mainClock.autoAdvance = false
         val state = ConnectedUiState(driving = MeetFixtures.parked, connection = MeetFixtures.connection,
             ownProfile = MeetFixtures.own, loading = false)
@@ -51,12 +52,12 @@ class MeetMotionTest {
         compose.onNodeWithTag("meet-screen").captureRoboImage("src/test/screenshots/connected_reaching_350ms.png")
         compose.mainClock.advanceTimeBy(400)
         val reached = pixels()
-        assertFalse(reaching.contentEquals(reached))
+        assertArrayEquals(reaching, reached)
         compose.mainClock.advanceTimeBy(1_000)
-        assertFalse(reached.contentEquals(pixels()))
+        assertArrayEquals(reached, pixels())
     }
 
-    @Test fun endedThreadRetracts() {
+    @Test fun goodbyeMascotRemainsStaticWithAnimatorEnabled() {
         compose.mainClock.autoAdvance = false
         val state = EndedUiState(driving = MeetFixtures.parked, connection = MeetFixtures.ended, ownProfile = MeetFixtures.own, loading = false)
         compose.setContent {
@@ -66,7 +67,7 @@ class MeetMotionTest {
         val breaking = pixels()
         compose.onNodeWithTag("meet-screen").captureRoboImage("src/test/screenshots/ended_breaking_100ms.png")
         compose.mainClock.advanceTimeBy(400)
-        assertFalse(breaking.contentEquals(pixels()))
+        assertArrayEquals(breaking, pixels())
     }
 
     @Test fun policyTransitionStopsAllDecorativeMotion() {
@@ -81,7 +82,10 @@ class MeetMotionTest {
         }
         compose.mainClock.advanceTimeBy(900)
         compose.runOnIdle { driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED, gear = Gear.DRIVE) }
-        compose.mainClock.advanceTimeBy(50)
+        compose.mainClock.advanceTimeUntil(timeoutMillis = 1_000) {
+            compose.onAllNodesWithText("이야깃거리").fetchSemanticsNodes().isEmpty()
+        }
+        compose.waitForIdle()
         val stopped = pixels()
         compose.mainClock.advanceTimeBy(1_000)
         assertArrayEquals(stopped, pixels())
