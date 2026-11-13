@@ -263,13 +263,24 @@ class HistoryInteractionTest {
         var screen by mutableStateOf(HistoryScreen.FIRST_RUN)
         compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) { RenderHistoryScreen(screen, screenState(screen, ScreenScenario.POPULATED)) } }
         val bounds = compose.onNodeWithTag("onboarding-primary").fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithText("이전").assertDoesNotExist()
+        val left = compose.onNodeWithTag("onboarding-left").fetchSemanticsNode().boundsInRoot
+        val right = compose.onNodeWithTag("onboarding-right").fetchSemanticsNode().boundsInRoot
+        assertEquals(left.left, bounds.left, 1f)
+        assertEquals(right.right, bounds.right, 1f)
         listOf(HistoryScreen.PROFILE_SETUP, HistoryScreen.CONSENT).forEach { next ->
             compose.runOnIdle { screen = next }
-            compose.onNodeWithText("이전").assertIsDisplayed()
+            compose.onNodeWithText("이전").assertDoesNotExist()
             compose.onNodeWithTag("onboarding-primary").assertIsDisplayed()
             assertEquals(bounds, compose.onNodeWithTag("onboarding-primary").fetchSemanticsNode().boundsInRoot)
         }
         compose.onNodeWithText("발견 켜기").performScrollTo()
+        assertEquals(bounds, compose.onNodeWithTag("onboarding-primary").fetchSemanticsNode().boundsInRoot)
+        compose.onNodeWithText("이전").assertDoesNotExist()
+        compose.runOnIdle { screen = HistoryScreen.PROFILE_EDIT }
+        compose.onNodeWithText("프로필 고치기").assertIsDisplayed()
+        compose.onNodeWithText("변경 내용 저장").assertIsDisplayed()
+        compose.onNodeWithText("이전").assertDoesNotExist()
         assertEquals(bounds, compose.onNodeWithTag("onboarding-primary").fetchSemanticsNode().boundsInRoot)
     }
 

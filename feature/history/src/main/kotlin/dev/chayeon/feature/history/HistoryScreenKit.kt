@@ -147,11 +147,9 @@ internal fun StretchPanels(content: @Composable () -> Unit) {
 }
 
 @Composable
-internal fun OnboardingActions(label: String, enabled: Boolean, onContinue: () -> Unit, onBack: (() -> Unit)? = null) {
-    Row(Modifier.fillMaxWidth().testTag("onboarding-actions"), horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
-        if (onBack == null) Spacer(Modifier.weight(1f))
-        else JellyButton("이전", onBack, Modifier.weight(1f), JellyVariant.SECONDARY)
-        JellyButton(label, onContinue, Modifier.weight(2f).testTag("onboarding-primary"), enabled = enabled)
+internal fun OnboardingActions(label: String, enabled: Boolean, onContinue: () -> Unit) {
+    Box(Modifier.fillMaxWidth().testTag("onboarding-actions")) {
+        JellyButton(label, onContinue, Modifier.fillMaxWidth().testTag("onboarding-primary"), enabled = enabled)
     }
 }
 

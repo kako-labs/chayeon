@@ -89,7 +89,7 @@ fun ProfileSetupScreen(state: HistoryUiState, chrome: ScreenChrome, editing: Boo
     HistoryFrame(state, chrome, if (editing) "프로필 고치기" else "프로필 만들기", "언제든 내 프로필에서 고칠 수 있어요",
         onBack = onBack, step = if (editing) null else 1, ratio = .62f,
         bottom = { OnboardingActions(if (editing) "변경 내용 저장" else "저장하고 다음",
-            policy != null && state.draftLoaded && !state.command("save").running, onSave, onBack) },
+            policy != null && state.draftLoaded && !state.command("save").running, onSave) },
         primary = {
             HeroPanel(Modifier.fillMaxWidth().testTag("onboarding-left")) {
                 Column(Modifier.fillMaxWidth().heightIn(min = (LocalHistoryPaneHeight.current - ChayeonSpacing.Hero * 2).coerceAtLeast(0.dp)),
@@ -118,7 +118,7 @@ fun ConsentScreen(state: HistoryUiState, chrome: ScreenChrome, onConsent: (Conse
     onDiscovery: (Boolean) -> Unit, onVisibility: () -> Unit, onContinue: () -> Unit, onRetry: (String) -> Unit, onBack: () -> Unit,
     onHomeZone: () -> Unit = {}) {
     HistoryFrame(state, chrome, "차량 데이터·위치·공개 범위", "무엇을 읽고 보여줄지 직접 골라 주세요", onBack, step = 2,
-        bottom = { OnboardingActions("선택한 설정으로 시작", state.requiredConsentsGranted && state.myProfile?.registration == RegistrationState.READY, onContinue, onBack) },
+        bottom = { OnboardingActions("선택한 설정으로 시작", state.requiredConsentsGranted && state.myProfile?.registration == RegistrationState.READY, onContinue) },
         primary = {
             StretchPanels {
                 HeroPanel(contentPadding = PaddingValues(ChayeonSpacing.Large)) { Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
