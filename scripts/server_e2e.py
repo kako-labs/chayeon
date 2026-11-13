@@ -606,7 +606,7 @@ def run(port=18765, serial=None):
     if dev.gradle([":app:assembleDebug", "-Pchayeon.demo=true", f"-Pchayeon.serverUrl=http://127.0.0.1:{port}"]):
         return 1
     env = dev.execution_environment()
-    env.update(PORT=str(port), HOST="0.0.0.0", CHAYEON_ALLOWED_ROOMS="*")
+    env.update(PORT=str(port), HOST="0.0.0.0", CHAYEON_ALLOWED_ROOMS="*", CHAYEON_NEW_ACCOUNTS_PER_HOUR="1000")
     log = (device.output / "server.log").open("w", encoding="utf-8")
     server = subprocess.Popen([str(dev.ROOT / "server/build/install/server/bin/server")], env=env, stdout=log, stderr=subprocess.STDOUT)
     peer = None

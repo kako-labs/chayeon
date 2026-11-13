@@ -41,6 +41,20 @@ class RoomCapacityTest {
         enter(registry, 0).ok()
     }
 
+    @Test fun newAccountsAreLimitedPerAddressButReturningInstallsAreNot() {
+        var now = 1_800_000_000_000L
+        val registry = RoomRegistry(defaultRules(), ServerPolicy(newAccountsPerHour = 2), clock = EngineClock { now }, demoEnabled = false)
+        fun enterFrom(index: Int, address: String) =
+            registry.enter(EnterSessionRequest(meta(), SessionMode.SERVER_DEMO, null, secret(index)), address)
+        enterFrom(0, "198.51.100.7").ok()
+        enterFrom(1, "198.51.100.7").ok()
+        assertEquals(AppResult.Failure(AppError.Restricted), enterFrom(2, "198.51.100.7"))
+        enterFrom(2, "198.51.100.8").ok()
+        enterFrom(0, "198.51.100.7").ok()
+        now += 3_600_000
+        enterFrom(3, "198.51.100.7").ok()
+    }
+
     @Test fun signedOutAccountsReleaseSeatsButCannotReturnToAFullRoom() {
         val registry = RoomRegistry(defaultRules(), policy = ServerPolicy(roomCapacity = 1), demoEnabled = false)
         val first = enter(registry, 0).ok()

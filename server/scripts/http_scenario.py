@@ -1,7 +1,7 @@
 """Exercise a running local server without writing credentials or response bodies.
 
-Start the local server with CHAYEON_ALLOWED_ROOMS='*' before running this client:
-CHAYEON_ALLOWED_ROOMS='*' PORT=19876 ./gradlew -Pchayeon.serverOnly=true :server:run
+Start the local server with CHAYEON_ALLOWED_ROOMS='*' and CHAYEON_NEW_ACCOUNTS_PER_HOUR=1000 before running this client:
+CHAYEON_ALLOWED_ROOMS='*' CHAYEON_NEW_ACCOUNTS_PER_HOUR=1000 PORT=19876 ./gradlew -Pchayeon.serverOnly=true :server:run
 """
 
 import json

@@ -3,6 +3,7 @@ set -eu
 cd "$(dirname "$0")"
 export CHAYEON_DOMAIN=localhost
 export CHAYEON_ALLOWED_ROOMS='*'
+export CHAYEON_NEW_ACCOUNTS_PER_HOUR=1000
 export CHAYEON_HTTP_PORT="${CHAYEON_HTTP_PORT:-18080}"
 export CHAYEON_HTTPS_PORT="${CHAYEON_HTTPS_PORT:-18443}"
 export COMPOSE_PROJECT_NAME="chayeon-proof-$(date +%s)-$$"

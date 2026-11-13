@@ -9,7 +9,9 @@ import java.util.UUID
 data class ServerPolicy(
     val roomCapacity: Int = 50,
     /** Hard cap on stored (non-deleted) accounts per room; idle accounts free seats but still use storage. */
-    val roomAccountLimit: Int = 500,
+    val roomAccountLimit: Int = 2_000,
+    /** New accounts per client address per hour. Returning installs are not limited by this. */
+    val newAccountsPerHour: Int = 5,
     val dataDirectory: java.nio.file.Path? = null,
     val trustProxy: Boolean = false,
     /** Header the trusted proxy overwrites with the client address, for example `CF-Connecting-IP` behind a Cloudflare tunnel. */
@@ -52,6 +54,7 @@ class RoomRegistry(
 ) {
     internal val ipAdmission = Admission(clock::now)
     internal val actorAdmission = Admission(clock::now)
+    internal val newAccountAdmission = Admission(clock::now, windowMillis = 3_600_000)
     private val rooms = mutableMapOf<String, HostedRoom>()
     private val tokens = mutableMapOf<String, Authorization>()
     private val retired = linkedMapOf<String, RetiredReceipt>()
@@ -96,7 +99,7 @@ class RoomRegistry(
     }
 
     @Synchronized
-    fun enter(request: EnterSessionRequest): AppResult<Session> {
+    fun enter(request: EnterSessionRequest, clientAddress: String? = null): AppResult<Session> {
         val code = request.roomCode ?: "default"
         if (request.mode != SessionMode.SERVER_DEMO || !code.matches(Regex("[A-Za-z0-9_-]{4,32}")) || !roomAllowed(code))
             return AppResult.Failure(AppError.Restricted)
@@ -114,6 +117,8 @@ class RoomRegistry(
         if (!hasSeat(code, actor, accounts))
             return AppResult.Failure(AppError.Restricted)
         if (actor !in accounts && accounts.values.count { !it.deleted && !it.id.startsWith("demo-") } >= policy.roomAccountLimit)
+            return AppResult.Failure(AppError.Restricted)
+        if (actor !in accounts && clientAddress != null && !newAccountAdmission.allow("new:$clientAddress", policy.newAccountsPerHour))
             return AppResult.Failure(AppError.Restricted)
         val result = room.engine.enterSession(actor, request.copy(roomCode = code))
         if (result !is AppResult.Success) return result
