@@ -30,4 +30,6 @@ apk/*.aab
 *.aar
 *.dex
 *.apk
+# The contest requires the tested release APK in the repository under this exact name.
+!apk/KA&KO_차연_release.apk
 *.aab
