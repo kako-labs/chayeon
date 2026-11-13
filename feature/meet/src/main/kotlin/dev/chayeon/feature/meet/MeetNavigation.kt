@@ -6,6 +6,7 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.core.net.toUri
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -16,8 +17,11 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import dev.chayeon.core.model.DrivingPolicy
-import dev.chayeon.core.ui.ScreenChrome
+import dev.chayeon.core.ui.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Modifier
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 sealed interface MeetExit {
     data class OpenEncounter(val encounterId: String) : MeetExit
@@ -102,7 +106,27 @@ private fun MeetRoute(
             val model: HomeViewModel = viewModel { HomeViewModel(deps) }
             val state by model.uiState.collectAsStateWithLifecycle()
             val context = LocalContext.current
+            var requestGeneration by rememberSaveable { mutableIntStateOf(0) }
             HomeScreen(state, chrome, model::setDiscovery, model::refresh,
+                requestAction = { candidate, onBusy ->
+                    val candidateModel: CandidateViewModel = viewModel(key = "home-candidate-${candidate.id}-$requestGeneration") { CandidateViewModel(deps, candidate.id) }
+                    val candidateState by candidateModel.uiState.collectAsStateWithLifecycle()
+                    SideEffect { onBusy(candidateState.request.inProgress) }
+                    LaunchedEffect(candidateModel, entry) {
+                        entry.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                            candidateModel.requestSent.collect { requestId ->
+                                requestGeneration++
+                                navController.openMeetRequest(requestId)
+                            }
+                        }
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Small)) {
+                        MeetError(candidateState.request.error)
+                        PrimaryButton(if (candidateState.request.inProgress) "통화를 요청하고 있어요" else "통화 요청하기",
+                            candidateModel::requestConnection, Modifier.fillMaxWidth(), icon = ChayeonIcon.PHONE,
+                            enabled = candidateState.canRequest && !candidateState.request.inProgress && state.pendingRequest == null)
+                    }
+                },
                 onCandidate = { id -> guarded { navController.navigate(MeetDestination.candidate(id)) } },
                 onRequests = { guarded { navController.openMeetRequest(state.pendingRequest?.id) } },
                 onConnected = { guarded { navController.replaceMeet(MeetDestination.CONNECTED) } },
@@ -143,7 +167,22 @@ private fun MeetRoute(
         MeetDestination.CONNECTED -> {
             val model: ConnectedViewModel = viewModel { ConnectedViewModel(deps) }
             val state by model.uiState.collectAsStateWithLifecycle()
-            ConnectedScreen(state, chrome, model::leave,
+            val anchor by deps.serverTimeProvider.serverTime.collectAsStateWithLifecycle(initialValue = null)
+            val elapsed by produceState<Long?>(null, state.connection?.id, anchor, state.driving.policy) {
+                value = null
+                val connection = state.connection
+                val receipt = anchor
+                if (connection != null && receipt != null && state.driving.policy == DrivingPolicy.ALLOWED) {
+                    while (true) {
+                        val now = deps.serverTimeProvider.monotonicTimeMillis()
+                        value = if (now >= receipt.receivedAtMonotonicMillis)
+                            (receipt.serverEpochMillis - connection.startedAtEpochMillis + now - receipt.receivedAtMonotonicMillis).coerceAtLeast(0)
+                        else null
+                        delay(1_000)
+                    }
+                }
+            }
+            ConnectedScreen(state, chrome, model::leave, elapsedMillis = elapsed,
                 onMute = model::toggleMute, onMicrophone = model::requestMicrophone,
                 onSafety = { guarded { state.connection?.peer?.id?.let { currentExit(MeetExit.OpenSafety(it)) } } },
             )

@@ -58,7 +58,7 @@ class PublishedScoresTest {
             RequestScreen(state.value, previewChrome(), {}, {}, {}, {}, {})
         } }
         assertThreeScores()
-        compose.onNodeWithText("여유로운 제동 94").assertIsDisplayed()
+        compose.onNodeWithText("여유로운 제동 94").performScrollTo().assertIsDisplayed()
         compose.runOnIdle { state.value = state.value.copy(request = MeetFixtures.request.copy(direction = RequestDirection.OUTGOING)) }
         assertThreeScores()
     }
@@ -67,9 +67,9 @@ class PublishedScoresTest {
         compose.setContent { ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
             ConnectedScreen(ConnectedUiState(MeetFixtures.parked, MeetFixtures.connection, MeetFixtures.own), previewChrome(), {}, {})
         } }
-        compose.onNodeWithText("상대의 운전").assertExists()
+        compose.onNodeWithText("${MeetFixtures.peer.nickname}님의 운전").assertExists()
         assertThreeScores()
-        val scores = compose.onNodeWithText("상대의 운전").getUnclippedBoundsInRoot()
+        val scores = compose.onNodeWithText("${MeetFixtures.peer.nickname}님의 운전").getUnclippedBoundsInRoot()
         val topics = compose.onNodeWithText("이야깃거리").getUnclippedBoundsInRoot()
         org.junit.Assert.assertTrue(scores.top < topics.top)
     }
@@ -81,7 +81,7 @@ class PublishedScoresTest {
             ConnectedScreen(ConnectedUiState(driving, MeetFixtures.connection, MeetFixtures.own), previewChrome(policy = DrivingPolicy.RESTRICTED), {}, {})
         } }
         compose.onNodeWithText(MeetFixtures.signature.title).assertExists()
-        compose.onNodeWithText("여유로운 제동 94").assertIsDisplayed()
+        compose.onNodeWithText("여유로운 제동 94").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("깜빡이 매너 82").assertIsDisplayed()
         compose.onNodeWithText("타이어 관리 65").assertDoesNotExist()
         compose.onNodeWithText("이야깃거리").assertDoesNotExist()
@@ -93,7 +93,7 @@ class PublishedScoresTest {
         compose.setContent { ChayeonTheme(DrivingPolicy.RESTRICTED, 0f) {
             RequestScreen(RequestUiState(driving, MeetFixtures.request, receiveRequestsWhileDriving = true), previewChrome(policy = DrivingPolicy.RESTRICTED), {}, {}, {}, {}, {})
         } }
-        compose.onNodeWithText("여유로운 제동 94").assertIsDisplayed()
+        compose.onNodeWithText("여유로운 제동 94").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("깜빡이 매너 82").assertIsDisplayed()
         compose.onNodeWithText("타이어 관리 65").assertDoesNotExist()
         compose.onAllNodes(hasClickAction() and isEnabled()).assertCountEquals(2)
