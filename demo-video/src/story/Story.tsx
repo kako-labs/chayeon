@@ -42,7 +42,7 @@ export const Story = () => {
       <div style={{fontSize: 34, marginTop: 16}}>기어 · 속도 · 주행 신호 · 위치 · Pleos 음성</div>
       <div style={{position: 'absolute', bottom: 90, fontSize: 25, lineHeight: 1.8, textAlign: 'center', color: THEME.secondary}}>
         Pleos Connect 에뮬레이터에서 녹화했어요.<br />
-        주행은 Virtual Console 신호이고, 상대는 앱이 만든 가상 계정과 미리 만든 목소리예요.<br />
+        주행은 Virtual Console 신호이고, 상대는 앱이 만든 가상 계정이에요.<br />
         실차에서는 확인하지 않았어요.
       </div>
     </AbsoluteFill> : null}

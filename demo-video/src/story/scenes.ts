@@ -44,6 +44,10 @@ export const SCENES: Scene[] = [
   shot('home', M.end - 13.4, M.end, '집', '집 근처에서는 발견을 쉬어요.', SHORT),
 ];
 
+// Source seconds of the demo partner's voice lines, measured from the take audio (prepare.py loudness).
+// Only these are silenced in the delivered video; the Pleos connection announcement and car sounds stay.
+export const PARTNER_VOICE: [number, number][] = [[113.6, 116.0], [133.6, 137.0], [153.7, 156.5], [1000.45, 1002.3], [1013.3, 1015.3]];
+
 export const PLACED = SCENES.map((scene, index) => ({...scene, start: TITLE_FRAMES + SCENES.slice(0, index).reduce((sum, previous) => sum + previous.duration, 0)}));
 export const MAIN_END = TITLE_FRAMES + SCENES.reduce((sum, scene) => sum + scene.duration, 0);
 export const TOTAL_FRAMES = MAIN_END + ENDING_FRAMES;

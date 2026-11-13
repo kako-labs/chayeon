@@ -7,7 +7,7 @@ import subprocess
 from PIL import Image, ImageColor, ImageDraw, ImageFont
 
 DISCLOSURE = ['Pleos Connect 에뮬레이터에서 녹화했어요.',
-              '주행은 Virtual Console 신호이고, 상대는 앱이 만든 가상 계정과 미리 만든 목소리예요.',
+              '주행은 Virtual Console 신호이고, 상대는 앱이 만든 가상 계정이에요.',
               '실차에서는 확인하지 않았어요.']
 
 
@@ -114,7 +114,12 @@ def render_ffmpeg(kit, output):
                 ass.append(f'Dialogue: 0,{timestamp(local)},{timestamp(local + 0.7)},Tap,,0,0,0,,{drawing}')
         (folder / f'{stem}.ass').write_text('\n'.join(ass) + '\n')
         filters = f'[0:v]scale={frame["w"]}:{frame["h"]}:flags=lanczos,pad=1920:1080:{frame["x"]}:{frame["y"]}:color={theme["bg"]},setsar=1[base];[base][1:v]overlay=0:0,ass=out/ffmpeg/{stem}.ass,format=yuv420p[v]'
-        jobs.append((stem, ['-ss', str(scene['from'] / 30), '-i', 'public/rec/story.mp4', '-loop', '1', '-framerate', '30', '-i', f'out/ffmpeg/{stem}.png', '-filter_complex', filters, '-map', '[v]', '-map', '0:a', '-frames:v', str(scene['duration']), '-t', f"{scene['duration'] / 30:.6f}"]))
+        # Silence the demo partner's voice inside this scene; every other sound stays.
+        begin, length = scene['from'] / 30, scene['duration'] / 30
+        mutes = [(max(0, a - begin), min(length, b - begin)) for a, b in timeline['PARTNER_VOICE'] if a < begin + length and b > begin]
+        audio = ','.join(f"volume=enable='between(t,{a:.3f},{b:.3f})':volume=0" for a, b in mutes) or 'anull'
+        filters += f';[0:a]{audio}[a]'
+        jobs.append((stem, ['-ss', str(begin), '-i', 'public/rec/story.mp4', '-loop', '1', '-framerate', '30', '-i', f'out/ffmpeg/{stem}.png', '-filter_complex', filters, '-map', '[v]', '-map', '[a]', '-frames:v', str(scene['duration']), '-t', f"{length:.6f}"]))
     silence = ['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo']
     jobs.insert(0, ('00-title', ['-loop', '1', '-framerate', '30', '-i', 'out/ffmpeg/title.png', *silence, '-vf', 'fade=t=in:st=0:d=0.4,fade=t=out:st=3.166667:d=0.333333', '-map', '0:v', '-map', '1:a', '-frames:v', str(timeline['TITLE_FRAMES']), '-t', f"{timeline['TITLE_FRAMES'] / 30:.6f}"]))
     jobs.append(('99-ending', ['-loop', '1', '-framerate', '30', '-i', 'out/ffmpeg/ending.png', *silence, '-map', '0:v', '-map', '1:a', '-frames:v', str(timeline['ENDING_FRAMES']), '-t', f"{timeline['ENDING_FRAMES'] / 30:.6f}"]))
@@ -139,6 +144,8 @@ def render_ffmpeg(kit, output):
                 log.flush()
     (folder / 'concat.txt').write_text(''.join(f"file '{stem}.mp4'\n" for stem, _ in jobs))
     subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', str(folder / 'concat.txt'),
-                    # Delivered silent (owner decision 2026-11-14): captions and the screen carry the story.
-                    '-c:v', 'copy', '-an', '-movflags', '+faststart', str(output / 'chayeon-story.mp4')], check=True)
+                    # App sounds stay (the Pleos announcement, car chimes); the partner's voice is already muted per scene.
+                    # The emulator plays quietly (peaks near -27 dBFS), so lift the level and keep peaks under -1 dBFS.
+                    '-c:v', 'copy', '-af', 'volume=18dB,alimiter=limit=0.89:level=false', '-c:a', 'aac', '-b:a', '192k',
+                    '-movflags', '+faststart', str(output / 'chayeon-story.mp4')], check=True)
     (output / 'timeline.json').write_text(json.dumps(timeline, ensure_ascii=False, indent=2))
