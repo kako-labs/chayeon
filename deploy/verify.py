@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Exercise HTTP commands and authenticated WebSocket upgrades through Caddy."""
+"""Exercise HTTP commands and authenticated WebSocket upgrades through Caddy.
+
+Run via verify.sh, which starts the isolated server with CHAYEON_ALLOWED_ROOMS='*'.
+"""
 import sys
 import time
 from pathlib import Path

@@ -31,7 +31,7 @@ class SessionIntegrityTest {
     }
 
     @Test fun defaultRoomIsSharedAndOtherRoomsRemainIsolated() {
-        val registry = RoomRegistry(defaultRules(), demoEnabled = false)
+        val registry = RoomRegistry(defaultRules(), ServerPolicy(allowedRooms = setOf("*")), demoEnabled = false)
         val a = enter(registry).ok()
         val b = enter(registry, room = "default").ok()
         assertEquals(a.accountId, b.accountId)
@@ -153,7 +153,7 @@ class SessionIntegrityTest {
     @Test fun persistentIdleRoomsKeepTheirCapacityReservation() {
         var now = 0L
         val directory = Files.createTempDirectory("room-capacity-test")
-        val policy = ServerPolicy(dataDirectory = directory, maximumRooms = 1, idleRoomMillis = 100)
+        val policy = ServerPolicy(allowedRooms = setOf("*"), dataDirectory = directory, maximumRooms = 1, idleRoomMillis = 100)
         val registry = RoomRegistry(defaultRules(), policy = policy, clock = EngineClock { now }, demoEnabled = false)
         val first = enter(registry).ok()
         now = 101
@@ -170,7 +170,12 @@ class SessionIntegrityTest {
         repeat(2) { assertTrue(admission.allow("a", 2)) }
         assertFalse(admission.allow("a", 2))
         assertTrue(admission.allow("b", 2))
-        assertFalse(admission.allow("c", 2))
+        assertFalse(admission.allow("a", 2))
+        assertTrue(admission.allow("c", 2))
+        assertFalse(admission.allow("a", 2))
+        assertEquals(2, admission.bucketCount)
+        repeat(5000) { assertTrue(admission.allow("new-$it", 2)) }
+        assertEquals(2, admission.bucketCount)
         now = 60_000
         assertTrue(admission.allow("c", 2))
     }

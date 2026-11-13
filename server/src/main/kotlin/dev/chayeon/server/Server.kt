@@ -139,6 +139,7 @@ internal val COMMAND_ROUTES = listOf(
 )
 
 internal fun environmentPolicy(env: Map<String, String> = System.getenv()): ServerPolicy = ServerPolicy(
+    allowedRooms = env["CHAYEON_ALLOWED_ROOMS"]?.split(',')?.map(String::trim)?.filter(String::isNotEmpty)?.toSet() ?: setOf("default"),
     roomCapacity = env["CHAYEON_ROOM_CAPACITY"]?.toInt() ?: 50,
     maximumRooms = env["CHAYEON_MAX_ROOMS"]?.toInt() ?: 64,
     idleRoomMillis = env["CHAYEON_IDLE_ROOM_MILLIS"]?.toLong() ?: 1_800_000,

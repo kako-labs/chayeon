@@ -13,7 +13,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 
 @Serializable
-internal data class StoredAuthorization(val actor: String, val sessionId: String)
+internal data class StoredAuthorization(val actor: String, val sessionId: String, val lastSeen: Long? = null)
 
 @Serializable
 private data class StoredRoom(val state: EngineState? = null, val tokens: Map<String, StoredAuthorization> = emptyMap())

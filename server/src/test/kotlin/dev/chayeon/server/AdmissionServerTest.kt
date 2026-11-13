@@ -20,6 +20,31 @@ import org.junit.Test
 import java.util.UUID
 
 class AdmissionServerTest {
+    @Test fun invalidTokenFloodCannotOccupyActorBucketsOrDenyNewClients() = testApplication {
+        val registry = RoomRegistry(defaultRules(), ServerPolicy(trustProxy = true),
+            clock = dev.chayeon.core.engine.EngineClock { 0L }, demoEnabled = false)
+        application { chayeonModule(registry) }
+        repeat(5000) { index ->
+            assertEquals(HttpStatusCode.Unauthorized, client.get(ApiRoutes.SYNC) {
+                header("X-Chayeon-Client-IP", "client-$index")
+                bearerAuth("invalid-$index")
+            }.status)
+        }
+        assertEquals(0, registry.actorAdmission.bucketCount)
+        assertEquals(4096, registry.ipAdmission.bucketCount)
+        val response = client.post(ApiRoutes.ENTER_SESSION) {
+            header("X-Chayeon-Client-IP", "valid-client")
+            setBody(EngineJson.encodeToString(EnterSessionRequest(CommandMeta(UUID.randomUUID().toString()),
+                SessionMode.SERVER_DEMO, clientSecret = "v".repeat(43))))
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        val session = (EngineJson.decodeFromString<EnterSessionResponse>(response.bodyAsText()).result as AppResult.Success).value
+        assertEquals(HttpStatusCode.OK, client.get(ApiRoutes.SYNC) {
+            header("X-Chayeon-Client-IP", "valid-client")
+            bearerAuth(session.accessToken!!)
+        }.status)
+    }
+
     @Test fun entryIpBudgetIncludesInvalidBodiesAndReturnsExistingErrorShape() = testApplication {
         application { chayeonModule(RoomRegistry(defaultRules(), demoEnabled = false)) }
         repeat(30) { assertEquals(HttpStatusCode.BadRequest, client.post(ApiRoutes.ENTER_SESSION) { setBody("invalid") }.status) }
@@ -30,7 +55,7 @@ class AdmissionServerTest {
         assertEquals(HttpStatusCode.OK, client.get("/ready").status)
     }
 
-    @Test fun commandAndSyncShareTokenBudget() = testApplication {
+    @Test fun commandAndSyncShareActorBudget() = testApplication {
         val registry = RoomRegistry(defaultRules(), demoEnabled = false)
         val session = (registry.enter(EnterSessionRequest(CommandMeta(UUID.randomUUID().toString()), SessionMode.SERVER_DEMO,
             clientSecret = "a".repeat(43))) as AppResult.Success).value
@@ -41,6 +66,25 @@ class AdmissionServerTest {
             setBody(EngineJson.encodeToString(SaveProfileRequest(CommandMeta(UUID.randomUUID().toString()), ProfileDraft("테스트", AvatarId.DAWN, emptySet()))))
         }.status)
         assertEquals(HttpStatusCode.TooManyRequests, client.get(ApiRoutes.SYNC) { bearerAuth(session.accessToken!!) }.status)
+    }
+
+    @Test fun actorBudgetSurvivesIpEvictionAndSessionRotation() = testApplication {
+        val registry = RoomRegistry(defaultRules(), ServerPolicy(trustProxy = true),
+            clock = dev.chayeon.core.engine.EngineClock { 0L }, demoEnabled = false)
+        fun enter() = (registry.enter(EnterSessionRequest(CommandMeta(UUID.randomUUID().toString()), SessionMode.SERVER_DEMO,
+            clientSecret = "a".repeat(43))) as AppResult.Success).value
+        val session = enter()
+        application { chayeonModule(registry) }
+        repeat(300) {
+            assertEquals(HttpStatusCode.OK, client.get(ApiRoutes.SYNC) { bearerAuth(session.accessToken!!) }.status)
+        }
+        repeat(5000) { assertTrue(registry.ipAdmission.allow("http:other-$it", 600)) }
+        val rotated = enter()
+        assertEquals(HttpStatusCode.TooManyRequests, client.get(ApiRoutes.SYNC) {
+            header("X-Chayeon-Client-IP", "new-client-ip")
+            bearerAuth(rotated.accessToken!!)
+        }.status)
+        assertEquals(1, registry.actorAdmission.bucketCount)
     }
 
     @Test fun unauthenticatedCommandsHaveIpBudgetAndIgnoreSpoofedProxyHeaders() = testApplication {
@@ -64,16 +108,19 @@ class AdmissionServerTest {
         assertEquals("CF-Connecting-IP", environmentPolicy(mapOf("CHAYEON_CLIENT_IP_HEADER" to "CF-Connecting-IP")).clientIpHeader)
     }
 
-    @Test fun voiceAttemptsHaveIndependentIpAndTokenLimits() = testApplication {
+    @Test fun voiceAttemptsHaveIndependentIpAndActorLimits() = testApplication {
         val statuses = Channel<HttpStatusCode>(Channel.UNLIMITED)
         val observer = createApplicationPlugin("ObserveVoiceAdmission") {
             on(ResponseBodyReadyForSend) { call, content ->
                 statuses.trySend(content.status ?: call.response.status() ?: HttpStatusCode.InternalServerError)
             }
         }
+        val registry = RoomRegistry(defaultRules(), demoEnabled = false)
+        val session = (registry.enter(EnterSessionRequest(CommandMeta(UUID.randomUUID().toString()), SessionMode.SERVER_DEMO,
+            clientSecret = "v".repeat(43))) as AppResult.Success).value
         application {
             install(observer)
-            chayeonModule(RoomRegistry(defaultRules(), demoEnabled = false))
+            chayeonModule(registry)
         }
         val ws = createClient { install(WebSockets) }
         suspend fun attempt(expected: HttpStatusCode, token: String? = null) = coroutineScope {
@@ -84,9 +131,9 @@ class AdmissionServerTest {
             try { assertEquals(expected, withTimeout(2_000) { statuses.receive() }) }
             finally { handshake.cancelAndJoin() }
         }
-        repeat(20) { attempt(HttpStatusCode.Forbidden, "invalid") }
-        attempt(HttpStatusCode.TooManyRequests, "invalid")
-        repeat(39) { attempt(HttpStatusCode.Forbidden) }
+        repeat(20) { attempt(HttpStatusCode.Forbidden, session.accessToken) }
+        attempt(HttpStatusCode.TooManyRequests, session.accessToken)
+        repeat(39) { attempt(HttpStatusCode.Forbidden, "invalid") }
         attempt(HttpStatusCode.TooManyRequests)
         ws.close()
     }
@@ -94,6 +141,7 @@ class AdmissionServerTest {
     @Test fun environmentConfigurationHasBoundedExplicitDefaults() {
         val defaults = environmentPolicy(emptyMap())
         assertEquals(50, defaults.roomCapacity)
+        assertEquals(setOf("default"), defaults.allowedRooms)
         assertNull(defaults.dataDirectory)
         assertFalse(defaults.trustProxy)
         val custom = environmentPolicy(mapOf("CHAYEON_ROOM_CAPACITY" to "12", "CHAYEON_MAX_ROOMS" to "3", "CHAYEON_IDLE_ROOM_MILLIS" to "6000"))

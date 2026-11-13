@@ -1,4 +1,8 @@
-"""Exercise a running local server without writing bearer credentials or response bodies."""
+"""Exercise a running local server without writing credentials or response bodies.
+
+Start the local server with CHAYEON_ALLOWED_ROOMS='*' before running this client:
+CHAYEON_ALLOWED_ROOMS='*' PORT=19876 ./gradlew -Pchayeon.serverOnly=true :server:run
+"""
 
 import json
 import secrets

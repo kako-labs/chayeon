@@ -22,7 +22,7 @@ private class VoiceFixture(
     voiceStateReader: (ChayeonEngine) -> EngineState = ChayeonEngine::exportState,
 ) {
     val clock = AtomicLong(1_000_000)
-    val registry = RoomRegistry(defaultRules(), clock = EngineClock(clock::get),
+    val registry = RoomRegistry(defaultRules(), ServerPolicy(allowedRooms = setOf("*")), clock = EngineClock(clock::get),
         enginePolicy = EnginePolicy(presenceLeaseMillis = 60_000), demoEnabled = demoEnabled, voiceStateReader = voiceStateReader)
     val a = enter(TestInstall.ACCOUNT_A)
     val b = enter(TestInstall.ACCOUNT_B)

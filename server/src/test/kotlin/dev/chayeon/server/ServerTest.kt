@@ -65,7 +65,7 @@ private suspend fun <T> race(first: suspend () -> T, second: suspend () -> T): L
 
 class ServerTest {
     @Test fun publicTraitScoresAreValidatedAtTheHttpBoundary() = testApplication {
-        application { chayeonModule(RoomRegistry(fakeRules, demoEnabled = false)) }
+        application { chayeonModule(RoomRegistry(fakeRules, ServerPolicy(allowedRooms = setOf("*")), demoEnabled = false)) }
         val api = Api(client)
         val session = api.enter(TestInstall.ACCOUNT_A)
         api.ready(session)
@@ -85,7 +85,7 @@ class ServerTest {
     }
 
     @Test fun mutualContactExchangeKeepsEveryPendingResponsePrivateAndClosesWithoutReplay() = testApplication {
-        val registry = RoomRegistry(fakeRules, demoEnabled = false)
+        val registry = RoomRegistry(fakeRules, ServerPolicy(allowedRooms = setOf("*")), demoEnabled = false)
         application { chayeonModule(registry) }
         val api = Api(client)
         val a = api.enter(TestInstall.ACCOUNT_A)
@@ -118,7 +118,7 @@ class ServerTest {
     }
 
     @Test fun acceptingAndWithdrawingAnAfterRequestCannotPartiallyExchangeContacts() = testApplication {
-        val registry = RoomRegistry(fakeRules, demoEnabled = false)
+        val registry = RoomRegistry(fakeRules, ServerPolicy(allowedRooms = setOf("*")), demoEnabled = false)
         application { chayeonModule(registry) }
         val api = Api(client)
         val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
@@ -147,7 +147,7 @@ class ServerTest {
         lateinit var registry: RoomRegistry
         application { chayeonModule(); registry = attributes[roomRegistryKey] }
         val api = Api(client)
-        val session = api.enter(TestInstall.ACCOUNT_A)
+        val session = api.enter(TestInstall.ACCOUNT_A, "default")
         val engine = registry.authorize("Bearer ${session.accessToken}")!!.second
         assertEquals(60_000L, engine.policy.presenceLeaseMillis)
         val deadline = engine.exportState().accounts.getValue(session.accountId).presenceLeaseDeadline!!
@@ -160,7 +160,7 @@ class ServerTest {
 
     @Test fun expiryWithoutHolderTrafficWakesAnAlreadyWaitingPeerLongPoll() = testApplication {
         val clock = AtomicLong(1_000_000)
-        val registry = RoomRegistry(fakeRules, ServerPolicy(tickIntervalMillis = 10), EngineClock(clock::get),
+        val registry = RoomRegistry(fakeRules, ServerPolicy(allowedRooms = setOf("*"), tickIntervalMillis = 10), EngineClock(clock::get),
             EnginePolicy(presenceLeaseMillis = 60_000), demoEnabled = false)
         application { chayeonModule(registry) }
         val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
@@ -187,7 +187,7 @@ class ServerTest {
     }
 
     @Test fun blockedPeerProfileEditsDoNotWakeLongPoll() = testApplication {
-        application { chayeonModule(RoomRegistry(fakeRules, ServerPolicy(pollTimeoutMillis = 2_000), demoEnabled = false)) }
+        application { chayeonModule(RoomRegistry(fakeRules, ServerPolicy(allowedRooms = setOf("*"), pollTimeoutMillis = 2_000), demoEnabled = false)) }
         val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b); api.connect(a, b)
         api.post<BlockPeerRequest, BlockPeerResponse>(a, ApiRoutes.BLOCK_PEER,
@@ -208,19 +208,22 @@ class ServerTest {
         }
     }
 
-    @Test fun `idle rooms expire tokens and free bounded room capacity`() = testApplication {
+    @Test fun `idle rooms expire tokens but retain account data and bounded room capacity`() = testApplication {
         val clock = AtomicLong(1_000_000)
-        val registry = RoomRegistry(fakeRules, ServerPolicy(maximumRooms = 1, idleRoomMillis = 1000), EngineClock(clock::get), demoEnabled = false)
+        val registry = RoomRegistry(fakeRules, ServerPolicy(allowedRooms = setOf("*"), maximumRooms = 1, idleRoomMillis = 1000), EngineClock(clock::get), demoEnabled = false)
         application { chayeonModule(registry) }
         val api = Api(client); val old = api.enter(TestInstall.ACCOUNT_A)
         clock.addAndGet(1000); registry.tick()
         assertEquals(HttpStatusCode.Unauthorized, client.get(ApiRoutes.SYNC) { bearerAuth(old.accessToken!!) }.status)
-        val next = api.enter(TestInstall.ACCOUNT_A, "next")
+        val next = api.enter(TestInstall.ACCOUNT_A)
+        assertEquals(old.accountId, next.accountId)
         assertNotEquals(old.id, next.id)
+        assertEquals(AppResult.Failure(AppError.Restricted), api.post<EnterSessionRequest, EnterSessionResponse>(null,
+            ApiRoutes.ENTER_SESSION, EnterSessionRequest(meta(), SessionMode.SERVER_DEMO, "next", "other-secret".repeat(4))).result)
     }
 
     @Test fun `lost lifecycle responses can retry only their exact receipt after token revocation`() = testApplication {
-        application { chayeonModule(RoomRegistry(fakeRules, demoEnabled = false)) }
+        application { chayeonModule(RoomRegistry(fakeRules, ServerPolicy(allowedRooms = setOf("*")), demoEnabled = false)) }
         val api = Api(client)
         for (delete in listOf(false, true)) {
             val a = api.enter(TestInstall.ACCOUNT_A, if (delete) "delete" else "signout")
@@ -235,7 +238,7 @@ class ServerTest {
     }
 
     @Test fun `two recipients accepting the same sender cannot both connect`() = testApplication {
-        val registry = RoomRegistry(fakeRules)
+        val registry = RoomRegistry(fakeRules, ServerPolicy(allowedRooms = setOf("*")))
         application { chayeonModule(registry) }
         val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b)
@@ -247,7 +250,7 @@ class ServerTest {
     }
 
     @Test fun `every private route rejects absent and invalid tokens before parsing bodies`() = testApplication {
-        application { chayeonModule(RoomRegistry(fakeRules, demoEnabled = false)) }
+        application { chayeonModule(RoomRegistry(fakeRules, ServerPolicy(allowedRooms = setOf("*")), demoEnabled = false)) }
         COMMAND_ROUTES.forEach { route ->
             listOf<String?>(null, "invalid").forEach { token ->
                 val response = client.post(route) { if (token != null) bearerAuth(token); setBody("unparseable") }
@@ -259,7 +262,7 @@ class ServerTest {
     }
 
     @Test fun `rooms are isolated and forbidden records are indistinguishable from missing records`() = testApplication {
-        application { chayeonModule(RoomRegistry(fakeRules, demoEnabled = false)) }
+        application { chayeonModule(RoomRegistry(fakeRules, ServerPolicy(allowedRooms = setOf("*")), demoEnabled = false)) }
         val api = Api(client)
         val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         val stranger = api.enter(TestInstall.ACCOUNT_A, "other")
@@ -277,7 +280,7 @@ class ServerTest {
     }
 
     @Test fun `double accept with real concurrency establishes exactly one connection`() = testApplication {
-        application { chayeonModule(RoomRegistry(fakeRules, demoEnabled = false)) }
+        application { chayeonModule(RoomRegistry(fakeRules, ServerPolicy(allowedRooms = setOf("*")), demoEnabled = false)) }
         val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b)
         val r = api.request(a, b)
@@ -288,7 +291,7 @@ class ServerTest {
     }
 
     @Test fun `accept versus cancel has one terminal winner under real concurrency`() = testApplication {
-        application { chayeonModule(RoomRegistry(fakeRules, demoEnabled = false)) }
+        application { chayeonModule(RoomRegistry(fakeRules, ServerPolicy(allowedRooms = setOf("*")), demoEnabled = false)) }
         val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b)
         val r = api.request(a, b)
@@ -303,7 +306,7 @@ class ServerTest {
 
     @Test fun `accept versus expiry and late accept use the committed terminal state`() = testApplication {
         val clock = AtomicLong(1_000_000)
-        val registry = RoomRegistry(fakeRules, clock = EngineClock(clock::get), demoEnabled = false)
+        val registry = RoomRegistry(fakeRules, ServerPolicy(allowedRooms = setOf("*")), clock = EngineClock(clock::get), demoEnabled = false)
         application { chayeonModule(registry) }
         val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b)
@@ -317,7 +320,7 @@ class ServerTest {
     }
 
     @Test fun `two accounts accepting different incoming requests concurrently do not overwrite each other`() = testApplication {
-        val registry = RoomRegistry(fakeRules)
+        val registry = RoomRegistry(fakeRules, ServerPolicy(allowedRooms = setOf("*")))
         application { chayeonModule(registry) }
         val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b)
@@ -330,7 +333,7 @@ class ServerTest {
     }
 
     @Test fun `duplicate commands reordered versions and block revocation converge`() = testApplication {
-        application { chayeonModule(RoomRegistry(fakeRules, demoEnabled = false)) }
+        application { chayeonModule(RoomRegistry(fakeRules, ServerPolicy(allowedRooms = setOf("*")), demoEnabled = false)) }
         val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b)
         val command = RequestConnectionRequest(meta(), api.sync(b).profile!!.id)
@@ -349,7 +352,7 @@ class ServerTest {
     }
 
     @Test fun `long poll wakes on change and full scenario responses contain no private data`() = testApplication {
-        val registry = RoomRegistry(fakeRules, demoEnabled = false)
+        val registry = RoomRegistry(fakeRules, ServerPolicy(allowedRooms = setOf("*")), demoEnabled = false)
         application { chayeonModule(registry) }
         val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A); val b = api.enter(TestInstall.ACCOUNT_B)
         api.ready(a); api.ready(b)
@@ -388,7 +391,7 @@ class ServerTest {
     }
 
     @Test fun `body and room limits are bounded and deleted account token is revoked`() = testApplication {
-        val registry = RoomRegistry(fakeRules, ServerPolicy(maximumBodyBytes = 1024, maximumRooms = 1), demoEnabled = false)
+        val registry = RoomRegistry(fakeRules, ServerPolicy(allowedRooms = setOf("*"), maximumBodyBytes = 1024, maximumRooms = 1), demoEnabled = false)
         application { chayeonModule(registry) }
         val api = Api(client); val a = api.enter(TestInstall.ACCOUNT_A)
         val response = client.post(ApiRoutes.SAVE_PROFILE) { bearerAuth(a.accessToken!!); setBody("x".repeat(1025)) }
