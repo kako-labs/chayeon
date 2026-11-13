@@ -79,68 +79,73 @@
     {
       "atMillis": 600000,
       "speedKph": 0,
-      "tireKpa": 190,
+      "tireKpa": 236,
       "energyPercent": 65,
       "chargeLimitPercent": 100,
-      "fluidWarning": true,
+      "fluidWarning": false,
       "airCleaning": true
     },
     {
       "atMillis": 630000,
       "speedKph": 42,
-      "tireKpa": 190,
+      "tireKpa": 236,
       "energyPercent": 65,
       "chargeLimitPercent": 100,
-      "fluidWarning": true,
-      "airCleaning": true
+      "fluidWarning": false,
+      "airCleaning": true,
+      "cruise": true
     },
     {
       "atMillis": 900000,
       "speedKph": 42,
       "indicator": true,
-      "tireKpa": 190,
+      "tireKpa": 236,
       "energyPercent": 65,
-      "chargeLimitPercent": 100,
-      "fluidWarning": true,
-      "airCleaning": true
+      "chargeLimitPercent": 80,
+      "fluidWarning": false,
+      "airCleaning": true,
+      "cruise": true
     },
     {
       "atMillis": 902000,
       "speedKph": 42,
       "indicator": true,
       "steering": 20,
-      "tireKpa": 190,
+      "tireKpa": 236,
       "energyPercent": 65,
-      "chargeLimitPercent": 100,
-      "fluidWarning": true,
-      "airCleaning": true
+      "chargeLimitPercent": 80,
+      "fluidWarning": false,
+      "airCleaning": true,
+      "cruise": true
     },
     {
       "atMillis": 908000,
       "speedKph": 42,
-      "tireKpa": 190,
+      "tireKpa": 236,
       "energyPercent": 65,
-      "chargeLimitPercent": 100,
-      "fluidWarning": true,
-      "airCleaning": true
+      "chargeLimitPercent": 80,
+      "fluidWarning": false,
+      "airCleaning": true,
+      "cruise": true
     },
     {
       "atMillis": 1170000,
       "speedKph": 42,
       "brake": true,
-      "tireKpa": 190,
+      "tireKpa": 236,
       "energyPercent": 65,
-      "chargeLimitPercent": 100,
-      "fluidWarning": true,
-      "airCleaning": true
+      "chargeLimitPercent": 80,
+      "fluidWarning": false,
+      "airCleaning": true,
+      "cruise": true
     },
     {
       "atMillis": 1200000,
       "speedKph": 0,
-      "tireKpa": 190,
+      "tireKpa": 236,
       "energyPercent": 65,
-      "chargeLimitPercent": 100,
-      "fluidWarning": true,
+      "chargeLimitPercent": 80,
+      "fluidWarning": false,
       "airCleaning": true
     }
   ]

@@ -23,7 +23,7 @@
       "atMillis": 0,
       "cruise": false,
       "tireKpa": 190,
-      "energyPercent": 10,
+      "energyPercent": 22,
       "chargeLimitPercent": 100,
       "fluidWarning": true,
       "airCleaning": false
@@ -33,7 +33,7 @@
       "speedKph": 42,
       "cruise": true,
       "tireKpa": 190,
-      "energyPercent": 10,
+      "energyPercent": 22,
       "chargeLimitPercent": 100,
       "fluidWarning": true,
       "airCleaning": false
@@ -44,7 +44,7 @@
       "indicator": true,
       "cruise": true,
       "tireKpa": 240,
-      "energyPercent": 10,
+      "energyPercent": 22,
       "chargeLimitPercent": 100,
       "fluidWarning": true,
       "airCleaning": false
@@ -56,7 +56,7 @@
       "steering": 18,
       "cruise": true,
       "tireKpa": 240,
-      "energyPercent": 10,
+      "energyPercent": 22,
       "chargeLimitPercent": 100,
       "fluidWarning": true,
       "airCleaning": false
@@ -66,7 +66,7 @@
       "speedKph": 42,
       "cruise": true,
       "tireKpa": 240,
-      "energyPercent": 10,
+      "energyPercent": 22,
       "chargeLimitPercent": 100,
       "fluidWarning": true,
       "airCleaning": false
@@ -77,7 +77,7 @@
       "brake": true,
       "cruise": true,
       "tireKpa": 240,
-      "energyPercent": 10,
+      "energyPercent": 22,
       "chargeLimitPercent": 100,
       "fluidWarning": true,
       "airCleaning": false
@@ -87,20 +87,20 @@
       "speedKph": 0,
       "cruise": false,
       "tireKpa": 240,
-      "energyPercent": 10,
+      "energyPercent": 12,
       "chargeLimitPercent": 100,
-      "fluidWarning": true,
-      "airCleaning": false
+      "fluidWarning": false,
+      "airCleaning": true
     },
     {
       "atMillis": 630000,
       "speedKph": 42,
       "cruise": true,
       "tireKpa": 240,
-      "energyPercent": 10,
+      "energyPercent": 12,
       "chargeLimitPercent": 100,
-      "fluidWarning": true,
-      "airCleaning": false
+      "fluidWarning": false,
+      "airCleaning": true
     },
     {
       "atMillis": 900000,
@@ -108,10 +108,10 @@
       "indicator": false,
       "cruise": true,
       "tireKpa": 240,
-      "energyPercent": 10,
-      "chargeLimitPercent": 100,
-      "fluidWarning": true,
-      "airCleaning": false
+      "energyPercent": 12,
+      "chargeLimitPercent": 80,
+      "fluidWarning": false,
+      "airCleaning": true
     },
     {
       "atMillis": 902000,
@@ -120,20 +120,20 @@
       "steering": 20,
       "cruise": true,
       "tireKpa": 240,
-      "energyPercent": 10,
-      "chargeLimitPercent": 100,
-      "fluidWarning": true,
-      "airCleaning": false
+      "energyPercent": 12,
+      "chargeLimitPercent": 80,
+      "fluidWarning": false,
+      "airCleaning": true
     },
     {
       "atMillis": 908000,
       "speedKph": 42,
       "cruise": true,
       "tireKpa": 240,
-      "energyPercent": 10,
-      "chargeLimitPercent": 100,
-      "fluidWarning": true,
-      "airCleaning": false
+      "energyPercent": 12,
+      "chargeLimitPercent": 80,
+      "fluidWarning": false,
+      "airCleaning": true
     },
     {
       "atMillis": 1170000,
@@ -141,20 +141,20 @@
       "brake": true,
       "cruise": true,
       "tireKpa": 240,
-      "energyPercent": 10,
-      "chargeLimitPercent": 100,
-      "fluidWarning": true,
-      "airCleaning": false
+      "energyPercent": 12,
+      "chargeLimitPercent": 80,
+      "fluidWarning": false,
+      "airCleaning": true
     },
     {
       "atMillis": 1200000,
       "speedKph": 0,
       "cruise": false,
       "tireKpa": 240,
-      "energyPercent": 10,
-      "chargeLimitPercent": 100,
-      "fluidWarning": true,
-      "airCleaning": false
+      "energyPercent": 12,
+      "chargeLimitPercent": 80,
+      "fluidWarning": false,
+      "airCleaning": true
     }
   ]
 }
