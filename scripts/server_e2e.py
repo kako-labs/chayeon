@@ -429,7 +429,7 @@ def enter_ui(device):
     device.permissions()
     device.tap("선택한 설정으로 시작", scroll=True)
     device.wait("내 프로필")
-    device.tap("발견 켜기")
+    device.tap("발견 꺼짐", last=True)
 
 
 def prove_server_home(device, console, peer):
@@ -528,7 +528,7 @@ def prove_server_home(device, console, peer):
         if time.monotonic() >= deadline:
             raise AssertionError("구역 밖으로 나온 앱 계정이 HTTP 후보로 돌아오지 않았어요")
         time.sleep(.25)
-    device.capture("home-http-return", ["이어가는별", "발견 중"])
+    device.capture("home-http-return", ["이어가는별", "발견 켜짐"])
     (device.output / "home-peer-proof.json").write_text(json.dumps(observations, ensure_ascii=False, indent=2), encoding="utf-8")
     device.tap("내 프로필")
     device.tap("기록과 계정 정리", scroll=True)

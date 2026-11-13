@@ -34,6 +34,19 @@ import androidx.compose.ui.unit.sp
 import dev.chayeon.core.model.DrivingPolicy
 
 object ChayeonColors {
+    val SceneGlass = Color(0xFF1A0408).copy(alpha = .62f)
+    val SceneGlassTop = Color(0xFF1A0408).copy(alpha = .66f)
+    val SceneBorder = Color(0xFFFFC8D0).copy(alpha = .24f)
+    val OutlineBorder = Color(0xFFFFC8D0).copy(alpha = .45f)
+    val MutedText = Color(0xFFF3D4D9).copy(alpha = .80f)
+    val InfoText = Color(0xFFF3D4D9).copy(alpha = .70f)
+    val NavigationText = Color(0xFFFFF5F6).copy(alpha = .75f)
+    val SelectedTop = Color(0xFFFF4A5E).copy(alpha = .35f)
+    val SelectedBottom = Color(0xFFA50A23).copy(alpha = .35f)
+    val SelectedBorder = Color(0xFFFF9AA6).copy(alpha = .55f)
+    val ScoreSurface = Color(0xFFFFF5F6).copy(alpha = .08f)
+    val ThreadHighlight = Color(0xFFFFD2D8).copy(alpha = .55f)
+
     val Background = Color(0xFF070304)
     val Wine = Color(0xFF3A0710)
     val DeepRed = Color(0xFFA50A23)
@@ -127,6 +140,35 @@ object ChayeonElevation {
 }
 
 object ChayeonDimensions {
+    val SceneScreenHorizontal = 56.dp
+    val SceneScreenTop = 44.dp
+    val SceneScreenBottom = 40.dp
+    val SceneBottomScrim = 640.dp
+    val ScenePanelRadius = 40.dp
+    val ScenePanelPadding = 34.dp
+    val SceneTileRadius = 28.dp
+    val SceneNavigation = 112.dp
+    val SceneNavItem = 86.dp
+    val SceneNavRadius = 56.dp
+    val SceneStatus = 64.dp
+    val SceneBrandOrb = 40.dp
+    val SceneBadge = 30.dp
+    val ScenePrimary = 118.dp
+    val DrivingControl = 180.dp
+    val DrivingTouch = 96.dp
+    val SceneButtonRadius = 59.dp
+    val SceneOutlineRadius = 42.dp
+    val SceneShadow = 48.dp
+    val SceneScore = 54.dp
+    val SceneScoreLarge = 64.dp
+    val SceneListAvatar = 92.dp
+    val SceneCallAvatar = 360.dp
+    val SceneMascot = 560.dp
+    val ThreadDarkStroke = 9.dp
+    val ThreadBrightStroke = 5.dp
+    val ThreadHighlightStroke = 1.6.dp
+    val Hairline = 1.dp
+
     val ContactQr = 256.dp
     val Logo = 88.dp
     val ProfileAvatar = 60.dp
@@ -182,6 +224,20 @@ object ChayeonType {
         Font(R.font.asta_sans, FontWeight.Bold, variationSettings = FontVariation.Settings(FontVariation.weight(700))),
         Font(R.font.asta_sans, FontWeight.ExtraBold, variationSettings = FontVariation.Settings(FontVariation.weight(800))),
     )
+    val Headline = TextStyle(fontFamily = Font, fontSize = 84.sp, lineHeight = 94.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-2).sp)
+    val SceneTitle = TextStyle(fontFamily = Font, fontSize = 72.sp, lineHeight = 83.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1.5).sp)
+    val CallTitle = TextStyle(fontFamily = Font, fontSize = 64.sp, lineHeight = 76.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1.5).sp)
+    val CardTitle = TextStyle(fontFamily = Font, fontSize = 54.sp, lineHeight = 64.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp)
+    val TileValue = TextStyle(fontFamily = Font, fontSize = 48.sp, lineHeight = 56.sp, fontWeight = FontWeight.ExtraBold)
+    val SceneButton = TextStyle(fontFamily = Font, fontSize = 40.sp, lineHeight = 50.sp, fontWeight = FontWeight.ExtraBold)
+    val DrivingButton = TextStyle(fontFamily = Font, fontSize = 44.sp, lineHeight = 54.sp, fontWeight = FontWeight.Bold)
+    val SceneBrand = TextStyle(fontFamily = Font, fontSize = 34.sp, lineHeight = 44.sp, fontWeight = FontWeight.ExtraBold)
+    val SceneName = TextStyle(fontFamily = Font, fontSize = 30.sp, lineHeight = 40.sp, fontWeight = FontWeight.ExtraBold)
+    val SceneBody = TextStyle(fontFamily = Font, fontSize = 28.sp, lineHeight = 40.sp, fontWeight = FontWeight.Medium)
+    val SceneNavigation = TextStyle(fontFamily = Font, fontSize = 26.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold)
+    val SceneStatus = TextStyle(fontFamily = Font, fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.SemiBold)
+    val Score = TextStyle(fontFamily = Font, fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.ExtraBold)
+    val DrivingScore = TextStyle(fontFamily = Font, fontSize = 34.sp, lineHeight = 42.sp, fontWeight = FontWeight.ExtraBold)
     val Brand = TextStyle(fontFamily = Font, fontSize = 50.sp, lineHeight = 55.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp)
     val Hero = TextStyle(fontFamily = Font, fontSize = 66.sp, lineHeight = 76.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1.65).sp)
     val Title = TextStyle(fontFamily = Font, fontSize = 46.sp, lineHeight = 55.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-.92).sp)

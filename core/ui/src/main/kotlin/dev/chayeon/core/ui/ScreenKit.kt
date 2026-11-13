@@ -75,11 +75,11 @@ fun AppHeader(modifier: Modifier = Modifier, title: String = "차연", subtitle:
     FlowRow(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
         verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.AvatarGap)) {
-            Image(painterResource(ChayeonAssets.Logo), null,
+            if (!LocalBrandInChrome.current) Image(painterResource(ChayeonAssets.Logo), null,
                 Modifier.size(ChayeonDimensions.Logo).drawBehind {
                     drawCircle(Brush.radialGradient(listOf(ChayeonColors.Glow.copy(alpha = .45f), ChayeonColors.Transparent), radius = size.width * .7f), radius = size.width * .7f)
                 }.clip(CircleShape).border(ChayeonElevation.Border, ChayeonColors.ButtonBorder, CircleShape))
-            Column {
+            if (!LocalBrandInChrome.current) Column {
                 GradientText(title, Modifier.semantics { heading() }, ChayeonType.Brand)
                 ChayeonText(subtitle, style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
             }
@@ -179,6 +179,8 @@ fun previewChrome(
     showSourceLabels: Boolean = true,
 ): ScreenChrome = ScreenChrome(
     showSourceLabels = showSourceLabels,
+    discoveryOn = discoveryOn,
+    discoveryResting = resting,
     topBar = { GearStrip(gear, policy, syntheticLocation) },
     bottomBar = { selected -> BottomNav(selected, discoveryOn, {}, {}, resting = resting) },
 )

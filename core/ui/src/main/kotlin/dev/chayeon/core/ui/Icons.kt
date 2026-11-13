@@ -13,6 +13,9 @@ import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.dp
 
 enum class ChayeonIcon(private val svg: String) {
+    HOME("M4 11l8-6.5 8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"),
+    HEART("M12 20s-7.5-4.6-7.5-10A4.2 4.2 0 0 1 12 7.4 4.2 4.2 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"),
+    PHONE("M5 4h3.5l1.8 4.5-2.2 1.4a11 11 0 0 0 6 6l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16.5 16.5 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4z"),
     GENTLE("M3 13c3-8 5 8 9 0s6 0 9-2M3 19h18"),
     BRAKE("M5 6v12M19 6v12M8 12h8M12 8l-4 4 4 4"),
     SIGNAL("M10 5l-7 7 7 7M3 12h18M17 8l4 4-4 4"),

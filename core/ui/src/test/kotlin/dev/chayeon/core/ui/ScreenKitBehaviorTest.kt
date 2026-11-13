@@ -63,21 +63,22 @@ class ScreenKitBehaviorTest {
         assertEquals("느린오후", value.value)
     }
 
-    @Test fun avatarsExposeSelectionAndDiscoveryOrbExposesSwitchState() {
+    @Test fun avatarsExposeSelectionAndDiscoveryChipExposesSwitchState() {
         val avatar = mutableStateOf(AvatarId.SLOW)
         val discovery = mutableStateOf(false)
         compose.setContent {
             ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
                 Column {
                     AvatarPicker(avatar.value, { avatar.value = it })
-                    BottomNav(NavigationItem.PROFILE, discovery.value, {}, { discovery.value = !discovery.value })
+                    DiscoveryChip(discovery.value, { discovery.value = it })
+                    BottomNav(NavigationItem.PROFILE, discovery.value, {}, {})
                 }
             }
         }
         compose.onNodeWithContentDescription(AvatarId.SLOW.label).assertIsSelected()
         compose.onNodeWithContentDescription(AvatarId.DAWN.label).performClick().assertIsSelected()
-        compose.onNodeWithContentDescription("발견 켜기").assertIsOff().performClick()
-        compose.onNodeWithContentDescription("발견 끄기").assertIsOn()
+        compose.onNodeWithText("발견 꺼짐").assertIsOff().performClick()
+        compose.onNodeWithText("발견 켜짐").assertIsOn()
         compose.onNodeWithText("내 프로필").assertExists()
     }
 
@@ -149,6 +150,6 @@ class ScreenKitBehaviorTest {
         compose.onNodeWithText("홈").assertExists()
         compose.onNodeWithText("인연").assertExists()
         compose.onNodeWithText("내 프로필").assertExists()
-        compose.onNodeWithContentDescription("새 애프터 요청", useUnmergedTree = true).assertExists()
+        compose.onNodeWithContentDescription("새 애프터 요청 1개", useUnmergedTree = true).assertExists()
     }
 }

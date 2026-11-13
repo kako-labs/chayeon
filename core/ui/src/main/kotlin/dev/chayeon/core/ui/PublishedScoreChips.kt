@@ -1,16 +1,12 @@
 package dev.chayeon.core.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.testTag
+import dev.chayeon.core.model.DrivingPolicy
 import dev.chayeon.core.model.PublicSignature
 import dev.chayeon.core.model.PublicTrait
 import dev.chayeon.core.model.TraitId
@@ -27,20 +23,13 @@ fun topPublishedScoredTraits(signature: PublicSignature?, limit: Int = 3): List<
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PublishedScoreChips(signature: PublicSignature?, modifier: Modifier = Modifier, limit: Int = 3, large: Boolean = false) {
-    val traits = topPublishedScoredTraits(signature, limit)
+    val traits = topPublishedScoredTraits(signature, if (LocalDrivingPolicy.current == DrivingPolicy.ALLOWED) limit else minOf(limit, 2))
     if (traits.isEmpty()) return
     FlowRow(modifier.testTag("published-scores"),
         horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.TagGap),
         verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.TagGap)) {
         traits.forEach { trait ->
-            val shape = RoundedCornerShape(ChayeonRadii.Tag)
-            ChayeonText("${trait.trait.presentation.name} ${trait.score}",
-                Modifier.testTag("public-score-${trait.trait.name}")
-                    .background(Brush.verticalGradient(listOf(ChayeonColors.White.copy(alpha = .18f), ChayeonColors.GlassButtonBottom)), shape)
-                    .border(ChayeonElevation.Border, ChayeonColors.GlassBorder, shape)
-                    .padding(horizontal = ChayeonSpacing.ChipHorizontal, vertical = ChayeonSpacing.Compact),
-                style = if (large) ChayeonType.Section else ChayeonType.Label,
-                color = ChayeonColors.Pink)
+            ScoreChip(trait, Modifier.testTag("public-score-${trait.trait.name}"), large = large)
         }
     }
 }

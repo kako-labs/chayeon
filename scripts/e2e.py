@@ -318,7 +318,7 @@ def assert_no_arrival_banner(device):
 
 
 def create_signature(device, choice, prefix=""):
-    device.tap("발견 켜기")
+    device.tap("발견 꺼짐", last=True)
     device.wait("별보는밤")
     tree = device.tree()
     invitation = device.find("내 시그니처 만들기", tree)
@@ -482,7 +482,7 @@ def prove_home_zone(device, console, include_driving=True):
         device.tap("오늘의 인연으로")
         assert_home_rest(device)
     home_position(device, False)
-    device.capture("home-zone-return", ["별보는밤", "발견 중"])
+    device.capture("home-zone-return", ["별보는밤", "발견 켜짐"])
 
 
 def prove_platform_home(device, console):

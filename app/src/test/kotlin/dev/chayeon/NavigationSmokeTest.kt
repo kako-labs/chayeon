@@ -56,9 +56,9 @@ class NavigationSmokeTest {
         val fixture = TestGraph().apply { ready() }
         compose.setContent { ChayeonApp(fixture.graph) }
         compose.onNodeWithText("주차 중").assertIsDisplayed()
-        compose.onNodeWithContentDescription("발견 켜기").performClick()
+        compose.onNode(hasText("발견 꺼짐") and isToggleable()).performClick()
         compose.runOnIdle { assertEquals(1, fixture.discoveryCalls) }
-        compose.onNodeWithContentDescription("발견 끄기").assertIsDisplayed()
+        compose.onNodeWithText("발견 켜짐").assertIsDisplayed()
         compose.onRoot().captureRoboImage("src/test/screenshots/app-ready.png")
         compose.runOnIdle { fixture.driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED, gear = Gear.DRIVE) }
         compose.onNodeWithText("주행 중", useUnmergedTree = true).assertExists()
@@ -214,7 +214,7 @@ class NavigationSmokeTest {
         compose.onNodeWithText("답하기").assertDoesNotExist()
         compose.runOnIdle { fixture.driving.value = DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK) }
         compose.onNodeWithText("답하기").assertExists()
-        compose.onNodeWithContentDescription("새 애프터 요청", useUnmergedTree = true).assertExists()
+        compose.onNodeWithContentDescription("새 애프터 요청 1개", useUnmergedTree = true).assertExists()
         compose.onRoot().captureRoboImage("src/test/screenshots/app-after-notification.png")
         compose.runOnIdle { assertEquals(null, target.value) }
     }

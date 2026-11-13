@@ -1,6 +1,6 @@
 # 차연 디자인 시스템
 
-`dev.chayeon.core.ui`의 명명된 컴포넌트를 사용합니다. 화면에서 Material 기본 표면을 섞거나 색·글자 토큰을 다시 만들지 않습니다. 토큰의 근거는 `docs/design/screens/RedStyle.dc.html`, `RedHome.dc.html`, `RedConnected.dc.html`입니다.
+`dev.chayeon.core.ui`의 명명된 컴포넌트를 사용합니다. 화면에서 Material 기본 표면을 섞거나 색·글자 토큰을 다시 만들지 않습니다. UI v2 토큰은 승인된 `design-v2/render` 목업을 따르며 기존 Red 시안보다 우선해요. 세부 기준은 `docs/design/README.md`에 있어요.
 
 ## 시작
 
@@ -174,3 +174,48 @@ LazyColumn(state = list, modifier = Modifier.scrollEdgeFade(list)) { /* Screen i
 ```
 
 페이드는 `verticalScroll` 앞에 둬요. 콘텐츠와 배경을 분리한 뷰포트에 적용하면 기존 글래스 배경과 자연스럽게 이어져요.
+
+## UI v2 공용 기반
+
+새 화면은 승인된 1682×1210 목업을 기준으로 아래 부품을 사용해요. 기존 화면의 본문 조립은 다음 화면 작업에서 바꿔요. 앱 배경·하단 메뉴·상태 배지·아바타와 공개 점수 칩은 공용 구현을 통해 먼저 바뀌어요.
+
+| API | 역할 |
+|---|---|
+| `SceneBackground(scene, modifier, dimmed, scrim, content)` | PARKING·ROAD·HOME·DAWN·PLAIN, crop 이미지와 정적 스크림 |
+| `ScreenScaffold(..., scene, sceneScrim)` | 장면을 본문 뒤에 배치해요. 기본값은 앱의 `LocalScene`이며 제한·불명에서는 ROAD를 강제해요 |
+| `Mascot(pose, modifier)` | WAVE·THREAD·CALL·SLEEP·BYE·KNOT, 한국어 설명과 부드러운 붉은 그림자 |
+| `AvatarDish(avatar, modifier, decorative)` | 기존 API로 새 idle 에셋을 표시해요 |
+| `CallAvatar(avatar, mirrored, modifier)` | 헤드셋·실 끝이 있는 call 에셋, 오른쪽 상대는 좌우 반전 |
+| `CallHero(me, partner, modifier)` | `CallParticipant(avatar, name, title)` 두 명과 9/5/1.6dp 붉은 실, 닉네임·상대 칭호. 항상 정적이에요 |
+| `HeroHeadline(title, supportingLine, modifier, style)` | 큰 제목과 한 문장. 기본 84sp, 좁은 창·통화에는 SceneTitle/CallTitle을 선택해요 |
+| `StatTile(icon, label, value, modifier)` | 아이콘·작은 라벨·큰 값 |
+| `ScoreChip(trait: PublicTrait, modifier, large)` | 공개 가능한 점수만 이름·굵은 숫자로 표시해요. 취향·60 미만은 숨겨요 |
+| `PublishedScoreChips(signature, modifier, limit, large)` | 내림차순 최대 3개, 제한·불명에서는 최대 2개. 주행에서는 `large = true` |
+| `PrimaryButton(text, onClick, modifier, icon, enabled, access, driving, compact)` | 붉은 그라데이션과 주차 중의 은은한 광택. 큰 주행 컨트롤은 `driving = true`, 인연 행의 76dp 액션은 `compact = true` |
+| `OutlineButton(...)` | PrimaryButton과 같은 계약, 테두리 보조 버튼 |
+| `InfoLine(text, modifier, icon)` | 작은 안내 문장과 선택적 아이콘 |
+| `GlassPanel(modifier, contentPadding, content)` | 40dp 곡률의 반투명 레이어. 플랫폼 blur가 없어요 |
+| `TopicLine(text, modifier)` | 체크 표시와 실제 공통 주제 문장 |
+| `ListRow(avatar, name, subLine, modifier, status, trailingAction)` | 인연 행과 trailing 슬롯. 액션은 버튼 정책을 적용한 부품으로 넣어요 |
+| `BondStatusBadge(status, modifier)` | INCOMING·CONNECTED·WAITING 상태의 한국어 배지 |
+| `BrandMark`, `DrivingStatusPill(gear, policy)` | 하트 공·차연, 기어와 주행 상태 |
+| `BottomNav(..., incomingAfterCount)` | 같은 너비의 3탭, 선택 pill, 주차 중에만 받은 애프터 수. 기존 발견 인자는 호환용이며 오브를 만들지 않아요 |
+| `DiscoveryChip(checked, onCheckedChange, modifier, resting, enabled)` | 다음 홈 히어로의 발견 스위치 |
+
+`ButtonAccess.PARKED_ONLY`가 기본이에요. `RESTRICTED_CALL`은 현재 통화의 음소거와 정책을 통과한 RING/AUTO 수신 받기·거절에만, `SAFE_EXIT`는 안전한 통화 종료에만 써요. UNKNOWN에서 SAFE_EXIT 외에는 잠겨요. 화면 ViewModel의 명령 검사도 유지해야 해요. 버튼 최소 크기는 주차 76dp, 제한·불명 96dp이고 `driving = true`는 목업의 180dp예요.
+
+`CallHero`에는 시간·점수·관심사를 넣지 않아요. 주행 통화 화면은 목업처럼 상대 `AvatarDish`와 칭호, `PublishedScoreChips(..., limit = 2, large = true)`를 중심으로 구성해요. 점수의 출처는 반드시 서버의 공개 투영이어야 해요. `StatTile`·인연 목록·발견 스위치·설정은 주차 화면에서만 사용해요.
+
+`ScreenChrome`은 `discoveryOn`, `discoveryResting`, `discoveryBusy`, `onDiscoveryToggle`을 노출해요. 다음 홈에서 `DiscoveryChip(chrome.discoveryOn, { chrome.onDiscoveryToggle() }, resting = chrome.discoveryResting, enabled = !chrome.discoveryBusy)`로 사용해요. 기존 홈의 ViewModel 스위치도 유지되어 있어요. 중앙 발견 오브는 제거했어요.
+
+장면 선택은 `appScene`이 소유해요. 홈·만남·요청·주차 통화는 PARKING, 보호 중 홈·집 보호 설정은 HOME, 참여 준비·인연·애프터는 DAWN, 종료·주행은 ROAD, 프로필·근거·설정은 PLAIN이에요. 주행 정책이 제한·불명으로 바뀌면 스캐폴드가 ROAD와 어두운 스크림을 우선해요. `SceneScrim.RIGHT`는 오른쪽 본문, `CALL`은 주차 통화의 중앙 연출용이에요. 직접 테스트하는 feature에는 필요한 `scene`을 명시해요.
+
+`ChayeonType.Headline/SceneTitle/CallTitle/CardTitle/TileValue/SceneButton/DrivingButton/SceneName/SceneBody`가 새 위계를 제공해요. 기존 타입 크기는 기존 화면의 줄바꿈을 유지하기 위해 그대로 두었어요. `ChayeonDimensions.Scene*`는 새 크기·간격 토큰이에요. 앱 루트 홈의 이전 `AppHeader` 브랜드는 `LocalBrandInChrome`으로 중복을 피하며, 상세 화면의 기존 `BackButton`은 새 테두리 표면을 써요.
+
+WebP는 장면 4장(1536×1024), 마스코트 6장(768×768), idle 아바타 6장 교체와 call 아바타 6장 추가(각 512×512)예요. PNG를 앱 리소스에 넣지 않아요. 제작 기록은 [에셋 출처](../../docs/design/assets-v2.md)에 있어요.
+
+검증 갤러리는 `v2_*.png`, 앱 크롬은 `v2-chrome-*.png`예요. 고정된 주행 정책, 1682×1210/840×1210dp, 저장 배율 0.5로 캡처해요.
+
+기존 화면의 본문 가시성을 유지하려고 `ScreenScaffold.contentPadding` 기본값은 가로 32dp·세로 8dp예요. 커진 상태 pill이 차지하는 높이만큼 기존 바깥 세로 여백을 줄여 본문 가시성을 유지해요. v2 화면으로 조립할 때 `PaddingValues(start = ChayeonDimensions.SceneScreenHorizontal, end = ChayeonDimensions.SceneScreenHorizontal, top = ChayeonDimensions.SceneScreenTop, bottom = ChayeonDimensions.SceneScreenBottom)`를 전달하면 목업의 56/44/40dp 여백을 적용해요.
+
+앱은 `hasDetailChrome`에 해당하는 상세 경로에서 상단 뒤로 버튼을 제공해요. `LocalChromeBackRegistry`가 있으면 기존 화면 본문의 `BackButton`이 자신의 콜백·활성 상태를 상단 크롬에 전달하고 중복 버튼은 만들지 않아요. 저장·게시 중 잠금과 화면별 돌아가기 동작을 그대로 유지해요. 앱 크롬만 `inChrome = true`를 전달해요. 직접 feature를 캡처하는 테스트에서는 기존 뒤로 버튼을 그대로 볼 수 있어요.

@@ -22,6 +22,8 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -179,8 +181,21 @@ fun GelCheckbox(title: String, checked: Boolean, onCheckedChange: (Boolean) -> U
 }
 
 @Composable
-fun BackButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, allowWhenRestricted: Boolean = false) {
-    Box(modifier.size(ChayeonSpacing.Touch).gelSurface(JellyVariant.SECONDARY, ChayeonRadii.Banner)
+fun BackButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, allowWhenRestricted: Boolean = false,
+    inChrome: Boolean = false) {
+    val registry = LocalChromeBackRegistry.current
+    if (registry != null && !inChrome) {
+        val latestClick = rememberUpdatedState(onClick)
+        val action = remember(enabled, allowWhenRestricted) {
+            ChromeBackAction({ latestClick.value() }, enabled, allowWhenRestricted)
+        }
+        DisposableEffect(registry, action) {
+            val release = registry.register(action)
+            onDispose(release)
+        }
+        return
+    }
+    Box(modifier.size(ChayeonSpacing.Touch).sceneGlass(ChayeonRadii.Banner)
         .clickable(enabled = enabled && (LocalDrivingPolicy.current == DrivingPolicy.ALLOWED || allowWhenRestricted), role = Role.Button, onClick = onClick)
         .semantics { contentDescription = "뒤로" }, contentAlignment = Alignment.Center) {
         ChayeonIcon(ChayeonIcon.BACK, Modifier.size(ChayeonDimensions.BackIcon))
