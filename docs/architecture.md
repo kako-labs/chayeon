@@ -96,7 +96,7 @@ val allowedEdges = mapOf(
 | `ConnectionRepository` | 요청, 응답, 취소, 현재 연결 관찰, 통화 끊기(leave). 텍스트 메시지 계약 없음 |
 | `VoiceCallRepository` | 연결 ID별 통화 상태, 음소거, 주차 중 선택적 마이크 권한 |
 | `VoiceTransport`, `VoiceChannel` | data:social이 구현하는 인증 WebSocket PCM 채널 |
-| `DemoPeerVoice` (`data:voice` 내부) | 양 모드의 데모 상대 재생·포커스·종료. Pleos 기기 내 음성, 마이크와 WebSocket 없음 |
+| `DemoPeerVoice` (`data:voice` 내부) | 양 모드의 데모 상대 재생·포커스·종료. 번들 음성 클립과 Pleos 기기 내 음성 대체, 마이크와 WebSocket 없음 |
 | `EncounterRepository` | 스친 인연 목록과 상세, 내 기록 삭제 |
 | `AfterRepository` | 연락처를 선택한 애프터 신청·응답, 철회, 상호 수락 후 연락처 교환, 관계 종료 |
 | `SafetyRepository` | 차단, 해제, 신고, 차단 목록 |
@@ -194,7 +194,7 @@ Pleos 에뮬레이터 측정에서 온 조건입니다. 실차와 App Market 승
 | compileSdk, targetSdk | 35 |
 | minSdk | 28 |
 | 패키지 | `dev.chayeon` |
-| Pleos 데모 음성 | TextToSpeech SDK 3.3.1, ON_DEVICE |
+| Pleos 안내·대체 음성 | TextToSpeech SDK 3.3.1, ON_DEVICE (자동 연결 안내, 데모 클립 재생 실패 시 대체) |
 
 Vehicle SDK는 `https://nexus-playground.pleos.ai/repository/maven-releases/`의 `ai.pleos.playground:Vehicle:2.3.2`입니다. SDK 파일은 저장소에 넣지 않습니다.
 
@@ -242,7 +242,7 @@ Application 소유 `HomeZoneCoordinator` 한곳만 presence를 전송해요. `pr
 
 마이크를 사용할 수 없으면 수신만 유지해요. Android 14에서 RECORD_AUDIO 없이 microphone 타입 서비스를 시작할 수 없으므로 수신 전용·데모 상대 통화는 mediaPlayback 타입을 사용하고, 녹음 가능한 통화에는 microphone 타입을 함께 사용해요. 알림은 CATEGORY_CALL이며 통화 끊기 action이 같은 leave 경로를 실행해요. 실차 오디오 라우팅과 Pleos 백그라운드 유지·권한 승인은 별도 검증 대상이에요.
 
-데모 상대의 음성은 `data:voice`의 `ScriptedDemoPeerVoice` → `DemoSpeechEngine` → `PleosSpeechEngine`에서 처리해요. Pleos TextToSpeech 3.3.1을 직접 호출하고 `Mode.ON_DEVICE`만 사용해요. 일반 권한 `pleos.car.permission.TTS_SERVICE`만 선언하며 보안 그룹은 추가하지 않아요. SOLO 또는 `ProfileKind.DEMO_PEER`이면 서버 모드에서도 음성 WebSocket·마이크를 열지 않아요. 초기 prepare로 SDK를 준비한 뒤 포커스 아래에서 세 문장을 순서대로 재생하고, 시작 시각 기준 약 20초 간격을 둬요. 실제 소리 시작을 검증하지 못하므로 SDK 시작 콜백으로 발화 UI를 바꾸지 않아요. 종료·보호·포커스 상실은 재생을 멈춰요.
+데모 상대의 음성은 `data:voice`의 `ScriptedDemoPeerVoice` → `DemoSpeechEngine`(`BundledClipSpeechEngine`)에서 처리해요. 각 문장은 `res/raw`의 미리 만든 클립을 `AndroidClipPlayer`(MediaPlayer, VOICE_COMMUNICATION)로 재생하고, 클립이 없거나 재생하지 못하면 `PleosSpeechEngine`이 대신 말해요. 자동 연결 안내는 `PleosSpeechEngine`만 써요. Pleos TextToSpeech 3.3.1을 직접 호출하고 `Mode.ON_DEVICE`만 사용해요. 일반 권한 `pleos.car.permission.TTS_SERVICE`만 선언하며 보안 그룹은 추가하지 않아요. SOLO 또는 `ProfileKind.DEMO_PEER`이면 서버 모드에서도 음성 WebSocket·마이크를 열지 않아요. Pleos SDK는 대체 발화가 처음 필요할 때 준비하고, 포커스 아래에서 세 문장을 순서대로 재생하며, 시작 시각 기준 약 20초 간격을 둬요. 실제 소리 시작을 검증하지 못하므로 SDK 시작 콜백으로 발화 UI를 바꾸지 않아요. 종료·보호·포커스 상실은 재생을 멈춰요.
 
 ## 인연과 연락처 경계
 

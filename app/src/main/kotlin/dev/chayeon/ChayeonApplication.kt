@@ -32,7 +32,7 @@ class ChayeonApplication : Application(), VehicleGraphOwner, VoiceServiceOwner {
         VoiceCallController(scope, RemoteVoiceTransport(BuildConfig.SERVER_URL, session = {
             (socialGraph.sessionRepository.session.first() as? SessionState.Active)?.session
         }), AndroidVoiceAudio(this), AndroidCallService(this),
-            demo = ScriptedDemoPeerVoice(scope, PleosSpeechEngine(this)),
+            demo = ScriptedDemoPeerVoice(scope, BundledClipSpeechEngine(AndroidClipPlayer(this), PleosSpeechEngine(this))),
             currentPolicy = { vehicleGraph.drivingStateProvider.current().policy },
             permissionRequest = { graph.prepareMicrophone() }, announcementSpeech = PleosSpeechEngine(this))
     }

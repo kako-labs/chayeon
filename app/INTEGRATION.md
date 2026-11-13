@@ -185,7 +185,7 @@ SOLO 화면의 출처 문구는 서버 주소가 없으면 첫 프로필 만들�
 
 Application이 VoiceCallController를 소유해 화면 이탈과 무관하게 통화 수명을 관리해요. `RemoteVoiceTransport`만 WebSocket을 열고 `AndroidVoiceAudio`는 core:model 채널을 통해 PCM을 주고받아요. 집 보호, 세션 종료, CHECKING/ENDED, 통화 끊기는 로컬 오디오와 서비스를 닫아요. 통화 끊기는 기존 leave 명령을 재사용해요.
 
-MainActivity는 선택 RECORD_AUDIO 런처를 소유하며 현재 ALLOWED이고 RESUMED일 때만 요청해요. 실제 상대 통화에서 권한 거부·입력 없음은 수신 전용이에요. SOLO와 SERVER_DEMO의 데모 상대는 `ScriptedDemoPeerVoice`와 `PleosSpeechEngine`을 사용하고 마이크·음성 WebSocket을 열지 않아요. SDK 시작 콜백은 실제 소리 시작을 보장하지 않으므로 발화 중 표시를 만들지 않아요. microphone FGS는 녹음 허가가 있을 때만 사용하며 수신 전용과 데모 상대 통화는 mediaPlayback 타입으로 유지해요. 알림 action도 같은 통화 끊기 경로예요.
+MainActivity는 선택 RECORD_AUDIO 런처를 소유하며 현재 ALLOWED이고 RESUMED일 때만 요청해요. 실제 상대 통화에서 권한 거부·입력 없음은 수신 전용이에요. SOLO와 SERVER_DEMO의 데모 상대는 `ScriptedDemoPeerVoice`와 `BundledClipSpeechEngine`(번들 클립, 실패 시 `PleosSpeechEngine`)을 사용하고 마이크·음성 WebSocket을 열지 않아요. SDK 시작 콜백은 실제 소리 시작을 보장하지 않으므로 발화 중 표시를 만들지 않아요. microphone FGS는 녹음 허가가 있을 때만 사용하며 수신 전용과 데모 상대 통화는 mediaPlayback 타입으로 유지해요. 알림 action도 같은 통화 끊기 경로예요.
 
 PCM16 16 kHz mono 20 ms 프레임은 방향당 약 256 kbps예요. 짧은 메모리 큐만 사용하고 음성을 저장·로그하지 않아요. Opus는 후속 단계예요. Android 14의 백그라운드 마이크 시작 제한, Pleos 오디오 포커스·개인정보 스위치·장시간 서비스는 실제 기기에서 추가 확인해야 해요.
 
@@ -234,13 +234,13 @@ SOLO e2e는 통화 화면·주차 중 이야깃거리·D 중 음소거/해제·�
 
 서버 테스트 38개가 통과했어요. 50프레임 순간 버스트와 초과 DROP, 재접속 예산 유지, 잘못된 크기 즉시 종료, 100 fps 초과가 5초 이어질 때 종료하는 경로를 검사했어요. 실제 `RoomRegistry`에서 10,000프레임 중계와 수신 큐 소비 동안 엔진 상태 조회 증가분은 정확히 0회였어요. leave·거리 이탈·차단·계정 삭제부터 양쪽 실제 WebSocket의 closeReason까지 각각 300ms 이내라는 테스트도 통과했어요. 기존 호스트 프록시 PCM 검증은 이 정책 수정 이전에 실행한 결과이며 기기 검증과 구분해요.
 
-### 데모 상대의 Pleos 음성
+### 데모 상대 음성과 Pleos 안내 음성
 
-`ai.pleos.playground:TextToSpeech:3.3.1`을 `data:voice`에서 직접 사용해요. `Mode.ON_DEVICE`만 사용하며 일반 권한 `pleos.car.permission.TTS_SERVICE`를 선언해요. 보안 그룹 권한은 추가하지 않아요. Application이 `ScriptedDemoPeerVoice`와 `PleosSpeechEngine`을 연결하고, SOLO 또는 DEMO_PEER인 상대에게는 서버 모드에서도 마이크·음성 WebSocket을 열지 않아요.
+`ai.pleos.playground:TextToSpeech:3.3.1`을 `data:voice`에서 직접 사용해요. `Mode.ON_DEVICE`만 사용하며 일반 권한 `pleos.car.permission.TTS_SERVICE`를 선언해요. 보안 그룹 권한은 추가하지 않아요. Application이 `ScriptedDemoPeerVoice`에 `BundledClipSpeechEngine(AndroidClipPlayer, PleosSpeechEngine)`을 연결하고, 자동 연결 안내에는 `PleosSpeechEngine`을 그대로 써요. 데모 상대의 세 문장은 미리 만든 클립(`data/voice/src/main/res/raw/demo_voice_*.mp3`, 출처는 [음성 클립 안내](../docs/design/voice-assets.md))으로 재생해요. 또한 SOLO 또는 DEMO_PEER인 상대에게는 서버 모드에서도 마이크·음성 WebSocket을 열지 않아요.
 
-연결에서 초기 `prepare`로 SDK를 준비한 뒤 상대별 세 문장을 재생해요. 각 문장의 시작 시각부터 약 20초 뒤 다음 문장을 시작해요. 발화 완료까지 기다리되 그 시간을 간격에 포함해요. 오디오 포커스가 없으면 재생하지 않으며 포커스 상실·통화 종료·집 보호에는 즉시 `stop`해요. SDK `onStart`를 실제 소리 시작으로 해석하지 않아 `상대가 말하는 중` UI는 없어요.
+연결되면 상대별 세 문장을 클립으로 재생해요. 클립을 재생하지 못한 문장만 SDK를 처음 필요할 때 준비해 말해요. 각 문장의 시작 시각부터 약 20초 뒤 다음 문장을 시작해요. 발화 완료까지 기다리되 그 시간을 간격에 포함해요. 오디오 포커스가 없으면 재생하지 않으며 포커스 상실·통화 종료·집 보호에는 즉시 `stop`해요. SDK `onStart`를 실제 소리 시작으로 해석하지 않아 `상대가 말하는 중` UI는 없어요.
 
-팀의 이전 앱에서 관찰한 초기 약 4.5초·이후 약 3초 지연은 차연의 측정값이 아니에요. 차연에서 Pleos 음성의 실제 발화·초기 준비 효과·완료 이벤트·지연은 기기 검증하지 않았어요. 서버 통화 PCM은 초기 4프레임(오디오 80ms, 첫 프레임 도착부터 약 60ms)을 모아 재생하며, 수신 큐는 5프레임으로 제한하고 blocking AudioTrack sink가 재생 속도를 맞춰요.
+팀의 이전 앱에서 관찰한 초기 약 4.5초·이후 약 3초 지연은 차연의 측정값이 아니에요. 차연에서 Pleos 음성(자동 연결 안내·대체 발화)의 실제 발화·초기 준비 효과·완료 이벤트·지연은 기기 검증하지 않았어요. 서버 통화 PCM은 초기 4프레임(오디오 80ms, 첫 프레임 도착부터 약 60ms)을 모아 재생하며, 수신 큐는 5프레임으로 제한하고 blocking AudioTrack sink가 재생 속도를 맞춰요.
 
 ### 통화 기준 이미지
 
