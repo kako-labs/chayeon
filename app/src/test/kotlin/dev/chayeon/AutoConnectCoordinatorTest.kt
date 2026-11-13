@@ -129,6 +129,25 @@ class AutoConnectCoordinatorTest {
         }
     }
 
+    @Test fun crossingRequestIsStillAcceptedAfterOurOwnAutomaticRequestIsRefused() = runTest {
+        var now = 1_800_000_000_000L
+        val commands = Commands().apply { response = incoming(now); failure = AppError.AlreadyClosed }
+        val coordinator = AutoConnectCoordinator(MutableStateFlow(null), TestDriving(), TestHomeZone(), commands,
+            backgroundScope, MemoryAutoConnectStore(), { now }, { ZoneId.of("UTC") })
+        // The other person requested us at the same moment, so the server refuses our automatic request.
+        coordinator.update(snapshot(), DrivingPolicy.RESTRICTED, false)
+        assertEquals(1, commands.sent.size)
+        assertTrue(coordinator.canAct(peer.id))
+        commands.failure = null
+        now += 5_000
+        coordinator.update(snapshot().copy(requests = listOf(incoming(now))), DrivingPolicy.RESTRICTED, false)
+        assertEquals("incoming", commands.accepted.single().requestId)
+        // Our own request to them waits a minute instead of retrying at once.
+        now += 5_000
+        coordinator.update(snapshot(), DrivingPolicy.RESTRICTED, false)
+        assertEquals(1, commands.sent.size)
+    }
+
     @Test fun cooldownCountsFromWhenTheCarSawTheEndEvenIfItsClockIsAhead() = runTest {
         val serverEnd = 1_800_000_000_000L
         var now = serverEnd + 12 * 60_000

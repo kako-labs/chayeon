@@ -21,6 +21,8 @@ internal data class AutoConnectMemory(
     val pending: AutomaticAttempt? = null,
     val acceptedRequests: Set<String> = emptySet(),
     val announcedConnections: Set<String> = emptySet(),
+    /** Short backoff after an automatic request the server refused; only real outcomes block for the day. */
+    val retryAfter: Map<String, Long> = emptyMap(),
 )
 
 internal interface AutoConnectMemoryStore {
@@ -111,8 +113,9 @@ internal class AutoConnectCoordinator(
             if (!save(memory.copy(acceptedRequests = memory.acceptedRequests + incoming.id))) return
             val result = connections.respond(RespondConnectionRequest(CommandMeta("auto-accept-${incoming.id}"), incoming.id, RequestDecision.ACCEPT, automatic = true))
             if (result is AppResult.Failure && result.error !in setOf(AppError.Network, AppError.Unknown)) {
-                save(memory.copy(acceptedRequests = memory.acceptedRequests - incoming.id,
-                    blockedDays = memory.blockedDays + (incoming.peer.id to day(now()))))
+                // A refused acceptance is not a decline. The request's real outcome (declined, expired, ended)
+                // is observed from sync and only that blocks the person for the day.
+                save(memory.copy(acceptedRequests = memory.acceptedRequests - incoming.id))
             }
             return
         }
@@ -120,6 +123,7 @@ internal class AutoConnectCoordinator(
         val pending = memory.pending
         val candidate = snapshot.discovery.candidates.filter {
             (pending == null || it.id == pending.peerId) && canAct(it.profile.id) &&
+                (memory.retryAfter[it.profile.id] ?: 0) <= now() &&
                 (it.requestAvailableAtEpochMillis ?: 0) <= now() && conditions.matches(it.profile, snapshot.ownInterests)
         }.sortedWith(compareByDescending<Candidate> { conditions.exceededCount(it.profile) }
             .thenByDescending { (it.profile.interests intersect snapshot.ownInterests).size }.thenBy { it.profile.id }).firstOrNull() ?: return
@@ -129,7 +133,9 @@ internal class AutoConnectCoordinator(
         lastAttemptAt = now()
         val result = connections.requestConnection(RequestConnectionRequest(CommandMeta(attempt.commandId), candidate.id, automatic = true))
         if (result is AppResult.Failure && result.error !in setOf(AppError.Network, AppError.Unknown)) {
-            save(memory.copy(pending = null, blockedDays = memory.blockedDays + (candidate.profile.id to day(now()))))
+            // For example the other person requested me at the same moment and the server refused a second pending
+            // request. Wait briefly instead of blocking them for the day, so their own request can still be accepted.
+            save(memory.copy(pending = null, retryAfter = memory.retryAfter + (candidate.profile.id to now() + 60_000)))
         }
     }
 
