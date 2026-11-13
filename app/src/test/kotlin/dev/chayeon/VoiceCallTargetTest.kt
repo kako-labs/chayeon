@@ -54,6 +54,17 @@ class VoiceCallTargetTest {
         assertFalse(protection.update(SessionState.SignedOut(), HomeZoneState(), DrivingPolicy.RESTRICTED))
     }
 
+    @Test fun aNewAutomaticCallOutsideHomeDoesNotInheritTheEndedCallsProtectionLatch() {
+        val protection = VoiceHomeProtection()
+        assertFalse(protection.update(session, HomeZoneState(), DrivingPolicy.RESTRICTED, "old"))
+        assertTrue(protection.update(session, HomeZoneState(HomeZoneStatus.INSIDE), DrivingPolicy.RESTRICTED, "old"))
+        assertTrue(protection.update(session, HomeZoneState(), DrivingPolicy.RESTRICTED, "old"))
+        assertTrue(protection.update(session, HomeZoneState(), DrivingPolicy.RESTRICTED, null))
+        assertTrue(protection.update(session, HomeZoneState(), DrivingPolicy.RESTRICTED, "old"))
+        assertFalse(protection.update(session, HomeZoneState(), DrivingPolicy.RESTRICTED, "new"))
+        assertTrue(protection.update(session, HomeZoneState(HomeZoneStatus.INSIDE), DrivingPolicy.RESTRICTED, "another"))
+    }
+
     private fun target(value: Connection, home: HomeZoneState = HomeZoneState(), ending: Boolean = false, leaving: String? = null) =
         voiceCallTarget(session, LoadState.Ready(value, 1), home, ending, leaving)
 }

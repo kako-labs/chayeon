@@ -10,6 +10,27 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class VoiceViewModelTest {
+    @Test fun autoModeWithUnmetConditionsKeepsManualRingFallback() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val deps = FakeMeetDeps()
+        val store = ViewModelStore()
+        val model = RequestViewModel(deps).also { store.put("request", it) }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { model.uiState.collect() }
+        try {
+            deps.requests.value = LoadState.Ready(listOf(MeetFixtures.request), 2)
+            deps.drivingState.value = DrivingState(policy = DrivingPolicy.RESTRICTED)
+            deps.settings.value = LoadState.Ready(ParticipationSettings("settings", 2,
+                drivingConnectMode = DrivingConnectMode.AUTO,
+                autoConnectConditions = AutoConnectConditions(mapOf(TraitId.SIGNAL_MANNERS to 100))), 2)
+            runCurrent()
+            assertTrue(model.uiState.value.receiveRequestsWhileDriving)
+            assertTrue(deps.respondCommands.isEmpty())
+            model.accept(); runCurrent()
+            assertEquals(RequestDecision.ACCEPT, deps.respondCommands.single().decision)
+            assertFalse(deps.respondCommands.single().automatic)
+        } finally { store.clear(); runCurrent(); Dispatchers.resetMain() }
+    }
+
     @Test fun incomingResponseRechecksSettingPolicyDirectionAndHome() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val deps = FakeMeetDeps()

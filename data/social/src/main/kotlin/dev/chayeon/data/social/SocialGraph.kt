@@ -20,6 +20,7 @@ class SocialGraph(
     drivingStateProvider: DrivingStateProvider? = null,
     prepareSession: suspend (Session, suspend (SetSyntheticPresenceRequest, suspend () -> Boolean) -> AppResult<CommandReceipt>) -> Unit = { _, _ -> },
     canStartConnection: suspend () -> Boolean = { true },
+    canAutomaticallyConnect: suspend (String) -> Boolean = { false },
 ) : AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val backends = buildMap<SessionMode, SocialBackend> {
@@ -39,11 +40,20 @@ class SocialGraph(
     val sessionRepository: SessionRepository = SocialSessionRepository(coordinator, backends.keys)
     val profileRepository: ProfileRepository = SocialProfileRepository(coordinator)
     val discoveryRepository: DiscoveryRepository = SocialDiscoveryRepository(coordinator)
-    val connectionRepository: ConnectionRepository = SocialConnectionRepository(coordinator, canStartConnection)
+    val connectionRepository: ConnectionRepository = SocialConnectionRepository(coordinator, canAutomaticallyConnect = canAutomaticallyConnect, canStartConnection = canStartConnection)
     val encounterRepository: EncounterRepository = SocialEncounterRepository(coordinator)
     val afterRepository: AfterRepository = SocialAfterRepository(coordinator, canStartConnection)
     val safetyRepository: SafetyRepository = SocialSafetyRepository(coordinator)
     val serverTimeProvider: ServerTimeProvider = SocialServerTimeProvider(coordinator)
+
+    val autoConnectSnapshot = coordinator.store.state.map { state ->
+        val snapshot = (state.data as? LoadState.Ready)?.value
+        val session = (coordinator.session.value as? SessionState.Active)?.session
+        val settings = snapshot?.settings
+        if (snapshot == null || session == null || settings == null) null
+        else AutoConnectSnapshot(session.accountId, settings, snapshot.profile?.publicProfile?.interests.orEmpty(),
+            snapshot.discovery, snapshot.connectionRequests, snapshot.connections, snapshot.blocks.map { it.peer.id }.toSet())
+    }
 
     // Service consent must remain observable while the UI is driving-restricted.
     val recordingSettings = coordinator.store.state.map { state ->

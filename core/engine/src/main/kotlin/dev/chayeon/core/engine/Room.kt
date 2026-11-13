@@ -128,7 +128,7 @@ internal class Room(
     fun request(r: RequestRecord, actor: String): ConnectionRequest {
         val other = peer(r.sender, r.recipient, actor)
         return ConnectionRequest(r.id, v, publicProfile(other, actor), if (actor == r.sender) RequestDirection.OUTGOING else RequestDirection.INCOMING,
-            r.status, r.createdAt, r.expiresAt, chemistry(actor, other), r.connectionId, r.retryAt)
+            r.status, r.createdAt, r.expiresAt, chemistry(actor, other), r.connectionId, r.retryAt, r.automatic)
     }
     fun connection(c: ConnectionRecord, actor: String): Connection {
         val other = peer(c.first, c.second, actor)

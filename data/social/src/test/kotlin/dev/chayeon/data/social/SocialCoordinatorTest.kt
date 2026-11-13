@@ -551,6 +551,64 @@ class SocialCoordinatorTest {
         assertNull(coordinator.store.state.value.sessionId)
     }
 
+    @Test fun automaticTransportRechecksCurrentPolicyConditionsAndHomeBeforeSending() = runTest {
+        for (guard in listOf("parked", "unknown", "home", "off", "condition", "block", "pending")) {
+            val backend = FakeBackend()
+            val driving = MutableStateFlow(DrivingState(policy = DrivingPolicy.ALLOWED))
+            val coordinator = SocialCoordinator(mapOf(SessionMode.SOLO to backend), backgroundScope,
+                { AppResult.Success(Unit) }, { 10 }, provider(driving))
+            coordinator.enter(enter()); runCurrent()
+            val peer = profile().publicProfile.copy(id = "peer", signature = PublicSignature("sig", 1, "칭호",
+                listOf(PublicTrait(TraitId.SIGNAL_MANNERS, TraitLevel.SIGNATURE, 94)), KnotSeed(1), DataSource.SYNTHETIC, EvidenceBucket.ESTABLISHED))
+            val settings = ParticipationSettings("settings", 2, drivingConnectMode = DrivingConnectMode.AUTO,
+                autoConnectConditions = AutoConnectConditions(mapOf(TraitId.SIGNAL_MANNERS to 90)))
+            val snapshot = SyncSnapshot("session", 2, 1_000, profile(), settings,
+                DiscoveryState(mode = DiscoveryMode.ON, candidates = listOf(Candidate(peer.id, 1, peer, Chemistry(), emptySet()))))
+            backend.snapshot.value = AppResult.Success(snapshot); runCurrent()
+            driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED)
+            assertTrue(coordinator.allowsAutomaticRequest(peer.id))
+            val gate = CompletableDeferred<Unit>()
+            var homeAllows = true
+            backend.beforeExecute = { gate.await() }
+            val repository = SocialConnectionRepository(coordinator, canAutomaticallyConnect = { true }, canStartConnection = { homeAllows })
+            val pending = async { repository.requestConnection(RequestConnectionRequest(CommandMeta("auto"), peer.id, automatic = true)) }
+            runCurrent()
+            when (guard) {
+                "parked" -> driving.value = DrivingState(policy = DrivingPolicy.ALLOWED)
+                "unknown" -> driving.value = DrivingState(policy = DrivingPolicy.UNKNOWN)
+                "home" -> homeAllows = false
+                "off" -> backend.snapshot.value = AppResult.Success(snapshot.copy(version = 3, settings = settings.copy(drivingConnectMode = DrivingConnectMode.OFF)))
+                "condition" -> backend.snapshot.value = AppResult.Success(snapshot.copy(version = 3, settings = settings.copy(autoConnectConditions = AutoConnectConditions(mapOf(TraitId.SIGNAL_MANNERS to 100)))))
+                "block" -> backend.snapshot.value = AppResult.Success(snapshot.copy(version = 3, blocks = listOf(Block("block", 3, peer, 0))))
+                "pending" -> backend.snapshot.value = AppResult.Success(snapshot.copy(version = 3, connectionRequests = listOf(ConnectionRequest("out", 3, peer, RequestDirection.OUTGOING, ConnectionRequestStatus.PENDING, 0, 100_000, Chemistry()))))
+            }
+            runCurrent(); gate.complete(Unit)
+            assertEquals(guard, AppResult.Failure(AppError.Restricted), pending.await())
+            assertTrue(guard, backend.bodies.isEmpty())
+            coordinator.close()
+        }
+    }
+
+    @Test fun autoModeUnmatchedIncomingStillHasRingConsentButNoAutomaticConsent() = runTest {
+        val backend = FakeBackend()
+        val driving = MutableStateFlow(DrivingState(policy = DrivingPolicy.ALLOWED))
+        val coordinator = SocialCoordinator(mapOf(SessionMode.SOLO to backend), backgroundScope,
+            { AppResult.Success(Unit) }, { 10 }, provider(driving))
+        coordinator.enter(enter()); runCurrent()
+        val request = ConnectionRequest("incoming", 1, profile().publicProfile, RequestDirection.INCOMING,
+            ConnectionRequestStatus.PENDING, 0, 100_000, Chemistry())
+        backend.snapshot.value = AppResult.Success(SyncSnapshot("session", 2, 1_000, profile(),
+            ParticipationSettings("settings", 2, drivingConnectMode = DrivingConnectMode.AUTO,
+                autoConnectConditions = AutoConnectConditions(mapOf(TraitId.SIGNAL_MANNERS to 90))),
+            DiscoveryState(mode = DiscoveryMode.ON), connectionRequests = listOf(request)))
+        runCurrent()
+        driving.value = DrivingState(policy = DrivingPolicy.RESTRICTED)
+        assertTrue(coordinator.allowsIncomingResponse(request.id))
+        assertFalse(coordinator.allowsAutomaticResponse(request.id))
+        assertEquals(1, (SocialConnectionRepository(coordinator).requests.first() as LoadState.Ready).value.size)
+        coordinator.close()
+    }
+
     private fun provider(flow: Flow<DrivingState>) = object : DrivingStateProvider { override val drivingState = flow }
     private fun allowedProvider() = provider(flowOf(DrivingState(policy = DrivingPolicy.ALLOWED)))
     private fun enter() = EnterSessionRequest(CommandMeta("enter"), SessionMode.SOLO, PersonaCode.ACCOUNT_A)

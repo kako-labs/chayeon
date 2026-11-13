@@ -23,6 +23,24 @@ internal fun MeetCallHero(state: ConnectedUiState, driving: Boolean = false, onS
         state.call.muted -> "음소거 중"
         else -> "통화 중"
     }
+    if (driving) {
+        HeroPanel(Modifier.fillMaxWidth()) {
+            Column(Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
+                GradientText(title, style = ChayeonType.Title)
+                AvatarDish(MochiAvatar.from(connection.peer.avatar), Modifier.size(ChayeonDimensions.PeerLarge))
+                ChayeonText(connection.peer.nickname, style = ChayeonType.Title)
+                connection.peer.signature?.let { signature ->
+                    ChayeonText(signature.title, style = ChayeonType.Section)
+                    PublishedScoreChips(signature, limit = 2, large = true)
+                }
+                if (LocalSourceLabels.current) ChayeonText(connection.peer.kind.label,
+                    style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
+            }
+        }
+        return
+    }
     Column(Modifier.semantics { liveRegion = LiveRegionMode.Polite }, verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
         MeetRelationStage(state.ownProfile, connection.peer,
             if (connection.status == ConnectionStatus.ENDED) ThreadStage.ENDED else ThreadStage.CONNECTED,
@@ -115,6 +133,7 @@ internal fun MeetIncomingDriving(state: RequestUiState, chrome: ScreenChrome, on
                             AvatarDish(MochiAvatar.from(peer.avatar), Modifier.size(ChayeonDimensions.PeerLarge))
                             GradientText(peer.nickname, style = ChayeonType.Hero)
                             ChayeonText(peer.signature?.title ?: "시그니처를 만드는 중이에요", style = ChayeonType.Section)
+                            PublishedScoreChips(peer.signature, limit = 2, large = true)
                             if (LocalSourceLabels.current) ChayeonText(peer.kind.label, style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
                         }
                     }

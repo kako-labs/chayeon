@@ -31,7 +31,7 @@ internal class Fixture(demo: Boolean = false, val policy: EnginePolicy = EngineP
     }
     fun advance(millis: Long) { now += millis; engine.tick(now) }
     fun signature(actor: String, trait: TraitId = TraitId.GENTLE_RIDE) = engine.publishSignature(actor,
-        PublishSignatureRequest(meta(), PublicSignature("untrusted", 9999, "free text rejected", listOf(PublicTrait(trait, TraitLevel.SIGNATURE)),
+        PublishSignatureRequest(meta(), PublicSignature("untrusted", 9999, "free text rejected", listOf(PublicTrait(trait, TraitLevel.SIGNATURE, if (trait.isScored) 94 else null)),
             KnotSeed(1), DataSource.SYNTHETIC, EvidenceBucket.ESTABLISHED))).ok()
 }
 

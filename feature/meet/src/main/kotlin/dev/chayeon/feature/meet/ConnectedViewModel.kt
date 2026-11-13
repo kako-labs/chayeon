@@ -10,6 +10,7 @@ class ConnectedViewModel(private val deps: MeetDeps) : ViewModel() {
     private var lastActiveConnectionId: String? = null
     private var revealedConnectionId: String? = null
     private var protectedWhileDriving = false
+    private var observedConnectionId: String? = null
     private var revealedOwnProfile: PublicProfile? = null
     private val connections = deps.connectionRepository.connection.onEach { observation ->
         if (observation is LoadState.Ready) {
@@ -27,6 +28,10 @@ class ConnectedViewModel(private val deps: MeetDeps) : ViewModel() {
         )
     }
     val uiState: StateFlow<ConnectedUiState> = combine(content, deps.drivingStateProvider.drivingState, leave.state, deps.homeZoneRepository.state, deps.voiceCallRepository.state) { state, driving, leaving, home, call ->
+        state.connection?.id?.let { id ->
+            if (id != observedConnectionId && !home.suppressed) protectedWhileDriving = false
+            observedConnectionId = id
+        }
         if (driving.policy == DrivingPolicy.ALLOWED) {
             protectedWhileDriving = false
             revealedOwnProfile = state.ownProfile ?: revealedOwnProfile.takeIf { state.connection?.id == revealedConnectionId }

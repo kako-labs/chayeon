@@ -21,10 +21,10 @@ from urllib.request import Request, urlopen
 
 try:
     from . import dev
-    from .e2e import Console, Device, assert_locked, set_synthetic_home, home_position, assert_home_rest, home_record_count, enter_instagram_contact, assert_contacts_hidden
+    from .e2e import Console, Device, assert_locked, set_synthetic_home, home_position, assert_home_rest, home_record_count, enter_instagram_contact, assert_contacts_hidden, configure_auto_connect
 except ImportError:
     import dev
-    from e2e import Console, Device, assert_locked, set_synthetic_home, home_position, assert_home_rest, home_record_count, enter_instagram_contact, assert_contacts_hidden
+    from e2e import Console, Device, assert_locked, set_synthetic_home, home_position, assert_home_rest, home_record_count, enter_instagram_contact, assert_contacts_hidden, configure_auto_connect
 
 
 class Peer:
@@ -236,6 +236,8 @@ class AppTransport:
         self.contact_leak = False
         self.inspected_responses = 0
         self.lock = threading.Lock()
+        self.sync_allowed = threading.Event()
+        self.sync_allowed.set()
         owner = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -245,6 +247,9 @@ class AppTransport:
             def forward(self):
                 if self.headers.get("Upgrade", "").lower() == "websocket":
                     self.tunnel_voice()
+                    return
+                if self.path.startswith("/v1/sync") and not owner.sync_allowed.wait(30):
+                    self.send_error(503)
                     return
                 body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
                 presence = json.loads(body).get("presence") if self.path == "/v1/presence/synthetic" else None
@@ -260,6 +265,9 @@ class AppTransport:
                 with response:
                     payload = response.read()
                     status = response.status
+                if self.path.startswith("/v1/sync") and not owner.sync_allowed.wait(30):
+                    self.send_error(503)
+                    return
                 accepted = json.loads(payload).get("result", {}).get("type") == "success"
                 with owner.lock:
                     if owner.private_contact_values:
@@ -627,31 +635,50 @@ def run(port=18765, serial=None):
         peer.call("/v1/profile/save", draft={"nickname": "이어가는별", "avatar": "STAR", "interests": ["COFFEE"]})
         for consent in ["ADULT_ATTESTATION", "VEHICLE_DATA", "LOCATION_USE", "PUBLIC_PROFILE"]:
             peer.call("/v1/profile/consent", scope=consent, action="GRANT", documentVersion=session["policy"]["consentDocumentVersion"])
+        peer.call("/v1/profile/signature", signature={
+            "id": "http-driving-profile", "version": 1, "title": "깜빡이를 잊지 않는 드라이버",
+            "traits": [{"trait": "SIGNAL_MANNERS", "level": "SIGNATURE", "score": 100}],
+            "knotSeed": {"value": 48, "algorithmVersion": 2},
+            "source": "SYNTHETIC", "evidenceBucket": "ESTABLISHED",
+        })
         peer.call("/v1/discovery/set", mode="ON")
-        peer.call("/v1/presence/synthetic", presence="NEARBY")
-        peer.start_heartbeat()
+        peer.call("/v1/presence/synthetic", presence="AWAY")
         transport = AppTransport(port)
         device.run("reverse", f"tcp:{port}", f"tcp:{transport.port}")
         with Console(device) as console:
             device.run("uninstall", "dev.chayeon", check=False)
             device.run("install", "--user", "10", str(dev.ROOT / "app/build/outputs/apk/debug/app-debug.apk"))
             enter_ui(device, room)
-            device.card("이어가는별")
-            device.wait("연결 요청 보내기")
-            device.capture("01-http-candidate", ["이어가는별", "가상 프로필"])
-            device.tap("연결 요청 보내기")
-            for _ in range(30):
-                requests = peer.sync()["connectionRequests"]
-                request = next((r for r in requests if r["direction"] == "INCOMING" and r["status"] == "PENDING"
-                                and r["peer"]["nickname"] == "새벽드라이브"), None)
-                if request:
+            configure_auto_connect(device, minimum=100)
+            transport.sync_allowed.clear()
+            try:
+                console.gear("Drive")
+                device.wait("주행 중", exact=False)
+                peer.call("/v1/presence/synthetic", presence="NEARBY")
+                peer.start_heartbeat()
+                candidate = next((item for item in peer.sync()["discovery"]["candidates"]
+                                  if item["profile"]["nickname"] == "새벽드라이브"), None)
+                if candidate is None:
+                    raise AssertionError("HTTP 상대가 앱 계정을 발견하지 못했어요")
+                requested = peer.call("/v1/connection/request", candidateId=candidate["id"])
+            finally:
+                transport.sync_allowed.set()
+            deadline = time.monotonic() + 30
+            while True:
+                accepted = next((item for item in peer.sync()["connectionRequests"] if item["id"] == requested["id"]), None)
+                if accepted and accepted["status"] == "ACCEPTED":
                     break
-                time.sleep(0.5)
-            else:
-                raise AssertionError("HTTP 상대에게 요청이 도착하지 않았어요")
-            accepted = peer.call("/v1/connection/respond", requestId=request["id"], decision="ACCEPT")
-            if accepted["peer"]["nickname"] != "새벽드라이브":
-                raise AssertionError("앱 계정의 요청을 수락하지 않았어요")
+                if time.monotonic() >= deadline:
+                    raise AssertionError("AUTO 조건에 맞는 주행 중 요청이 자동 수락되지 않았어요")
+                time.sleep(.25)
+            if accepted["direction"] != "OUTGOING" or not accepted.get("connectionId"):
+                raise AssertionError("HTTP 발신 요청의 자동 수락으로 통화가 만들어지지 않았어요")
+            device.wait("통화 중")
+            device.capture("01-http-auto-accepted", ["이어가는별", "깜빡이 매너 100", "통화 중"])
+            (device.output / "auto-connect-proof.json").write_text(json.dumps({
+                "requester": "http-peer", "receiverMode": "AUTO", "driving": True,
+                "minimumSignalMannersScore": 100, "acceptedWithoutTap": True,
+            }, indent=2), encoding="utf-8")
             device.wait("통화 중")
             voice = VoicePeer(peer, accepted["connectionId"]).start()
             reject_third_voice(peer, accepted["connectionId"])
@@ -685,7 +712,7 @@ def run(port=18765, serial=None):
             prove_after_exchange(device, console, peer, transport)
             prove_lease_and_offline_restore(device, console, peer, transport, port)
             prove_server_home(device, console, peer)
-        print("PASS HTTP + voice: request, accept, PCM relay, third-account rejection, driving mute, call termination, distance close, encounter, mutual contact exchange", flush=True)
+        print("PASS HTTP + voice: driving AUTO acceptance without taps, PCM relay, third-account rejection, driving mute, call termination, distance close, encounter, mutual contact exchange", flush=True)
         return 0
     finally:
         if voice:

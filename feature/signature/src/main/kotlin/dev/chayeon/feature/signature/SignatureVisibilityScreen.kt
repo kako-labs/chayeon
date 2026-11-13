@@ -93,7 +93,7 @@ fun SignatureVisibilityScreen(
                                     horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
                                     ChayeonIcon(trait.trait.presentation.icon, Modifier.size(ChayeonDimensions.UtilityIcon), ChayeonColors.Pink)
                                     Column(Modifier.weight(1f)) {
-                                        ChayeonText(trait.trait.presentation.name, style = ChayeonType.Label, color = ChayeonColors.Pink)
+                                        ChayeonText(trait.trait.presentation.name + (trait.score?.let { " ${it}점" } ?: ""), style = ChayeonType.Label, color = ChayeonColors.Pink)
                                         ChayeonText(trait.trait.presentation.publicPhrase, style = ChayeonType.Secondary)
                                     }
                                 }
@@ -103,8 +103,8 @@ fun SignatureVisibilityScreen(
                 }
                 if (state.signature is LoadState.Ready && (state.pendingChanges || state.error != null)) TopBanner("아직 반영되지 않은 내용이 있어요. 다시 시도해 주세요.", icon = ChayeonIcon.REFRESH)
                 GlassCard(Modifier.fillMaxWidth()) {
-                    InfoRow(ChayeonIcon.LOCK, "나의 수치는 공유하지 않아요",
-                        body = "읽은 신호와 개인 메모는 특성 상세에서 나만 볼 수 있어요. 위치와 차량 정보도 보이지 않아요.")
+                    InfoRow(ChayeonIcon.LOCK, "공개한 특성의 점수만 보여요",
+                        body = "60점부터 공개할 수 있어요. 읽은 신호, 주행별 횟수와 개인 메모는 나만 볼 수 있어요. 취향은 점수 없이 보여요.")
                 }
             }
         },

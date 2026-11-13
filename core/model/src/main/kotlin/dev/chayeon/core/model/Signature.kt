@@ -8,6 +8,8 @@ enum class TraitId {
     NIGHT_DRIVE, TIRE_CARE, ENERGY_PLANNER, BATTERY_KIND, FLUID_READY, CABIN_CARE,
 }
 
+val TraitId.isScored: Boolean get() = this != TraitId.LONG_ROAD && this != TraitId.NIGHT_DRIVE
+
 @Serializable
 enum class TraitLevel { RECORDING, VISIBLE, STEADY, SIGNATURE }
 
@@ -21,7 +23,7 @@ enum class EvidenceBucket { RECORDING, GROWING, ESTABLISHED }
 data class KnotSeed(val value: Long, val algorithmVersion: Int = 1)
 
 @Serializable
-data class PublicTrait(val trait: TraitId, val level: TraitLevel) {
+data class PublicTrait(val trait: TraitId, val level: TraitLevel, val score: Int? = null) {
     init {
         require(level != TraitLevel.RECORDING) { "Recording traits are private" }
     }
@@ -93,6 +95,18 @@ data class EvidenceChange(
     val currentLevel: TraitLevel,
 )
 
+/** Private per-trip evidence. Never serialized by the social API. */
+data class TraitTripEvidence(
+    val tripId: String,
+    val startedAtEpochMillis: Long,
+    val endedAtEpochMillis: Long,
+    val driveDurationMillis: Long,
+    val supportedSampleCount: Int,
+    val passingSampleCount: Int,
+    val included: Boolean,
+    val availability: TraitAvailability = TraitAvailability.AVAILABLE,
+)
+
 data class TraitEvidence(
     override val id: String,
     override val version: Long,
@@ -106,6 +120,9 @@ data class TraitEvidence(
     val signals: Set<SignalKind>,
     val metrics: List<PrivateMetric>,
     val recentChanges: List<EvidenceChange> = emptyList(),
+    val score: Int? = null,
+    val passingSampleCount: Int = 0,
+    val recentTrips: List<TraitTripEvidence> = emptyList(),
 ) : VersionedEntity {
     init {
         require(availability != TraitAvailability.UNSUPPORTED || metrics.isEmpty()) {

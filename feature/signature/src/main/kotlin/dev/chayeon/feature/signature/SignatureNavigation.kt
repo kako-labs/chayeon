@@ -31,6 +31,7 @@ sealed interface SignatureExit {
 
 object SignatureDestination {
     const val MY_PROFILE = "signature/profile"
+    const val DRIVE_SETTINGS = "signature/driving-connect"
     const val MY_SIGNATURE = "signature/mine"
     const val TRAIT = "signature/trait/{traitId}"
     const val VISIBILITY = "signature/visibility"
@@ -55,7 +56,18 @@ fun NavGraphBuilder.signatureGraph(
             onSignature = { allowed { navController.navigate(SignatureDestination.MY_SIGNATURE) { launchSingleTop = true } } },
             onVisibility = { allowed { navController.navigate(SignatureDestination.VISIBILITY) { launchSingleTop = true } } },
             onExit = { exit -> allowed { onExit(exit) } }, onRetry = model::retry,
-            onReceiveRequestsWhileDriving = model::setReceiveRequestsWhileDriving)
+            onReceiveRequestsWhileDriving = model::setReceiveRequestsWhileDriving,
+            onTrait = { trait -> allowed { navController.navigate(SignatureDestination.trait(trait.name)) { launchSingleTop = true } } },
+            onDrivingSettings = { allowed { navController.navigate(SignatureDestination.DRIVE_SETTINGS) { launchSingleTop = true } } })
+    }
+    composable(SignatureDestination.DRIVE_SETTINGS) {
+        val model: MyProfileViewModel = viewModel { MyProfileViewModel(deps) }
+        val state by model.uiState.collectAsStateWithLifecycle()
+        val allowed = allowedAction(deps)
+        val back = { allowed { if (!navController.popBackStack()) navController.navigate(SignatureDestination.MY_PROFILE) } }
+        BackHandler(onBack = back)
+        DriveSettingsScreen(state, chrome, back, model::setDrivingConnectMode, model::setMinimumScore,
+            model::setRequireSharedInterest, model::retry)
     }
     composable(SignatureDestination.MY_SIGNATURE) {
         val model: SignatureViewModel = viewModel { SignatureViewModel(deps) }
@@ -76,7 +88,7 @@ fun NavGraphBuilder.signatureGraph(
         if (trait != null) {
             val model: TraitDetailViewModel = viewModel { TraitDetailViewModel(deps, trait) }
             val state by model.uiState.collectAsStateWithLifecycle()
-            TraitDetailScreen(state, chrome, back, model::retry)
+            TraitDetailScreen(state, chrome, back, model::retry, model::setVisible)
         } else {
             val model: SignatureViewModel = viewModel { SignatureViewModel(deps) }
             val state by model.uiState.collectAsStateWithLifecycle()

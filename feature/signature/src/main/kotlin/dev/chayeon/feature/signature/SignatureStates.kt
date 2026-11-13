@@ -16,6 +16,7 @@ data class SignatureUiState(
     val driving: DrivingState = DrivingState(),
     val signature: LoadState<MySignature> = LoadState.Loading(),
     val consoleAvailable: Boolean = false,
+    val recordingEnabled: Boolean = false,
 )
 
 data class MyProfileUiState(
@@ -32,6 +33,9 @@ data class TraitDetailUiState(
     val driving: DrivingState = DrivingState(),
     val trait: TraitId = TraitId.GENTLE_RIDE,
     val evidence: LoadState<TraitEvidence?> = LoadState.Loading(),
+    val visible: Boolean = false,
+    val updatingVisibility: Boolean = false,
+    val visibilityError: AppError? = null,
 )
 
 data class VisibilityUiState(

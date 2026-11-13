@@ -267,7 +267,7 @@ class ContractTest {
     }
 
     private val privateTypeNames = setOf("LocationInput", "UpdateLocationRequest", "MySignature", "TraitEvidence",
-        "PrivateMetric", "DerivedTripMetrics", "DerivedTraitMetrics", "TripRecap", "SignalKind")
+        "PrivateMetric", "TraitTripEvidence", "DerivedTripMetrics", "DerivedTraitMetrics", "TripRecap", "SignalKind")
     private val privateFieldNames = setOf("latitude", "longitude", "coordinates", "distance", "trajectory",
-        "vin", "crn", "plate", "vehicleModel", "speed", "steering", "sampleCount", "metrics", "validTripCount")
+        "vin", "crn", "plate", "vehicleModel", "speed", "steering", "passingSampleCount", "recentTrips", "supportedSampleCount", "sampleCount", "metrics", "validTripCount")
 }

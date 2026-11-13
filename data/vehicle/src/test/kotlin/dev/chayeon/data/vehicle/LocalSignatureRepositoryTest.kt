@@ -84,11 +84,20 @@ class LocalSignatureRepositoryTest {
         repeat(4) { repository.recordTrip(RecordTripRequest(CommandMeta("record-$it"), trip("trip-$it", now - 4 + it))) }
         val before = (repository.recaps.first() as LoadState.Ready).value
         assertEquals("trip-2", before.single { it.firstSignature }.tripId)
-        assertNull((repository.signature.first() as LoadState.Ready).value.publicSignature)
+        val privateSignature = (repository.signature.first() as LoadState.Ready).value
+        assertNull(privateSignature.publicSignature)
+        val evidence = privateSignature.evidence.single { it.trait == TraitId.GENTLE_RIDE }
+        assertEquals(100, evidence.score)
+        assertEquals(4, evidence.passingSampleCount)
+        assertEquals(4, evidence.recentTrips.size)
+        assertEquals(privateSignature, VehicleStorageCodec.signature(VehicleStorageCodec.signature(privateSignature)))
         repository.close()
         val reopened = open()
         runCurrent()
         assertEquals(before, (reopened.recaps.first() as LoadState.Ready).value)
+        val restored = (reopened.signature.first() as LoadState.Ready).value.evidence.single { it.trait == TraitId.GENTLE_RIDE }
+        assertEquals(evidence.score, restored.score)
+        assertEquals(evidence.recentTrips, restored.recentTrips)
         val milestone = before.single { it.firstSignature }
         assertTrue((reopened.markRecapSeen(MarkRecapSeenRequest(CommandMeta("seen"), milestone.id)) as AppResult.Success).value.firstSignature)
         assertTrue(reopened.excludeTrip(ExcludeTripRequest(CommandMeta("exclude"), milestone.tripId)) is AppResult.Success)

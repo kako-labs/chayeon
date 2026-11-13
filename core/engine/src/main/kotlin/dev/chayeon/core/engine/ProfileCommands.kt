@@ -65,10 +65,12 @@ internal fun Room.recordConsent(actor: String, r: RecordConsentRequest): Partici
 
 internal fun Room.updateSettings(actor: String, r: UpdateSettingsRequest): ParticipationSettings {
     val a = account(actor)
+    ensure(r.autoConnectConditions.isValid())
     checkVersion(r.meta, v)
     stamp()
     val settings = a.settings.copy(version = v, notifyRequests = r.notifyRequests,
-        receiveRequestsWhileDriving = r.receiveRequestsWhileDriving)
+        receiveRequestsWhileDriving = r.drivingConnectMode != DrivingConnectMode.OFF,
+        drivingConnectMode = r.drivingConnectMode, autoConnectConditions = r.autoConnectConditions)
     put(a.copy(settings = settings))
     return settings
 }
@@ -81,6 +83,16 @@ internal fun Room.publishSignature(actor: String, r: PublishSignatureRequest): M
         ensure(ready(a))
         ensure(input.traits.size <= TraitId.entries.size && input.traits.map { it.trait }.distinct().size == input.traits.size)
         ensure(input.traits.none { it.level == TraitLevel.RECORDING })
+        ensure(input.traits.all { trait ->
+            if (!trait.trait.isScored) trait.score == null else {
+                val score = trait.score
+                score != null && score in 60..100 && trait.level == when {
+                    score >= 90 -> TraitLevel.SIGNATURE
+                    score >= 75 -> TraitLevel.STEADY
+                    else -> TraitLevel.VISIBLE
+                }
+            }
+        })
     }
     stamp()
     val signature = input?.copy(id = "signature-${a.profile.id}", version = v, title = rules.title(input.traits))

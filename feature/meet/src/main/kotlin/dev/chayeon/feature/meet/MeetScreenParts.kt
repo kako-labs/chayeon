@@ -271,7 +271,7 @@ internal fun MeetHomeCandidate(candidate: Candidate, onClick: () -> Unit, modifi
                         style = ChayeonType.Minimum, color = ChayeonColors.Secondary)
                 }
             }
-            signature?.traits?.maxByOrNull { it.level.ordinal }?.let { TraitBadge(it.trait, it.level) }
+            PublishedScoreChips(signature)
             if (candidate.chemistry.lines.isNotEmpty()) ChayeonText("잘 맞는 점 ${candidate.chemistry.lines.size}가지",
                 style = ChayeonType.Label, color = ChayeonColors.Pink)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(ChayeonSpacing.TagGap), verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.TagGap)) {

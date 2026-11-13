@@ -21,7 +21,7 @@ import org.robolectric.annotation.GraphicsMode
 class MeetScreenshotTest {
     @get:Rule val compose = createComposeRule()
 
-    private val allTraits = MeetFixtures.signature.copy(traits = TraitId.entries.map { PublicTrait(it, TraitLevel.SIGNATURE) })
+    private val allTraits = MeetFixtures.signature.copy(traits = TraitId.entries.map { PublicTrait(it, TraitLevel.SIGNATURE, if (it == TraitId.LONG_ROAD || it == TraitId.NIGHT_DRIVE) null else 94) })
     private val allTraitsCandidate = MeetFixtures.candidate.copy(profile = MeetFixtures.peer.copy(signature = allTraits))
     private val home = HomeUiState(MeetFixtures.parked, MeetFixtures.discovery, MeetFixtures.own, profileLoaded = true)
     private val candidate = CandidateUiState(MeetFixtures.parked, MeetFixtures.candidate, MeetFixtures.own, unavailableState = null, canRequest = true)

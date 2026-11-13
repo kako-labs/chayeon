@@ -23,10 +23,14 @@ internal fun voiceCallTarget(
 internal class VoiceHomeProtection {
     private var sessionId: String? = null
     private var hidden = false
+    private var connectionId: String? = null
 
-    fun update(session: SessionState, home: HomeZoneState, policy: DrivingPolicy): Boolean {
+    fun update(session: SessionState, home: HomeZoneState, policy: DrivingPolicy, activeConnectionId: String? = null): Boolean {
         val next = (session as? SessionState.Active)?.session?.id
-        if (sessionId != next || policy == DrivingPolicy.ALLOWED) hidden = false
+        if (sessionId != next || policy == DrivingPolicy.ALLOWED ||
+            (activeConnectionId != null && activeConnectionId != connectionId && !home.suppressed)) hidden = false
+        if (sessionId != next) connectionId = null
+        if (activeConnectionId != null) connectionId = activeConnectionId
         sessionId = next
         if (next != null && policy != DrivingPolicy.ALLOWED && home.suppressed) hidden = true
         return hidden

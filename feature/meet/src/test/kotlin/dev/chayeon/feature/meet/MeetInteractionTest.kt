@@ -349,7 +349,7 @@ class MeetInteractionTest {
     @Test @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
     fun narrowCandidateScrollReachesEveryPublicTraitAndRequestAction() {
         var requests = 0
-        val signature = MeetFixtures.signature.copy(traits = TraitId.entries.map { PublicTrait(it, TraitLevel.SIGNATURE) })
+        val signature = MeetFixtures.signature.copy(traits = TraitId.entries.map { PublicTrait(it, TraitLevel.SIGNATURE, if (it == TraitId.LONG_ROAD || it == TraitId.NIGHT_DRIVE) null else 94) })
         val state = CandidateUiState(driving = MeetFixtures.parked,
             candidate = MeetFixtures.candidate.copy(profile = MeetFixtures.peer.copy(signature = signature)),
             ownProfile = MeetFixtures.own, unavailableState = null, canRequest = true)

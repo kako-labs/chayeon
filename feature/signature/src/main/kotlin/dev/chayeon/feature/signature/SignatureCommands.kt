@@ -63,26 +63,7 @@ internal fun <T> observeAgain(retry: MutableStateFlow<Int>, source: () -> Flow<L
     }
 
 internal fun signaturePreview(signature: MySignature, visibility: VisibilitySettings): PublicSignature? {
-    if (!visibility.publishSignature) return null
-    val engine = DefaultSignatureEngine()
-    val evidence = signature.evidence.filter {
-        it.trait in visibility.visibleTraits && it.availability == TraitAvailability.AVAILABLE &&
-            it.level != TraitLevel.RECORDING
-    }.sortedBy { it.trait.ordinal }
-    val traits = evidence.map { PublicTrait(it.trait, it.level) }
-    if (traits.isEmpty()) return null
-    val source = if (evidence.any { it.source == DataSource.SYNTHETIC }) DataSource.SYNTHETIC else DataSource.VEHICLE
-    val projected = engine.publicProjection(signature.copy(visibility = visibility))
-    if (projected != null && projected.traits.sortedBy { it.trait.ordinal } == traits && projected.source == source) return projected
-    return PublicSignature(
-        id = projected?.id ?: signature.id,
-        version = signature.version,
-        title = engine.title(traits),
-        traits = traits,
-        knotSeed = engine.knot(evidence),
-        source = source,
-        evidenceBucket = projected?.evidenceBucket?.takeUnless { it == EvidenceBucket.RECORDING } ?: EvidenceBucket.GROWING,
-    )
+    return DefaultSignatureEngine().publicProjection(signature.copy(visibility = visibility))
 }
 
 internal fun VisibilitySettings.sameSelection(other: VisibilitySettings): Boolean =

@@ -98,6 +98,7 @@ private fun MeetCandidateDetails(state: CandidateUiState, candidate: Candidate, 
         val scroll = rememberScrollState()
         Column(Modifier.fillMaxWidth().then(if (constraints.hasBoundedHeight) Modifier.scrollEdgeFade(scroll).verticalScroll(scroll) else Modifier),
             verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Gap)) {
+            PublishedScoreChips(candidate.profile.signature)
             MeetPublicTraits(candidate.profile.signature, wide)
             MeetCompactChemistry(candidate.chemistry, state.ownProfile?.signature, candidate.profile.signature)
             if (candidate.profile.interests.isNotEmpty()) {

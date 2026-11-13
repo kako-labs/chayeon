@@ -23,11 +23,11 @@ Read before working: docs/architecture.md, docs/product/drive-signature.md, docs
 
 ## Safety rules
 
-- Only DrivingPolicy.ALLOWED permits browsing, sending requests, normal request acceptance, typing or editing. RESTRICTED permits mute/unmute and hang-up in an active call, plus answer/decline on the opt-in incoming screen only. UNKNOWN permits safe hang-up only. Speed 0 does not mean parked.
+- Only DrivingPolicy.ALLOWED permits browsing, manual sending, normal acceptance, typing, and settings edits. RESTRICTED permits mute/unmute and hang-up, answer/decline in RING or AUTO fallback, and client-driven automatic requests/acceptance under pre-given AUTO consent and matching published scores. Automatic actions require discovery ON, no active connection or pending outgoing request, no home protection or block, a 10-minute post-call cooldown, and no same-person repeat that calendar day after decline/cancel/end/expiry. Parked connections stay manual; UNKNOWN permits safe hang-up only. Speed 0 does not mean parked.
 - Voice is relayed only between the two participants of a currently CONNECTED temporary connection. Never record, persist or log audio. Open the microphone only during an active, unmuted server call with permission; SOLO never opens it. Home protection and every connection end stop capture and playback immediately.
-- Microphone consent is optional. Never launch permission dialogs while RESTRICTED or UNKNOWN. Driving incoming requests default OFF; home protection always blocks accepting.
-- No live score or coaching while driving. No decorative motion while driving.
-- Never reward speed or aggressive driving. Other users never see numbers, ranks or negative judgments.
+- Microphone consent is optional. Never launch permission dialogs while RESTRICTED or UNKNOWN. Driving connect mode defaults to OFF; home protection always blocks accepting.
+- No live score or coaching while driving. Only the partner's title and at most two static published score chips may accompany an incoming or active call. No other numbers or decorative motion while driving.
+- Never reward speed or aggressive driving. Other users see only explicitly published trait scores from 60 to 100, never private scores, trip counts/history, ranks, or negative judgments. LONG_ROAD and NIGHT_DRIVE remain unscored preference badges.
 - Unsupported signals are UNSUPPORTED, never zero.
 - SOLO는 첫 모드 선택에서 가상 상대임을 알리고, 내 시그니처 근거에서 데이터 출처를 한 줄로 보여줍니다. 다른 화면에서는 반복하지 않습니다. SERVER_DEMO는 실제 사람과 섞이는 가상 상대와 합성 데이터에 작은 표시를 유지합니다.
 

@@ -118,12 +118,22 @@ internal val MySignature.displaySource: DataSource?
 internal val MySignature.displayTitle: String
     get() = publicSignature?.title ?: DefaultSignatureEngine().title(evidence
         .filter { it.availability == TraitAvailability.AVAILABLE && it.level != TraitLevel.RECORDING }
-        .map { PublicTrait(it.trait, it.level) })
+        .map { PublicTrait(it.trait, it.level, it.score) })
 
 internal val MySignature.isRecording: Boolean
-    get() = evidence.none { it.availability == TraitAvailability.AVAILABLE && it.level != TraitLevel.RECORDING }
+    get() = includedTripCount < 3
+
+internal val MySignature.includedTripCount: Int
+    get() {
+        val trips = evidence.flatMap { it.recentTrips }
+        return if (trips.isEmpty()) evidence.maxOfOrNull { it.validTripCount } ?: 0
+        else trips.filter { it.included }.map { it.tripId }.distinct().size
+    }
 
 @Composable
 internal fun SignatureSource(source: DataSource?) {
     if (LocalSourceLabels.current && source != null) StatusChip(source.label, variant = StatusVariant.SYNTHETIC)
 }
+
+internal val ParticipationSettings.recordingEnabled: Boolean
+    get() = consents.any { it.scope == ConsentScope.VEHICLE_DATA && it.status == ConsentStatus.GRANTED }

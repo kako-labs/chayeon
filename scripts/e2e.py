@@ -235,8 +235,12 @@ class Console:
 def assert_locked(device, hidden_peers=()):
     tree = device.tree()
     labels = [node.get("text", "") for node in tree.iter("node") if node.get("package") == "dev.chayeon"]
-    if any(re.search(r"[0-9]", text) for text in labels):
-        raise AssertionError("주행 제한 화면에 숫자가 있어요")
+    score_names = ("부드러운 주행", "여유로운 제동", "깜빡이 매너", "한결같은 항속", "벨트 먼저",
+                   "타이어 관리", "미리 채우는 습관", "배터리 아끼기", "소모품 점검", "실내 공기 챙김")
+    numeric = [text for text in labels if re.search(r"[0-9]", text)]
+    score_pattern = r"(?:" + "|".join(map(re.escape, score_names)) + r") (?:[6-9][0-9]|100)"
+    if len(numeric) > 2 or any(re.fullmatch(score_pattern, text) is None for text in numeric):
+        raise AssertionError("주행 화면에는 공개 점수 최대 두 개만 표시할 수 있어요")
     app_labels = [value for node in tree.iter("node") if node.get("package") == "dev.chayeon"
                   for value in (node.get("text", ""), node.get("content-desc", ""))]
     if "시연 제어" in app_labels:
@@ -372,7 +376,15 @@ def create_signature(device, choice, prefix=""):
     device.tap("내 시그니처 보기")
     device.tap(title_trait, scroll=True)
     device.wait("시그니처 근거: 합성 주행")
-    device.capture(prefix + "05-evidence-source", ["특성 상세", "시그니처 근거: 합성 주행"])
+    device.wait("/ 100")
+    device.wait("60 보여요", exact=False)
+    device.capture(prefix + "05-evidence-source", ["시그니처 근거: 합성 주행", "/ 100"])
+    for _ in range(6):
+        if device.find("주행별 " + title_trait, device.tree()) is not None:
+            break
+        device.shell("input", "swipe", "2250", "1120", "2250", "470", "350")
+    device.wait("주행별 " + title_trait)
+    device.capture(prefix + "05-evidence-chart", ["주행별 " + title_trait])
     device.tap("뒤로")
     device.tap("홈")
     device.wait("잘 맞는 점", exact=False)
@@ -381,6 +393,21 @@ def create_signature(device, choice, prefix=""):
     assert_solo_surface(device)
     device.capture(prefix + "06-cast", ["별보는밤", "잘 맞는 점", "드라이버"])
     return title
+
+
+def configure_auto_connect(device, minimum=90):
+    device.tap("내 프로필")
+    device.tap("주행 중 연결", scroll=True)
+    device.wait("달리는 동안 어떻게 이어질까요?")
+    device.tap("조건에 맞으면 자동 연결", scroll=True)
+    device.tap("깜빡이 매너 조건 사용", scroll=True)
+    device.wait("60점 이상")
+    for value in range(65, minimum + 1, 5):
+        device.tap("깜빡이 매너 최소 점수 높이기", description_only=True, scroll=True)
+        device.wait(f"{value}점 이상")
+    device.capture("auto-connect-settings", ["자동 연결 조건", f"{minimum}점 이상"])
+    device.tap("뒤로")
+    device.tap("홈")
 
 
 def set_synthetic_home(device, server=False):
@@ -570,12 +597,13 @@ def run(with_real_drive=False, skip_build=False, apk=None, serial=None):
         device.capture("07-candidate", ["별보는밤", "함께하면 잘 맞는 점", "시그니처 매듭", "둘 다 함께 타는 공기까지 신경 써요"])
         if any("한 분은 편안하게 달리고" in label for label in device.labels(device.tree())):
             raise AssertionError("공유한 실내 공기 특성이 서로 다른 특성으로도 표시돼요")
-        device.tap("연결 요청 보내기")
+        device.tap("목록으로")
+        configure_auto_connect(device, minimum=90)
         console.gear("Drive")
         device.wait("통화 끊기")
         device.wait("통화 중")
         assert_locked(device)
-        device.capture("07-formed-while-driving", ["주행 중", "통화 끊기"])
+        device.capture("07-auto-connected-driving", ["주행 중", "별보는밤", "깜빡이 매너 94", "통화 끊기"])
         console.gear("Park")
         device.wait("통화 중")
         assert_demo_icon(device)
@@ -599,7 +627,7 @@ def run(with_real_drive=False, skip_build=False, apk=None, serial=None):
         device.capture("11-neutral-locked", ["주행 중", "통화 끊기"])
         assert_locked(device)
         console.gear("Drive", speed=40)
-        device.capture("12-drive-moving-locked", ["주행 중", "통화 끊기", "새벽드라이브", "별보는밤"])
+        device.capture("12-drive-moving-locked", ["주행 중", "통화 끊기", "별보는밤", "깜빡이 매너 94"])
         assert_locked(device)
         console.gear("Park")
         device.wait("통화 중")

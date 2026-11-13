@@ -41,6 +41,8 @@ data class UpdateSettingsRequest(
     val meta: CommandMeta,
     val notifyRequests: Boolean,
     val receiveRequestsWhileDriving: Boolean = false,
+    val drivingConnectMode: DrivingConnectMode = if (receiveRequestsWhileDriving) DrivingConnectMode.RING else DrivingConnectMode.OFF,
+    val autoConnectConditions: AutoConnectConditions = AutoConnectConditions(),
 )
 
 @Serializable
@@ -75,13 +77,14 @@ enum class SyntheticPresence { NEARBY, AWAY, STALE, OFFLINE }
 data class SetSyntheticPresenceRequest(val meta: CommandMeta, val presence: SyntheticPresence)
 
 @Serializable
-data class RequestConnectionRequest(val meta: CommandMeta, val candidateId: String)
+data class RequestConnectionRequest(val meta: CommandMeta, val candidateId: String, val automatic: Boolean = false)
 
 @Serializable
 data class RespondConnectionRequest(
     val meta: CommandMeta,
     val requestId: String,
     val decision: RequestDecision,
+    val automatic: Boolean = false,
 )
 
 @Serializable

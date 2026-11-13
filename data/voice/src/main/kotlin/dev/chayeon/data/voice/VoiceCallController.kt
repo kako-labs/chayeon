@@ -15,6 +15,7 @@ class VoiceCallController(
     private val demo: DemoPeerVoice,
     private val currentPolicy: () -> DrivingPolicy = { DrivingPolicy.UNKNOWN },
     private val permissionRequest: suspend () -> Boolean = { false },
+    private val announcementSpeech: DemoSpeechEngine? = null,
 ) : VoiceCallRepository {
     private data class MuteChoice(val connectionId: String, val muted: Boolean)
 
@@ -26,6 +27,7 @@ class VoiceCallController(
     private var mode = SessionMode.SOLO
     private var demoCall = true
     private var peer: PublicProfile? = null
+    private var announcement: String? = null
     private var permission: Boolean
         get() = permissionState.value
         set(value) { permissionState.value = value }
@@ -35,7 +37,7 @@ class VoiceCallController(
     private var channel: VoiceChannel? = null
     private var muteChoice: MuteChoice? = null
 
-    suspend fun updateTarget(connectionId: String?, mode: SessionMode, microphoneGranted: Boolean, peer: PublicProfile? = null) {
+    suspend fun updateTarget(connectionId: String?, mode: SessionMode, microphoneGranted: Boolean, peer: PublicProfile? = null, announcement: String? = null) {
         commands.withLock {
             val nextDemoCall = mode == SessionMode.SOLO || peer?.kind == ProfileKind.DEMO_PEER
             if (connectionId == state.value.connectionId && mode == this.mode && demoCall == nextDemoCall) {
@@ -52,6 +54,7 @@ class VoiceCallController(
             this.mode = mode
             demoCall = nextDemoCall
             this.peer = peer
+            this.announcement = announcement
             permission = microphoneGranted
             if (connectionId == null) return
             val muted = muteChoice?.takeIf { it.connectionId == connectionId }?.muted ?: false
@@ -117,6 +120,7 @@ class VoiceCallController(
                     commands.withLock {
                         if (state.value.connectionId != connectionId) return@withLock
                         if (demoCall) demo.setFocusAvailable(available)
+                        if (!available) announcementSpeech?.stop()
                         if (!available) stopCapture()
                         else {
                             updateMicrophone()
@@ -124,6 +128,11 @@ class VoiceCallController(
                         }
                     }
                 }
+            }
+            announcement?.let { text ->
+                audio.focusAvailable.first { it }
+                try { if (announcementSpeech?.prepare() == true && audio.focusAvailable.value) announcementSpeech.speak(text) }
+                finally { announcementSpeech?.release() }
             }
             if (demoCall) {
                 mutableState.update { it.copy(status = CallStatus.ACTIVE, microphone = MicrophoneStatus.NOT_USED) }
@@ -165,6 +174,7 @@ class VoiceCallController(
             withContext(NonCancellable) {
                 focusObserver?.cancelAndJoin()
                 stopCapture()
+                announcementSpeech?.release()
                 if (demoCall) runCatching { demo.stop() }
                 runCatching { audio.stop() }
                 runCatching { service.stop() }

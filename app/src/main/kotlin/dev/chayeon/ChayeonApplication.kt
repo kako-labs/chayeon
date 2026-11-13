@@ -34,7 +34,7 @@ class ChayeonApplication : Application(), VehicleGraphOwner, VoiceServiceOwner {
         }), AndroidVoiceAudio(this), AndroidCallService(this),
             demo = ScriptedDemoPeerVoice(scope, PleosSpeechEngine(this)),
             currentPolicy = { vehicleGraph.drivingStateProvider.current().policy },
-            permissionRequest = { graph.prepareMicrophone() })
+            permissionRequest = { graph.prepareMicrophone() }, announcementSpeech = PleosSpeechEngine(this))
     }
 
     fun microphonePermissionChanged() {
@@ -51,7 +51,7 @@ class ChayeonApplication : Application(), VehicleGraphOwner, VoiceServiceOwner {
     private val publicationLock = Mutex()
     val homeZoneCoordinator by lazy { HomeZoneCoordinator(vehicleGraph.homeZoneRepository,
         { account -> vehicleGraph.homeZoneRepository.bindAccount(account) }, scope) }
-    val socialGraph by lazy {
+    val socialGraph: SocialGraph by lazy {
         val engine = DefaultSignatureEngine()
         SocialGraph(this, BuildConfig.SERVER_URL, object : SignatureRules {
             override fun title(traits: List<PublicTrait>) = engine.title(traits)
@@ -66,7 +66,8 @@ class ChayeonApplication : Application(), VehicleGraphOwner, VoiceServiceOwner {
             val signature = vehicleGraph.signatureRepository.clearLocalData()
             if (home is AppResult.Failure) home else signature
         }, drivingStateProvider = commandDrivingStateProvider, prepareSession = homeZoneCoordinator::prepareSession,
-            canStartConnection = { !vehicleGraph.homeZoneRepository.state.first().suppressed })
+            canStartConnection = { !vehicleGraph.homeZoneRepository.state.first().suppressed },
+            canAutomaticallyConnect = { autoConnect.canAct(it) })
     }
     val graph: AppGraph by lazy {
         val sessions = object : SessionRepository by socialGraph.sessionRepository {
@@ -112,6 +113,10 @@ class ChayeonApplication : Application(), VehicleGraphOwner, VoiceServiceOwner {
                 syntheticHomePosition = { vehicleGraph.homeZoneRepository.setSyntheticPosition(it) }
             }
     }
+    private val autoConnect: AutoConnectCoordinator by lazy { AutoConnectCoordinator(socialGraph.autoConnectSnapshot,
+        commandDrivingStateProvider, vehicleGraph.homeZoneRepository, graph.connectionRepository,
+        scope, PrivateAutoConnectStore(this)) }
+
     val publisher by lazy { SignaturePublisher(graph, sessionEnding, publicationLock, scope,
         vehicleGraph.gateInput.permission.map { it.accountId }.distinctUntilChanged()) }
     val events by lazy { AppEvents(graph, AppNotifications(this), scope, socialGraph.requestSignals,
@@ -121,15 +126,28 @@ class ChayeonApplication : Application(), VehicleGraphOwner, VoiceServiceOwner {
         super.onCreate()
         vehicleGraph.start()
         microphonePermissionChanged()
+        autoConnect.start()
         scope.launch {
             val protection = VoiceHomeProtection()
             val homeAndDriving = combine(graph.homeZoneRepository.state, commandDrivingStateProvider.drivingState) { home, driving -> home to driving.policy }
             combine(graph.sessionRepository.session, graph.connectionRepository.connection,
                 homeAndDriving, sessionEnding, endingVoiceConnection) { session, observation, homeDriving, ending, leaving ->
                 val (home, policy) = homeDriving
-                voiceCallTarget(session, observation, home, ending, leaving, protection.update(session, home, policy))
+                voiceCallTarget(session, observation, home, ending, leaving, protection.update(session, home, policy, (observation as? LoadState.Ready)?.value?.id))
             }.combine(microphoneGranted) { target, permission -> target to permission }
-                .distinctUntilChanged().collect { (target, permission) -> voiceCalls.updateTarget(target.connectionId, target.mode, permission, target.peer) }
+                .combine(socialGraph.autoConnectSnapshot) { target, snapshot -> target to snapshot }
+                .collect { (targetAndPermission, snapshot) ->
+                    val (target, permission) = targetAndPermission
+                    val connection = snapshot?.connections?.find { it.id == target.connectionId }
+                    // Start only with the matching atomic snapshot, including the request's origin.
+                    if (target.connectionId != null && connection?.status != ConnectionStatus.CONNECTED) {
+                        voiceCalls.stop()
+                        return@collect
+                    }
+                    val announcement = connection?.takeIf { autoConnect.shouldAnnounce(it, snapshot) && autoConnect.markAnnounced(it.id) }
+                        ?.let { "${it.peer.nickname}님과 연결됐어요" }
+                    voiceCalls.updateTarget(target.connectionId, target.mode, permission, target.peer, announcement)
+                }
         }
         scope.launch {
             combine(graph.sessionRepository.session, socialGraph.recordingSettings, sessionEnding) { session, settings, ending ->

@@ -62,17 +62,32 @@ private data class StoredEvidenceChange(val at: Long, val previous: TraitLevel, 
 }
 
 @Serializable
+private data class StoredTripEvidence(
+    val id: String, val start: Long, val end: Long, val duration: Long,
+    val supported: Int, val passing: Int, val included: Boolean,
+    val availability: TraitAvailability = TraitAvailability.AVAILABLE,
+) {
+    fun domain() = TraitTripEvidence(id, start, end, duration, supported, passing, included, availability)
+    companion object {
+        fun from(v: TraitTripEvidence) = StoredTripEvidence(v.tripId, v.startedAtEpochMillis, v.endedAtEpochMillis,
+            v.driveDurationMillis, v.supportedSampleCount, v.passingSampleCount, v.included, v.availability)
+    }
+}
+
+@Serializable
 private data class StoredEvidence(
     val id: String, val version: Long, val trait: TraitId, val availability: TraitAvailability, val level: TraitLevel,
     val source: DataSource, val from: Long, val until: Long, val trips: Int, val samples: Int,
     val signals: List<String>, val metrics: List<StoredMetric>, val changes: List<StoredEvidenceChange>,
+    val score: Int? = null, val passing: Int = 0, val recentTrips: List<StoredTripEvidence> = emptyList(),
 ) {
     fun domain() = TraitEvidence(id, version, trait, availability, level, source, EvidenceWindow(from, until), trips, samples,
-        signals.map { SignalKind.valueOf(it) }.toSet(), metrics.map { it.domain() }, changes.map { it.domain() })
+        signals.map { SignalKind.valueOf(it) }.toSet(), metrics.map { it.domain() }, changes.map { it.domain() }, score, passing, recentTrips.map { it.domain() })
     companion object {
         fun from(v: TraitEvidence) = StoredEvidence(v.id, v.version, v.trait, v.availability, v.level, v.source,
             v.window.fromEpochMillis, v.window.untilEpochMillis, v.validTripCount, v.sampleCount,
-            v.signals.map { it.name }, v.metrics.map(StoredMetric::from), v.recentChanges.map { StoredEvidenceChange(it.recordedAtEpochMillis, it.previousLevel, it.currentLevel) })
+            v.signals.map { it.name }, v.metrics.map(StoredMetric::from), v.recentChanges.map { StoredEvidenceChange(it.recordedAtEpochMillis, it.previousLevel, it.currentLevel) },
+            v.score, v.passingSampleCount, v.recentTrips.map(StoredTripEvidence::from))
     }
 }
 

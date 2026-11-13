@@ -60,7 +60,7 @@ data class EngineAccount(
 data class RequestRecord(
     val id: String, val version: Long, val sender: String, val recipient: String,
     val status: ConnectionRequestStatus, val createdAt: Long, val expiresAt: Long,
-    val connectionId: String? = null, val retryAt: Long? = null,
+    val connectionId: String? = null, val retryAt: Long? = null, val automatic: Boolean = false,
 )
 
 @Serializable

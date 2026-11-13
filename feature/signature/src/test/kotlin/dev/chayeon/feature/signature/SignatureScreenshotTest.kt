@@ -28,7 +28,13 @@ class SignatureScreenshotTest {
             else -> DrivingPolicy.ALLOWED
         }
         val driving = f.driving.copy(policy = policy, gear = if (policy == DrivingPolicy.ALLOWED) Gear.PARK else Gear.UNKNOWN)
-        val signature = if (variant == "empty" || variant == "recording") MySignature() else f.signature
+        val signature = when (variant) {
+            "empty" -> MySignature()
+            "recording", "recording_off" -> f.signature.copy(publicSignature = null, evidence = f.signature.evidence.map {
+                it.copy(level = TraitLevel.RECORDING, validTripCount = 1, score = null, recentTrips = it.recentTrips.take(1))
+            })
+            else -> f.signature
+        }
         val signatureLoad = when (variant) {
             "loading" -> LoadState.Loading()
             "failure" -> LoadState.Failed(AppError.Network)
@@ -44,18 +50,33 @@ class SignatureScreenshotTest {
                             "failure" -> LoadState.Failed(AppError.Network)
                             "empty" -> f.ready(null)
                             else -> f.ready(f.profile)
-                        }, signatureLoad, settings = f.ready(ParticipationSettings("settings", 1, receiveRequestsWhileDriving = variant == "incoming_on")), consoleAvailable = true), chrome, {}, {}, {}, {})
-                    "signature" -> MySignatureScreen(SignatureUiState(driving, signatureLoad, true), chrome, {}, {}, {}, {}, {})
-                    "trait" -> TraitDetailScreen(TraitDetailUiState(driving, f.evidence.trait,
+                        }, signatureLoad, settings = f.ready(f.settings.copy(receiveRequestsWhileDriving = variant == "incoming_on",
+                            consents = if (variant == "recording_off") emptyList() else f.settings.consents)), consoleAvailable = true), chrome, {}, {}, {}, {})
+                    "driving_settings" -> DriveSettingsScreen(MyProfileUiState(driving = driving,
+                        settings = f.ready(ParticipationSettings("settings", 1,
+                            drivingConnectMode = if (variant == "off") DrivingConnectMode.OFF else if (variant == "ring") DrivingConnectMode.RING else DrivingConnectMode.AUTO,
+                            autoConnectConditions = AutoConnectConditions(mapOf(TraitId.GENTLE_RIDE to 80, TraitId.SIGNAL_MANNERS to 90), true)))),
+                        chrome, {}, {}, { _, _ -> }, {}, {})
+                    "signature" -> MySignatureScreen(SignatureUiState(driving, signatureLoad, true, recordingEnabled = true), chrome, {}, {}, {}, {}, {})
+                    "trait" -> TraitDetailScreen(TraitDetailUiState(driving, if (variant == "preference") TraitId.LONG_ROAD else f.evidence.trait,
                         when (variant) {
                             "loading" -> LoadState.Loading()
                             "failure" -> LoadState.Failed(AppError.Network)
                             "empty" -> f.ready(null)
-                            "unsupported" -> f.ready(f.evidence.copy(availability = TraitAvailability.UNSUPPORTED, metrics = emptyList()))
+                            "unsupported" -> f.ready(f.evidence.copy(availability = TraitAvailability.UNSUPPORTED, metrics = emptyList(), score = null))
                             "recording" -> f.ready(f.evidence.copy(availability = TraitAvailability.INSUFFICIENT_EVIDENCE,
-                                level = TraitLevel.RECORDING, validTripCount = 1, metrics = emptyList()))
+                                level = TraitLevel.RECORDING, validTripCount = 1, metrics = emptyList(), score = null,
+                                sampleCount = 30, passingSampleCount = 24, recentTrips = f.evidence.recentTrips.take(1)))
+                            "private_score" -> f.ready(f.evidence.copy(score = 54, level = TraitLevel.RECORDING,
+                                availability = TraitAvailability.INSUFFICIENT_EVIDENCE, passingSampleCount = 130,
+                                recentTrips = f.evidence.recentTrips.map { it.copy(passingSampleCount = if (it.tripId == "trip-0") 18 else 16) }))
+                            "preference" -> f.ready(f.evidence.copy(trait = TraitId.LONG_ROAD, score = null, sampleCount = 8,
+                                passingSampleCount = 6, signals = setOf(SignalKind.TRIP_LENGTH),
+                                metrics = listOf(PrivateMetric(MetricId.LONG_TRIP_RATIO, .75, MetricUnit.RATIO)),
+                                recentTrips = f.evidence.recentTrips.map { it.copy(supportedSampleCount = 1,
+                                    passingSampleCount = if (it.tripId in setOf("trip-4", "trip-6")) 0 else 1) }))
                             else -> f.ready(f.evidence)
-                        }), chrome, {}, {})
+                        }, visible = variant == "public"), chrome, {}, {})
                     "visibility" -> SignatureVisibilityScreen(VisibilityUiState(driving, signatureLoad,
                         visibility = if (variant == "empty") VisibilitySettings() else f.visibility,
                         preview = if (variant in setOf("empty", "loading", "failure")) null else f.public,
@@ -76,8 +97,26 @@ class SignatureScreenshotTest {
         if (screen == "profile" && variant == "privacy") {
             compose.onNodeWithText("사진과 차량 정보는 포함하지 않아요. 연락처 ID는 서로 애프터를 수락한 뒤에만 공유해요.").performScrollTo()
         }
+        if (screen == "driving_settings" && variant == "interests") compose.onNodeWithText("관심사가 하나 이상 겹치는 사람").performScrollTo()
+        if (screen == "profile" && variant == "scores") compose.onNodeWithTag("profile-trait-STEADY_PACE").performScrollTo()
+        if (screen == "profile" && variant == "unsupported") compose.onNodeWithTag("profile-trait-BATTERY_KIND").performScrollTo()
+        if (screen == "trait" && variant == "trips") compose.onNodeWithText("최근 주행").performScrollTo()
         compose.onNodeWithTag("signature-screen").captureRoboImage("src/test/screenshots/${screen}_$variant.png")
     }
+    @Test fun settings_interests() = capture("driving_settings", "interests")
+    @Test fun settings_auto() = capture("driving_settings", "auto")
+    @Test fun settings_ring() = capture("driving_settings", "ring")
+    @Test fun settings_off() = capture("driving_settings", "off")
+    @Test fun settings_restricted() = capture("driving_settings", "restricted")
+    @Test fun settings_unknown() = capture("driving_settings", "unknown")
+    @Config(sdk = [35], qualifiers = "w840dp-h1210dp-port-mdpi")
+    @Test fun settings_narrow() = capture("driving_settings", "narrow")
+    @Test fun profile_scores() = capture("profile", "scores")
+    @Test fun profile_unsupported() = capture("profile", "unsupported")
+    @Test fun trait_public() = capture("trait", "public")
+    @Test fun trait_private_score() = capture("trait", "private_score")
+    @Test fun trait_preference() = capture("trait", "preference")
+    @Test fun trait_trips() = capture("trait", "trips")
     @Test fun profile_incoming_on() = capture("profile", "incoming_on")
     @Test fun profile_incoming_off() = capture("profile", "incoming_off")
     @Test fun profile_privacy() = capture("profile", "privacy")
@@ -126,6 +165,7 @@ class SignatureScreenshotTest {
     @Test fun trait_server() = capture("trait", "server")
     @Test fun visibility_server() = capture("visibility", "server")
     @Test fun recap_server() = capture("recap", "server")
+    @Test fun profile_recording_off() = capture("profile", "recording_off")
     @Test fun profile_recording() = capture("profile", "recording")
     @Test fun signature_recording() = capture("signature", "recording")
     @Test fun trait_unsupported() = capture("trait", "unsupported")

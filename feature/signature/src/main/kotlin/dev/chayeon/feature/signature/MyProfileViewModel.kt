@@ -34,17 +34,36 @@ class MyProfileViewModel(private val deps: SignatureDeps) : ViewModel() {
         .combine(callSettingError) { state, error -> state.copy(callSettingError = error) }
         .stateIn(viewModelScope, signatureSharing, MyProfileUiState())
 
-    fun setReceiveRequestsWhileDriving(enabled: Boolean) {
+    fun setReceiveRequestsWhileDriving(enabled: Boolean) = setDrivingConnectMode(if (enabled) DrivingConnectMode.RING else DrivingConnectMode.OFF)
+
+    fun setDrivingConnectMode(mode: DrivingConnectMode) = changeCallSettings { it.copy(drivingConnectMode = mode) }
+
+    fun setMinimumScore(trait: TraitId, minimum: Int?) {
+        if (!trait.isScored || (minimum != null && (minimum !in 60..100 || minimum % 5 != 0))) return
+        changeCallSettings { current ->
+            current.copy(autoConnectConditions = current.autoConnectConditions.copy(minimumScores =
+                if (minimum == null) current.autoConnectConditions.minimumScores - trait
+                else current.autoConnectConditions.minimumScores + (trait to minimum)))
+        }
+    }
+
+    fun setRequireSharedInterest(required: Boolean) = changeCallSettings {
+        it.copy(autoConnectConditions = it.autoConnectConditions.copy(requireSharedInterest = required))
+    }
+
+    private fun changeCallSettings(transform: (ParticipationSettings) -> ParticipationSettings) {
         if (updatingCallSetting.value) return
         updatingCallSetting.value = true
         viewModelScope.launch {
             try {
                 if (!deps.allowedNow()) return@launch
                 val current = (deps.profileRepository.settings.first() as? LoadState.Ready)?.value ?: return@launch
+                val desired = transform(current)
                 val result = commandResult {
                     if (!deps.allowedNow()) AppResult.Failure(AppError.Restricted)
                     else deps.profileRepository.updateSettings(UpdateSettingsRequest(commandMeta(current.version),
-                        current.notifyRequests, enabled))
+                        current.notifyRequests, desired.drivingConnectMode != DrivingConnectMode.OFF,
+                        desired.drivingConnectMode, desired.autoConnectConditions))
                 }
                 callSettingError.value = (result as? AppResult.Failure)?.error
             } finally { updatingCallSetting.value = false }

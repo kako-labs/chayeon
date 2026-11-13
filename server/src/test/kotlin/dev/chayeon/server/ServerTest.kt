@@ -64,6 +64,26 @@ private suspend fun <T> race(first: suspend () -> T, second: suspend () -> T): L
 }
 
 class ServerTest {
+    @Test fun publicTraitScoresAreValidatedAtTheHttpBoundary() = testApplication {
+        application { chayeonModule(RoomRegistry(fakeRules, demoEnabled = false)) }
+        val api = Api(client)
+        val session = api.enter(PersonaCode.ACCOUNT_A)
+        api.ready(session)
+        suspend fun publish(trait: PublicTrait) = api.post<PublishSignatureRequest, PublishSignatureResponse>(
+            session, ApiRoutes.PUBLISH_SIGNATURE, PublishSignatureRequest(meta(), PublicSignature(
+                "input", 0, "", listOf(trait), KnotSeed(0), DataSource.SYNTHETIC, EvidenceBucket.GROWING,
+            )),
+        ).result
+        for (score in listOf(null, -1, 59, 101)) {
+            assertEquals(AppResult.Failure(AppError.Restricted), publish(PublicTrait(TraitId.SIGNAL_MANNERS, TraitLevel.VISIBLE, score)))
+        }
+        assertEquals(AppResult.Failure(AppError.Restricted), publish(PublicTrait(TraitId.NIGHT_DRIVE, TraitLevel.SIGNATURE, 100)))
+        assertEquals(AppResult.Failure(AppError.Restricted), publish(PublicTrait(TraitId.SIGNAL_MANNERS, TraitLevel.SIGNATURE, 60)))
+        val result = publish(PublicTrait(TraitId.SIGNAL_MANNERS, TraitLevel.SIGNATURE, 94)).ok()
+        assertEquals(94, result.publicProfile.signature!!.traits.single().score)
+        assertFalse(api.responses.any { (_, response) -> response.contains("passingSampleCount") || response.contains("recentTrips") })
+    }
+
     @Test fun mutualContactExchangeKeepsEveryPendingResponsePrivateAndClosesWithoutReplay() = testApplication {
         val registry = RoomRegistry(fakeRules, demoEnabled = false)
         application { chayeonModule(registry) }

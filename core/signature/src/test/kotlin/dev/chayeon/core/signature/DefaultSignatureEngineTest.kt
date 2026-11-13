@@ -78,7 +78,7 @@ class DefaultSignatureEngineTest {
         assertEquals(engine.publicProjection(a), engine.publicProjection(b))
         val projected = engine.publicProjection(b)!!
         assertEquals("여유롭게 멈추는 드라이버", projected.title)
-        assertEquals(listOf(PublicTrait(TraitId.EARLY_BRAKE, TraitLevel.STEADY)), projected.traits)
+        assertEquals(listOf(PublicTrait(TraitId.EARLY_BRAKE, TraitLevel.STEADY, 75)), projected.traits)
         assertFalse(VisibilitySettings().visibleTraits.contains(TraitId.NIGHT_DRIVE))
     }
 
@@ -182,6 +182,6 @@ class DefaultSignatureEngineTest {
     private fun trip(id: String, passing: Int = 100) = DerivedTripMetrics(id, 0, end - 300_000, end - 100_000, DataSource.VEHICLE, TripEligibility.ELIGIBLE,
         TraitId.entries.map { DerivedTraitMetrics(it, TraitAvailability.AVAILABLE, listOf(PrivateMetric(MetricId.GENTLE_BRAKE_RATIO, passing / 100.0, MetricUnit.RATIO)), 100, passing) },
         driveDurationMillis = 200_000, movementMeters = 3_000.0, speedCoverageRatio = 1.0)
-    private fun evidence(trait: TraitId, level: TraitLevel) = TraitEvidence("evidence", 1, trait, TraitAvailability.AVAILABLE, level, DataSource.VEHICLE, window, 3, 100, emptySet(), emptyList())
+    private fun evidence(trait: TraitId, level: TraitLevel) = TraitEvidence("evidence", 1, trait, TraitAvailability.AVAILABLE, level, DataSource.VEHICLE, window, 3, 100, emptySet(), emptyList(), score = if (!trait.isScored) null else when (level) { TraitLevel.RECORDING -> 59; TraitLevel.VISIBLE -> 60; TraitLevel.STEADY -> 75; TraitLevel.SIGNATURE -> 90 })
     private fun public(traits: List<PublicTrait>) = PublicSignature("public", 1, engine.title(traits), traits, KnotSeed(0), DataSource.VEHICLE, if (traits.isEmpty()) EvidenceBucket.RECORDING else EvidenceBucket.GROWING)
 }

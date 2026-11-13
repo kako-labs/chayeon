@@ -1,5 +1,7 @@
 package dev.chayeon.feature.signature
 
+import dev.chayeon.core.model.isScored
+
 import dev.chayeon.core.model.DataSource
 import dev.chayeon.core.model.AppError
 import dev.chayeon.core.model.EvidenceWindow
@@ -86,7 +88,8 @@ internal val TraitEvidence.unsupportedLabel: String get() = if (source == DataSo
     "이번 합성 주행에는 없는 특성이에요" else "이 차량에서 제공되지 않아요"
 
 internal val TraitEvidence.isPublishable: Boolean get() = availability == TraitAvailability.AVAILABLE &&
-    level != TraitLevel.RECORDING && validTripCount >= 3
+    level != TraitLevel.RECORDING && validTripCount >= 3 &&
+    (!trait.isScored || score?.let { it in 60..100 } == true)
 
 internal fun TraitEvidence.unsupportedLabel(showSourceLabels: Boolean): String =
     if (!showSourceLabels && source == DataSource.SYNTHETIC) "이번 주행에는 없는 특성이에요" else unsupportedLabel
@@ -139,3 +142,5 @@ internal fun AppError.signatureMessage(action: String): String = when (this) {
     AppError.Network -> "연결이 끊겨서 마치지 못했어요. 연결을 확인한 뒤 다시 $action 주세요."
     AppError.Unknown -> "변경을 마쳤는지 확인할 수 없어요. 다시 $action 주세요."
 }
+
+internal fun evidenceShortDate(epochMillis: Long): String = DateTimeFormatter.ofPattern("M/d", Locale.KOREAN).format(Instant.ofEpochMilli(epochMillis).atZone(evidenceZone))

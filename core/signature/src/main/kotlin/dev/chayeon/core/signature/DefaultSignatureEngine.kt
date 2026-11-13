@@ -1,6 +1,7 @@
 package dev.chayeon.core.signature
 
 import dev.chayeon.core.model.*
+import kotlin.math.roundToInt
 
 class DefaultSignatureEngine : SignatureEngine {
     override fun aggregate(
@@ -10,7 +11,8 @@ class DefaultSignatureEngine : SignatureEngine {
     ): List<TraitEvidence> {
         require(window.fromEpochMillis <= window.untilEpochMillis)
         val effectiveWindow = EvidenceWindow(maxOf(window.fromEpochMillis, window.untilEpochMillis - SignaturePolicy.WINDOW_MILLIS), window.untilEpochMillis)
-        val included = eligibleTrips(trips, effectiveWindow)
+        val windowTrips = windowTrips(trips, effectiveWindow)
+        val included = windowTrips.filterNot { it.excluded }
         val source = source(included)
         return TraitId.entries.map { trait ->
             val old = previousEvidence.firstOrNull { it.trait == trait }
@@ -24,7 +26,20 @@ class DefaultSignatureEngine : SignatureEngine {
                 included.size < SignaturePolicy.MIN_VALID_TRIPS || available.size < SignaturePolicy.MIN_VALID_TRIPS || count == 0L -> TraitAvailability.INSUFFICIENT_EVIDENCE
                 else -> TraitAvailability.AVAILABLE
             }
-            val level = if (availability == TraitAvailability.AVAILABLE) level(passing.toDouble() / count) else TraitLevel.RECORDING
+            val ratio = if (count > 0) passing.toDouble() / count else 0.0
+            val score = if (trait.isScored && availability == TraitAvailability.AVAILABLE) (100 * ratio).roundToInt().coerceIn(0, 100) else null
+            val level = when {
+                availability != TraitAvailability.AVAILABLE -> TraitLevel.RECORDING
+                score != null -> level(score / 100.0)
+                else -> level(ratio)
+            }
+            val recentTrips = windowTrips.sortedWith(compareByDescending<DerivedTripMetrics> { it.endedAtEpochMillis }.thenBy { it.id }).map { trip ->
+                val derived = trip.traits.firstOrNull { it.trait == trait }
+                val supportedCount = derived?.takeIf { it.availability == TraitAvailability.AVAILABLE }?.supportedSampleCount?.coerceAtLeast(0) ?: 0
+                TraitTripEvidence(trip.id, trip.startedAtEpochMillis, trip.endedAtEpochMillis, trip.driveDurationMillis,
+                    supportedCount, derived?.passingSampleCount?.coerceIn(0, supportedCount) ?: 0, !trip.excluded,
+                    derived?.availability ?: TraitAvailability.UNSUPPORTED)
+            }
             val metrics = if (supported.isEmpty()) emptyList() else MetricId.entries.mapNotNull { metric ->
                 val observations = available.mapNotNull { derived ->
                     derived.metrics.firstOrNull { it.id == metric && it.value.isFinite() }?.let { it to derived.supportedSampleCount.toLong() }
@@ -42,6 +57,7 @@ class DefaultSignatureEngine : SignatureEngine {
                 trait = trait, availability = availability, level = level, source = source, window = effectiveWindow,
                 validTripCount = available.size, sampleCount = count.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
                 signals = if (supported.isEmpty()) emptySet() else signals(trait), metrics = metrics, recentChanges = changes,
+                score = score, passingSampleCount = passing.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(), recentTrips = recentTrips,
             )
         }
     }
@@ -62,10 +78,11 @@ class DefaultSignatureEngine : SignatureEngine {
     override fun publicProjection(signature: MySignature): PublicSignature? {
         if (!signature.visibility.publishSignature) return null
         val visible = signature.evidence.filter {
-            it.trait in signature.visibility.visibleTraits && it.availability == TraitAvailability.AVAILABLE && it.level != TraitLevel.RECORDING && it.validTripCount >= SignaturePolicy.MIN_VALID_TRIPS
+            it.trait in signature.visibility.visibleTraits && it.availability == TraitAvailability.AVAILABLE && it.level != TraitLevel.RECORDING && it.validTripCount >= SignaturePolicy.MIN_VALID_TRIPS &&
+                (!it.trait.isScored || it.score?.let { score -> score in 60..100 && level(score / 100.0) == it.level } == true)
         }.distinctBy { it.trait }.sortedBy { it.trait.ordinal }
         if (visible.isEmpty()) return null
-        val publicTraits = visible.map { PublicTrait(it.trait, it.level) }
+        val publicTraits = visible.map { PublicTrait(it.trait, it.level, if (it.trait.isScored) it.score else null) }
         // Rebuild exclusively from public levels; even the private seed must not cross this boundary.
         val publicSeedEvidence = visible.map { it.copy(metrics = emptyList(), sampleCount = 0, recentChanges = emptyList()) }
         val bucket = if (visible.all { it.level == TraitLevel.SIGNATURE }) EvidenceBucket.ESTABLISHED else EvidenceBucket.GROWING
@@ -136,9 +153,9 @@ class DefaultSignatureEngine : SignatureEngine {
             previous.knotSeed, current.knotSeed, changes, included = !trip.excluded && trip.eligibility == TripEligibility.ELIGIBLE, firstSignature = firstSignature)
     }
 
-    private fun eligibleTrips(trips: List<DerivedTripMetrics>, window: EvidenceWindow): List<DerivedTripMetrics> = trips.groupBy { it.id }.values.map { versions ->
+    private fun windowTrips(trips: List<DerivedTripMetrics>, window: EvidenceWindow): List<DerivedTripMetrics> = trips.groupBy { it.id }.values.map { versions ->
         versions.sortedWith(compareByDescending<DerivedTripMetrics> { it.version }.thenByDescending { it.excluded }).first()
-    }.filter { !it.excluded && it.eligibility == TripEligibility.ELIGIBLE && it.startedAtEpochMillis >= window.fromEpochMillis && it.endedAtEpochMillis <= window.untilEpochMillis && it.endedAtEpochMillis >= it.startedAtEpochMillis }
+    }.filter { it.eligibility == TripEligibility.ELIGIBLE && it.startedAtEpochMillis >= window.fromEpochMillis && it.endedAtEpochMillis <= window.untilEpochMillis && it.endedAtEpochMillis >= it.startedAtEpochMillis }
         .sortedBy { it.id }
 
     private fun source(trips: List<DerivedTripMetrics>): DataSource = if (trips.any { it.source == DataSource.SYNTHETIC }) DataSource.SYNTHETIC else DataSource.VEHICLE

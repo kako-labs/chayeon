@@ -51,9 +51,36 @@ internal class SocialCoordinator(
         val policy = withTimeoutOrNull(1_000) { driving.first().policy } ?: return false
         if (policy == DrivingPolicy.ALLOWED) return true
         val snapshot = (store.state.value.data as? LoadState.Ready)?.value ?: return false
-        return policy == DrivingPolicy.RESTRICTED && snapshot.settings?.receiveRequestsWhileDriving == true &&
+        return policy == DrivingPolicy.RESTRICTED && snapshot.settings?.drivingConnectMode in setOf(DrivingConnectMode.RING, DrivingConnectMode.AUTO) &&
             snapshot.connectionRequests.any { it.id == requestId && it.direction == RequestDirection.INCOMING &&
                 it.status == ConnectionRequestStatus.PENDING }
+    }
+
+    fun incomingPeerId(requestId: String): String? =
+        (store.state.value.data as? LoadState.Ready)?.value?.connectionRequests?.find { it.id == requestId }?.peer?.id
+
+    private suspend fun automaticSnapshot(): SyncSnapshot? {
+        if (withTimeoutOrNull(1_000) { driving.first().policy } != DrivingPolicy.RESTRICTED) return null
+        val snapshot = (store.state.value.data as? LoadState.Ready)?.value ?: return null
+        if (snapshot.settings?.drivingConnectMode != DrivingConnectMode.AUTO ||
+            snapshot.discovery.mode != DiscoveryMode.ON || snapshot.connections.any { it.status != ConnectionStatus.ENDED }) return null
+        return snapshot
+    }
+
+    suspend fun allowsAutomaticRequest(candidateId: String): Boolean {
+        val snapshot = automaticSnapshot() ?: return false
+        if (snapshot.connectionRequests.any { it.direction == RequestDirection.OUTGOING && it.status == ConnectionRequestStatus.PENDING }) return false
+        val candidate = snapshot.discovery.candidates.find { it.id == candidateId } ?: return false
+        return snapshot.blocks.none { it.peer.id == candidate.profile.id } &&
+            snapshot.settings!!.autoConnectConditions.matches(candidate.profile, snapshot.profile?.publicProfile?.interests.orEmpty())
+    }
+
+    suspend fun allowsAutomaticResponse(requestId: String): Boolean {
+        val snapshot = automaticSnapshot() ?: return false
+        val request = snapshot.connectionRequests.find { it.id == requestId && it.direction == RequestDirection.INCOMING &&
+            it.status == ConnectionRequestStatus.PENDING } ?: return false
+        return snapshot.blocks.none { it.peer.id == request.peer.id } &&
+            snapshot.settings!!.autoConnectConditions.matches(request.peer, snapshot.profile?.publicProfile?.interests.orEmpty())
     }
 
     suspend fun allowed(): Boolean = try {

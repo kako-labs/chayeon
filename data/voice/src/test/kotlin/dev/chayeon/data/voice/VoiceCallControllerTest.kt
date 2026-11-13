@@ -354,15 +354,51 @@ class VoiceCallControllerTest {
         }
     }
 
+    @Test fun automaticConnectionSpeaksOnlyItsAnnouncementOnceBeforeDemoAndStopsAtEnd() = runTest {
+        val h = Harness(this)
+        val text = "별보는밤님과 연결됐어요"
+        h.controller.updateTarget("auto", SessionMode.SOLO, false, peer(ProfileKind.DEMO_PEER), text)
+        runCurrent()
+        h.controller.updateTarget("auto", SessionMode.SOLO, false, peer(ProfileKind.DEMO_PEER), text)
+        runCurrent()
+        assertEquals(listOf(text), h.announcement.spoken)
+        assertEquals(1, h.demo.started.size)
+        assertEquals(0, h.audio.captureStarts)
+        h.controller.stop()
+        assertTrue(h.announcement.releases > 0)
+    }
+
+    @Test fun automaticAnnouncementWaitsForFocusAndIsCancelledWithCall() = runTest {
+        val h = Harness(this)
+        h.audio.focusAvailable.value = false
+        h.controller.updateTarget("auto", SessionMode.SOLO, false, peer(ProfileKind.DEMO_PEER), "별보는밤님과 연결됐어요")
+        runCurrent()
+        assertTrue(h.announcement.spoken.isEmpty())
+        h.controller.stop()
+        h.audio.focusAvailable.value = true
+        runCurrent()
+        assertTrue(h.announcement.spoken.isEmpty())
+    }
+
+    private class FakeAnnouncement : DemoSpeechEngine {
+        val spoken = mutableListOf<String>()
+        var releases = 0
+        override suspend fun prepare() = true
+        override suspend fun speak(text: String): Boolean { spoken += text; return true }
+        override fun stop() = Unit
+        override fun release() { releases++ }
+    }
+
     private class Harness(val scope: TestScope) {
         val audio = FakeAudio { scope.testScheduler.currentTime }
         val demo = FakeDemoVoice(audio)
+        val announcement = FakeAnnouncement()
         val service = FakeService()
         val transport = FakeTransport()
         var policy = DrivingPolicy.ALLOWED
         var permissionRequests = 0
         val controller = VoiceCallController(scope.backgroundScope, transport, audio, service, demo,
-            currentPolicy = { policy }, permissionRequest = { permissionRequests++; true })
+            currentPolicy = { policy }, permissionRequest = { permissionRequests++; true }, announcementSpeech = announcement)
         suspend fun start(id: String = "active") {
             controller.updateTarget(id, SessionMode.SERVER_DEMO, true)
             scope.runCurrent()

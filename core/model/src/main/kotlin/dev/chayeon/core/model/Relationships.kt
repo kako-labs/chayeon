@@ -23,6 +23,7 @@ data class ConnectionRequest(
     val chemistry: Chemistry,
     val connectionId: String? = null,
     val retryAvailableAtEpochMillis: Long? = null,
+    val automatic: Boolean = false,
 ) : VersionedEntity
 
 @Serializable

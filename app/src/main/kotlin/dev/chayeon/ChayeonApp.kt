@@ -205,7 +205,7 @@ fun ChayeonApp(graph: AppGraph, navController: NavHostController = rememberNavCo
                 navController.navigate(MeetDestination.CONNECTED) { launchSingleTop = true }
             }
         } else if (driving.policy == DrivingPolicy.RESTRICTED && current?.status != ConnectionStatus.CONNECTED &&
-            (participation as? LoadState.Ready)?.value?.receiveRequestsWhileDriving == true) {
+            (participation as? LoadState.Ready)?.value?.drivingConnectMode in setOf(DrivingConnectMode.RING, DrivingConnectMode.AUTO)) {
             val incoming = (requests as? LoadState.Ready)?.value?.firstOrNull {
                 it.direction == RequestDirection.INCOMING && it.status == ConnectionRequestStatus.PENDING
             }

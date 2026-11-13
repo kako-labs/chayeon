@@ -41,7 +41,7 @@ class RequestViewModel(private val deps: MeetDeps, initialRequestId: String? = n
     }.combine(deps.homeZoneRepository.state) { state, home ->
         state.copy(homeSuppressed = home.suppressed)
     }.combine(deps.profileRepository.settings) { state, settings ->
-        state.copy(receiveRequestsWhileDriving = settings.readyValue()?.receiveRequestsWhileDriving == true)
+        state.copy(receiveRequestsWhileDriving = settings.readyValue()?.drivingConnectMode?.let { it != DrivingConnectMode.OFF } == true)
     }.stateIn(viewModelScope, meetSharing, RequestUiState())
 
     private suspend fun currentRequest(): ConnectionRequest? {
@@ -75,7 +75,7 @@ class RequestViewModel(private val deps: MeetDeps, initialRequestId: String? = n
     private suspend fun allowsResponse(): Boolean {
         val policy = deps.drivingStateProvider.drivingState.first().policy
         return policy == DrivingPolicy.ALLOWED || (policy == DrivingPolicy.RESTRICTED &&
-            deps.profileRepository.settings.first().readyValue()?.receiveRequestsWhileDriving == true &&
+            deps.profileRepository.settings.first().readyValue()?.drivingConnectMode?.let { it != DrivingConnectMode.OFF } == true &&
             currentRequest()?.direction == RequestDirection.INCOMING)
     }
 

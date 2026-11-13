@@ -157,7 +157,7 @@ stateDiagram-v2
 
 주행 정책은 권한이 필요 없는 `CarUxRestrictionsManager`의 변경 리스너와 현재 제한 조회를 사용해요. 신선한 SDK 기어 P와 `isRequiresDistractionOptimization=false`가 함께 확인될 때만 허용해요. D/N/R 또는 DO 요구는 제한이며, 관찰 오류·2.5초 초과·차량 서비스 연결 해제는 UNKNOWN이에요. `CAR_DRIVING_STATE` 권한과 shell 권한 대여는 사용하지 않아요.
 
-`ChayeonApplication`은 `VehicleGraph`, `SocialGraph`, `SignaturePublisher`, `AppEvents`를 소유해요. 세션·서버의 차량 데이터 동의가 기록 게이트를 결정해요. 이 서비스용 동의는 주행 중에도 관찰되며 화면용 프로필과 분리되어 있어요. Android 14 서비스는 Activity가 전경일 때 시작해요. 동의가 철회되면 기록을 멈추고, 발견·연결·집 보호도 필요 없으면 서비스를 끝내요. `CAR_SPEED`·`CAR_ENERGY`는 동의 뒤 런타임에 요청해요. 거부한 신호는 UNSUPPORTED로 남아요.
+`ChayeonApplication`은 `VehicleGraph`, `SocialGraph`, `SignaturePublisher`, `AppEvents`, `AutoConnectCoordinator`를 소유해요. 세션·서버의 차량 데이터 동의가 기록 게이트를 결정해요. 이 서비스용 동의는 주행 중에도 관찰되며 화면용 프로필과 분리되어 있어요. Android 14 서비스는 Activity가 전경일 때 시작해요. 동의가 철회되면 기록을 멈추고, 발견·연결·집 보호도 필요 없으면 서비스를 끝내요. `CAR_SPEED`·`CAR_ENERGY`는 동의 뒤 런타임에 요청해요. 거부한 신호는 UNSUPPORTED로 남아요.
 
 로그아웃과 삭제는 게이트를 먼저 닫고 게시 작업과 직렬화한 뒤 소셜 저장소의 정리 영수증 경로를 실행해요. 공개 투영 변경은 `SignaturePublisher`가 게시·철회하고 같은 명령으로 재시도해요. 화면은 현재 세션의 등록 상태로 복원되며 주행 중 알림은 연락처 내용 없는 `CATEGORY_MESSAGE`예요.
 
@@ -247,3 +247,10 @@ Application 소유 `HomeZoneCoordinator` 한곳만 presence를 전송해요. `pr
 ## 인연과 연락처 경계
 
 하단 이동은 `홈 · 인연 · 내 프로필`이며 `인연`은 한 사람당 한 행인 하나의 목록이에요. 받은 애프터는 상단 빨간 배지, 이어진 관계는 하트, 보낸 신청은 `답을 기다려요`, 스친 관계는 기본 행으로 구분해요. 내부 탭은 없어요. `ContactIds`는 선택적인 카카오톡·인스타그램 ID 값 객체예요. 내 프로필의 저장 ID는 본인에게만, 개별 애프터에서 선택한 ID는 양측 수락 뒤 현재 후속 연결의 두 당사자에게만 보여요. 공개 프로필·후보·요청·기록과 알림에는 넣지 않아요. 관계 종료·차단·계정 삭제 뒤 스냅샷과 명령 재시도 결과에도 교환 ID가 남지 않아요. ALLOWED가 아니면 연락처와 인연 기록·QR을 숨겨요.
+
+
+## 주행 중 조건부 자동 연결
+
+`AutoConnectCoordinator`는 Application에서 동작하며 화면의 주행 제한을 풀지 않아요. `SocialGraph.autoConnectSnapshot`은 개인 연락처와 주행 근거를 제외한 서비스 전용 상태를 제공해요. 조정기는 AUTO 설정·공개 점수 조건·공통 관심사·현재 주행 정책·집 보호를 평가하고 기존 요청/수락 명령에 자동 실행 표시를 붙여요. `data:social`은 실제 전송과 재시도 직전에 현재 정책·설정·조건·차단·활성 연결을 다시 확인하고, 엔진은 저장된 AUTO 동의와 공개 조건을 검사해요. 서버가 상대를 골라 주지는 않아요.
+
+계정별 `PrivateAutoConnectStore`는 백업 제외 영역에 당일 상대별 재시도 금지, 통화 종료 후 10분 대기, 재시도용 멱등 명령, 안내한 연결 ID를 원자적으로 저장해요. 저장을 확인할 수 없으면 자동 실행을 막아요. 점수는 `core:signature`에서만 계산하고 개인 근거는 `data:vehicle`에만 보관해요. 새 모듈이나 의존 방향을 추가하지 않았어요. 자동 통화는 요청 출처가 포함된 스냅샷으로 확인한 뒤 기존 `data:voice`의 Pleos ON_DEVICE 음성으로 연결 사실만 한 번 알려요.

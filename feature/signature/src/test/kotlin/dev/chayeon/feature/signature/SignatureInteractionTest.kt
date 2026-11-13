@@ -51,7 +51,7 @@ class SignatureInteractionTest {
             assertTrue(TraitId.BATTERY_KIND in signature.value.visibility.visibleTraits)
             signature.value = signature.value.copy(evidence = signature.value.evidence.map {
                 if (it.trait == TraitId.BATTERY_KIND) it.copy(availability = TraitAvailability.AVAILABLE,
-                    level = TraitLevel.VISIBLE, validTripCount = 3) else it
+                    level = TraitLevel.VISIBLE, validTripCount = 3, score = 60) else it
             })
         }
         compose.onNodeWithTag("visibility-BATTERY_KIND").assertIsOn().assertIsEnabled()
@@ -90,7 +90,7 @@ class SignatureInteractionTest {
         assertTrue(samePublicContent(model.uiState.value.preview, published))
         assertFalse(published!!.traits.any { it.trait == TraitId.GENTLE_RIDE })
         compose.onAllNodesWithContentDescription("부드러운 주행, 꾸준해요").assertCountEquals(0)
-        compose.onNodeWithText("10분당 0.8회").assertDoesNotExist()
+        compose.onNodeWithText("80").assertDoesNotExist()
     }
 
     @Test fun restoredVisibilityExposesAnActionToReconcilePendingPublication() {
@@ -185,10 +185,10 @@ class SignatureInteractionTest {
             }
         }
         compose.waitUntil { model.uiState.value.evidence is LoadState.Ready }
-        compose.onNodeWithText("10분당 0.8회").assertIsDisplayed()
+        compose.onNodeWithText("80").assertIsDisplayed()
         compose.runOnIdle { deps.drivingStateProvider.drivingState.value = f.driving.copy(policy = DrivingPolicy.RESTRICTED) }
         compose.onNodeWithText("주행 중이에요").assertIsDisplayed()
-        compose.onNodeWithText("10분당 0.8회").assertDoesNotExist()
+        compose.onNodeWithText("80").assertDoesNotExist()
         compose.onNodeWithContentDescription("뒤로").assertDoesNotExist()
     }
 
@@ -213,8 +213,8 @@ class SignatureInteractionTest {
                 MySignatureScreen(SignatureUiState(f.driving, f.ready(f.signature)), previewChrome(), {}, {}, {}, {}, {})
             }
         }
-        compose.onNodeWithText("함께 타면 알게 되는 나").assertIsDisplayed()
-        compose.onNodeWithText("아직 모으는 이야기").assertIsDisplayed()
+        compose.onNodeWithText("드라이브 프로필").assertIsDisplayed()
+        compose.onNodeWithText("나만 보여요").assertExists()
         compose.onNodeWithText("공개 범위").assertIsDisplayed()
         compose.onAllNodes(hasClickAction()).fetchSemanticsNodes().forEach { node ->
             assertTrue("Touch width is below 76dp", node.size.width >= 76)
@@ -222,14 +222,12 @@ class SignatureInteractionTest {
         }
     }
 
-    @Test fun recordingAndUnsupportedTraitsExpandWithoutTakingOverEarnedCards() {
+    @Test fun everyTraitRemainsReachableIncludingPrivateAndUnsupportedRows() {
         compose.setContent {
             ChayeonTheme(DrivingPolicy.ALLOWED, 0f) {
                 MySignatureScreen(SignatureUiState(f.driving, f.ready(f.signature)), previewChrome(), {}, {}, {}, {}, {})
             }
         }
-        compose.onNodeWithText("배터리 아끼기").assertDoesNotExist()
-        compose.onNodeWithText("아직 모으는 이야기").performClick()
         compose.onNodeWithText("배터리 아끼기").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("signature-screen").captureRoboImage("src/test/screenshots/signature_recording_expanded.png")
     }

@@ -5,23 +5,28 @@
     "traits": [
       {
         "trait": "GENTLE_RIDE",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 100
       },
       {
         "trait": "EARLY_BRAKE",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 100
       },
       {
         "trait": "STEADY_PACE",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 100
       },
       {
         "trait": "BELT_FIRST",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 100
       },
       {
         "trait": "TIRE_CARE",
-        "level": "STEADY"
+        "level": "STEADY",
+        "score": 75
       }
     ]
   },
@@ -31,27 +36,33 @@
     "traits": [
       {
         "trait": "GENTLE_RIDE",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 100
       },
       {
         "trait": "EARLY_BRAKE",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 100
       },
       {
         "trait": "SIGNAL_MANNERS",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 100
       },
       {
         "trait": "BELT_FIRST",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 100
       },
       {
         "trait": "ENERGY_PLANNER",
-        "level": "STEADY"
+        "level": "STEADY",
+        "score": 75
       },
       {
         "trait": "CABIN_CARE",
-        "level": "STEADY"
+        "level": "STEADY",
+        "score": 75
       }
     ]
   },
@@ -61,43 +72,53 @@
     "traits": [
       {
         "trait": "GENTLE_RIDE",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 100
       },
       {
         "trait": "EARLY_BRAKE",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 100
       },
       {
         "trait": "SIGNAL_MANNERS",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 100
       },
       {
         "trait": "STEADY_PACE",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 100
       },
       {
         "trait": "BELT_FIRST",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 100
       },
       {
         "trait": "TIRE_CARE",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 100
       },
       {
         "trait": "ENERGY_PLANNER",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 100
       },
       {
         "trait": "BATTERY_KIND",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 100
       },
       {
         "trait": "FLUID_READY",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 100
       },
       {
         "trait": "CABIN_CARE",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 100
       }
     ]
   }

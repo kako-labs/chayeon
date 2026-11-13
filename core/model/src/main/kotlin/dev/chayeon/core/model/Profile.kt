@@ -123,4 +123,6 @@ data class ParticipationSettings(
     val consents: List<ConsentRecord> = emptyList(),
     val notifyRequests: Boolean = true,
     val receiveRequestsWhileDriving: Boolean = false,
+    val drivingConnectMode: DrivingConnectMode = if (receiveRequestsWhileDriving) DrivingConnectMode.RING else DrivingConnectMode.OFF,
+    val autoConnectConditions: AutoConnectConditions = AutoConnectConditions(),
 ) : VersionedEntity

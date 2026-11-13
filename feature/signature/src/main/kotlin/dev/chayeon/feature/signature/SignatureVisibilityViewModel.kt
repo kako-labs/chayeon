@@ -78,6 +78,11 @@ class SignatureVisibilityViewModel(private val deps: SignatureDeps) : ViewModel(
         current.copy(visibleTraits = if (visible) current.visibleTraits + trait else current.visibleTraits - trait)
     }
 
+    fun setTraitPublished(trait: TraitId, visible: Boolean) = changeVisibility { current ->
+        current.copy(visibleTraits = if (visible) current.visibleTraits + trait else current.visibleTraits - trait,
+            publishSignature = current.publishSignature || visible)
+    }
+
     fun setPublished(published: Boolean) = changeVisibility { it.copy(publishSignature = published) }
 
     private fun changeVisibility(transform: (VisibilitySettings) -> VisibilitySettings) {

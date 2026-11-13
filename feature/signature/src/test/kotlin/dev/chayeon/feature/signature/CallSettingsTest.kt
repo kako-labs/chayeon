@@ -31,4 +31,35 @@ class CallSettingsTest {
             }
         } finally { store.clear(); runCurrent(); Dispatchers.resetMain() }
     }
+    @Test fun autoConditionsUseOnlyScoredTraitsAndPreserveChoicesAcrossModeChanges() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val deps = SignatureTestDeps()
+        val store = ViewModelStore()
+        val model = MyProfileViewModel(deps).also { store.put("profile", it) }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { model.uiState.collect() }
+        try {
+            runCurrent()
+            model.setMinimumScore(TraitId.SIGNAL_MANNERS, 90); runCurrent()
+            model.setRequireSharedInterest(true); runCurrent()
+            model.setDrivingConnectMode(DrivingConnectMode.AUTO); runCurrent()
+            val selected = deps.profileRepository.settingsCalls.last()
+            assertEquals(DrivingConnectMode.AUTO, selected.drivingConnectMode)
+            assertEquals(mapOf(TraitId.SIGNAL_MANNERS to 90), selected.autoConnectConditions.minimumScores)
+            assertTrue(selected.autoConnectConditions.requireSharedInterest)
+            model.setMinimumScore(TraitId.NIGHT_DRIVE, 90)
+            model.setMinimumScore(TraitId.SIGNAL_MANNERS, 59)
+            model.setMinimumScore(TraitId.SIGNAL_MANNERS, 61)
+            runCurrent()
+            assertEquals(3, deps.profileRepository.settingsCalls.size)
+            for (policy in listOf(DrivingPolicy.RESTRICTED, DrivingPolicy.UNKNOWN)) {
+                deps.drivingStateProvider.drivingState.value = DrivingState(policy = policy)
+                runCurrent()
+                model.setMinimumScore(TraitId.SIGNAL_MANNERS, 60); runCurrent()
+                model.setRequireSharedInterest(false); runCurrent()
+                model.setDrivingConnectMode(DrivingConnectMode.OFF); runCurrent()
+            }
+            assertEquals(3, deps.profileRepository.settingsCalls.size)
+        } finally { store.clear(); runCurrent(); Dispatchers.resetMain() }
+    }
+
 }

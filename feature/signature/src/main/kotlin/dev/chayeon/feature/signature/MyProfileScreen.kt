@@ -17,6 +17,8 @@ fun MyProfileScreen(
     onExit: (SignatureExit) -> Unit,
     onRetry: () -> Unit,
     onReceiveRequestsWhileDriving: (Boolean) -> Unit = {},
+    onTrait: (TraitId) -> Unit = {},
+    onDrivingSettings: () -> Unit = {},
 ) {
     SignatureFrame("내 프로필", state.driving.policy, chrome,
         primary = {
@@ -52,6 +54,7 @@ fun MyProfileScreen(
                                         verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.TagGap)) {
                                         profile.interests.sortedBy { it.ordinal }.forEach { InterestTag(it.label, matched = true) }
                                     }
+                                    JellyButton("주행 중 연결", onDrivingSettings, Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
                                     JellyButton("프로필 편집", { onExit(SignatureExit.OpenProfileEdit) },
                                         Modifier.fillMaxWidth(), JellyVariant.SECONDARY)
                                 }
@@ -63,14 +66,10 @@ fun MyProfileScreen(
         },
         secondary = {
             SignatureColumn {
-                GlassCard(Modifier.fillMaxWidth()) {
-                    val settings = (state.settings as? LoadState.Ready)?.value
-                    Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
-                        GelToggle(settings?.receiveRequestsWhileDriving == true, onReceiveRequestsWhileDriving,
-                            "주행 중에도 새 요청 받기", enabled = settings != null && !state.updatingCallSetting)
-                        ChayeonText("전화처럼 닉네임과 칭호만 보고 받을 수 있어요", style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
-                        if (state.callSettingError != null) ChayeonText("설정을 바꾸지 못했어요. 다시 눌러 주세요", style = ChayeonType.Secondary, color = ChayeonColors.Pink)
-                    }
+                val signature = state.signature.readyValue()
+                if (signature != null) {
+                    if (signature.isRecording) ProfileBuilding(signature, state.settings.readyValue()?.recordingEnabled == true)
+                    else ProfileTraitRows(signature, onTrait)
                 }
                 SettingsRow(ChayeonIcon.KNOT, "내 시그니처", "주행 스타일과 차량 관리에 담긴 나를 알아봐요.", onSignature)
                 SettingsRow(ChayeonIcon.EYE, "시그니처 공개 범위", "상대에게 보일 특성을 직접 골라요.", onVisibility)

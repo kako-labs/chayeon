@@ -375,7 +375,7 @@ class SignatureViewModelTest {
         assertEquals(signature.publicSignature, signaturePreview(signature, signature.visibility))
         val preview = signaturePreview(signature, signature.visibility.copy(visibleTraits = TraitId.entries.toSet()))
         assertNotNull(preview)
-        assertFalse(preview!!.traits.any { it.trait == TraitId.NIGHT_DRIVE || it.trait == TraitId.BATTERY_KIND })
+        assertFalse(preview!!.traits.any { it.trait == TraitId.BATTERY_KIND })
         assertTrue(preview.traits.none { it.level == TraitLevel.RECORDING })
         assertEquals(DataSource.SYNTHETIC, preview.source)
         assertNull(signaturePreview(signature, signature.visibility.copy(publishSignature = false)))
@@ -400,7 +400,7 @@ class SignatureViewModelTest {
         runCurrent()
         val current = (deps.signatureRepository.signature.value as LoadState.Ready).value
         deps.signatureRepository.signature.value = LoadState.Ready(current.copy(version = current.version + 1,
-            evidence = current.evidence.map { if (it.trait == TraitId.GENTLE_RIDE) it.copy(level = TraitLevel.SIGNATURE) else it }), current.version + 1)
+            evidence = current.evidence.map { if (it.trait == TraitId.GENTLE_RIDE) it.copy(level = TraitLevel.SIGNATURE, score = 94) else it }), current.version + 1)
         gate.complete(Unit)
         runCurrent()
         assertEquals(2, deps.profileRepository.publishCalls.size)
@@ -637,4 +637,37 @@ class SignatureViewModelTest {
         assertTrue(base.signatureRepository.visibilityCalls.isEmpty())
         assertTrue(base.profileRepository.publishCalls.isEmpty())
     }
+    @Test
+    fun `evidence toggle publishes current score and rejects a stale driving tap`() = scenario {
+        val deps = SignatureTestDeps()
+        val model = keep(TraitDetailViewModel(deps, TraitId.GENTLE_RIDE))
+        observe(model.uiState)
+        runCurrent()
+        assertTrue(model.uiState.value.visible)
+        model.setVisible(false)
+        runCurrent()
+        assertFalse(model.uiState.value.visible)
+        assertFalse(deps.profileRepository.publishCalls.single().signature!!.traits.any { it.trait == TraitId.GENTLE_RIDE })
+        deps.drivingStateProvider.drivingState.value = DrivingState(policy = DrivingPolicy.RESTRICTED)
+        model.setVisible(true)
+        runCurrent()
+        assertEquals(1, deps.profileRepository.publishCalls.size)
+        assertTrue(model.uiState.value.evidence is LoadState.Loading)
+    }
+
+    @Test
+    fun `building recording indicator follows current vehicle consent`() = scenario {
+        val deps = SignatureTestDeps()
+        val model = keep(SignatureViewModel(deps))
+        observe(model.uiState)
+        runCurrent()
+        assertFalse(model.uiState.value.recordingEnabled)
+        deps.profileRepository.settings.value = SignatureScreenFixtures.ready(SignatureScreenFixtures.settings)
+        runCurrent()
+        assertTrue(model.uiState.value.recordingEnabled)
+        deps.profileRepository.settings.value = SignatureScreenFixtures.ready(SignatureScreenFixtures.settings.copy(consents = emptyList()))
+        runCurrent()
+        assertFalse(model.uiState.value.recordingEnabled)
+    }
+
 }

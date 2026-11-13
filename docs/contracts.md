@@ -85,7 +85,7 @@
 - `RecordConsentRequest`는 현재 문서 버전에 대한 `GRANT/REVOKE` 명령입니다. 서버가 인증된 계정의 `ConsentRecord`를 저장합니다. 연결 요청·수락 DTO에는 동의 플래그가 없으며 서버는 자신의 저장 상태를 읽습니다. `ADULT_ATTESTATION`은 시연용 자기 확인이고 연령 검증 주장이 아닙니다.
 - `PublicProfile`과 `Candidate`는 닉네임, 가상 아바타, 관심사, 공개 시그니처와 궁합만 포함합니다. `ProfileKind.VIRTUAL_PROFILE`은 `가상 프로필`, `DEMO_PEER`는 `시연용 가상 상대`로 표시합니다.
 - 위치는 `LocationInput`으로 들어오는 요청에만 있습니다. 메모리에서 근접 판단에만 사용하고 응답·UI·로그에 넣지 않습니다. 요청과 위치 객체의 `toString()`도 값을 숨깁니다. 합성 위치는 `LocationSource.SYNTHETIC`으로 구분합니다. 발견에는 좌표 대신 신선도와 권한 상태만 있습니다.
-- 공개 시그니처에는 칭호, 공개 특성의 단계, 매듭 시드, 출처, 범주형 근거량만 있습니다. 상대에게 개인 지표·횟수·점수·순위를 전하지 않습니다. `RECORDING` 특성은 공개 타입 생성 단계에서 거부합니다.
+- 공개 시그니처에는 칭호, 공개 특성의 단계와 `score: Int?`, 매듭 시드, 출처, 범주형 근거량만 있습니다. 점수 특성은 공개를 켜고 60점 이상일 때만 포함하며 서버가 60..100과 단계 일치를 검사합니다. LONG_ROAD/NIGHT_DRIVE는 score=null만 허용합니다. 상대에게 개인 지표·주행별 횟수·기록·순위를 전하지 않습니다. `RECORDING` 특성은 공개 타입 생성 단계에서 거부합니다.
 - `MySignature`, `TraitEvidence`, `PrivateMetric`, `DerivedTripMetrics`, `TripRecap`은 기기 안에서만 쓰며 직렬화 가능한 서버 그래프에 들어가지 않습니다. `DerivedTripMetrics`의 이동량과 수신율은 유효 주행 판정에만 사용하고 출력 문자열에서 숨깁니다. 원시 신호는 이 계약에도 저장 모델에도 없습니다.
 - `UNSUPPORTED`인 특성은 숫자 지표 목록이 비어 있어야 합니다. 없는 값을 0으로 채우지 않습니다. `NIGHT_DRIVE`는 기본 비공개이고 전체 시그니처 게시도 기본 꺼짐입니다.
 - 차단은 본인의 `blocks`에서만 확인합니다. 서버는 상대에게 `PeerUnavailable`, 요청 `UNAVAILABLE`, 중립적인 종료 이유로 투영해야 합니다. `BLOCKED` 종료 이유는 차단을 실행한 본인에게만 허용합니다. 해제해도 과거 연결·교환 연락처가 살아나지 않습니다.
@@ -158,7 +158,7 @@
 - 실제 성립해 끝난 일시 연결만 하나의 `Encounter`를 만듭니다. 거절·취소·만료 요청은 기록이 되지 않습니다. 내 기록 삭제는 상대 기록과 차단 상태를 바꾸지 않습니다.
 - 애프터 요청 `PENDING`은 `ACCEPTED` 또는 `DECLINED/WITHDRAWN/EXPIRED/UNAVAILABLE`로 끝납니다. 별도 `AfterConnection`은 `CONNECTED → CLOSED`이며 다시 열지 않습니다.
 - 텍스트·프리셋 메시지 엔티티, Repository 관찰·전송, HTTP 경로와 알림 설정은 없어요. 애프터는 선택한 연락처를 상호 수락 뒤 교환하는 관계예요.
-- `DrivingPolicy.ALLOWED`에서만 탐색·발신 요청·일반 수락·입력·편집을 허용해요. RESTRICTED의 활성 통화에서는 음소거/해제와 통화 끊기를 허용하고, 기본 OFF 수신 설정을 켠 전용 화면에서만 받기/거절을 추가 허용해요. UNKNOWN에서는 통화 끊기만 허용해요. 서버 요청에 클라이언트가 허용 여부를 주장하는 필드는 없습니다. 기기 정책은 UI와 명령 진입점에서 확인하고, 서버는 자신의 인증·동의·관계 상태를 별도로 검사합니다.
+- `DrivingPolicy.ALLOWED`에서만 탐색·수동 발신 요청·일반 수락·입력·편집을 허용해요. RESTRICTED의 활성 통화에서는 음소거/해제와 통화 끊기를 허용하고 RING/AUTO의 수신 화면에서 받기/거절을 추가 허용해요. AUTO의 사전 동의·조건·보호 규칙을 모두 만족한 자동 요청·수락은 앱 조정기만 실행해요. UNKNOWN에서는 통화 끊기만 허용해요. 서버 요청에 클라이언트가 허용 여부를 주장하는 필드는 없습니다. 기기 정책은 UI와 명령 진입점에서 확인하고, 서버는 자신의 인증·동의·관계 상태를 별도로 검사합니다.
 - `DrivingState` 초기값은 `UNKNOWN`입니다. P와 실제 주행 상태 0을 확인한 차량 구현만 `ALLOWED`를 냅니다. 속도 0만으로 허용하지 않습니다.
 - 로그아웃·계정 삭제 성공 전에 `SignatureRepository.clearLocalData()`와 로컬 프로필·연락처·토큰 캐시를 정리합니다. APP이 정리 의존성을 연결하고 SOCIAL의 SessionRepository 구현이 완료를 보장합니다. 정리 실패를 성공으로 숨기지 않습니다. 계정 삭제와 단순 로그아웃의 서버 보존 범위는 다릅니다.
 
@@ -175,7 +175,7 @@
 | 요청 받음 | ConnectionRepository.requests, ServerTimeProvider.serverTime | respond(ACCEPT/DECLINE); peer와 chemistry, 서버 기준 응답 기한 |
 | 연결 중 | ConnectionRepository.connection, VoiceCallRepository.state, ProfileRepository.profile | 자동 통화, setMuted, requestMicrophone, leave; 공개 공통 관심사·궁합·칭호의 읽기 전용 이야깃거리 |
 | 연결 중·주행 제한 / 주행 중 | DrivingStateProvider.drivingState, connection, VoiceCallRepository.state | RESTRICTED는 음소거/해제·통화 끊기, UNKNOWN은 통화 끊기만. 통화 상태 live region |
-| 주행 중 요청 받음 | requests, settings.receiveRequestsWhileDriving | ON+RESTRICTED에서만 받기/거절. 아바타·닉네임·칭호, 집 보호 수락 차단 |
+| 주행 중 요청 받음 | requests, settings.drivingConnectMode | RING 또는 AUTO fallback+RESTRICTED에서 받기/거절. 아바타·닉네임·칭호·공개 점수 최대 2개, 집 보호 수락 차단 |
 | 연결 중·좁은 창 | 위와 같음 | 레이아웃만 변경, 다른 데이터 계약 없음 |
 | 연결 종료 | ConnectionRepository.connection | endReason, endedAtEpochMillis, encounterId |
 | 스친 인연 / 기록 상세 | EncounterRepository.encounters/observeEncounter | deleteEncounter/deleteAllEncounters; peer, chemistry, afterEligibility |
@@ -186,7 +186,7 @@
 | 차단·신고 | SafetyRepository.blocks | block/unblock/report; 사유 5종, 선택적 관련 엔티티 |
 | 기록·계정 정리 | encounters/connections/session | 발견 끄기, leave, endRelationship, deleteEncounter, signOut, deleteAccount |
 | 내 시그니처 | SignatureRepository.signature | 매듭, 공개 칭호, 개인 근거, updateVisibility |
-| 특성 상세 | SignatureRepository.observeEvidence | TraitEvidence의 기간·신호·지표·최근 변화; 본인에게만 |
+| 특성 상세 | SignatureRepository.observeEvidence | TraitEvidence의 점수·지원/통과 횟수·기간·최근 주행; 본인에게만 |
 | 공개 범위 | SignatureRepository.signature | updateVisibility; 공개 미리보기 후 publishSignature 또는 철회 |
 | 주행 후 요약 | SignatureRepository.recaps/observeRecap | excludeTrip/markRecapSeen; 이전·현재 매듭과 변화 문장 |
 | 시연 제어 | VehicleConsole.consoleState, DrivingStateProvider.drivingState | setGear/replay/stopReplay, setSyntheticPresence; 항상 시연 표시 |
@@ -245,7 +245,7 @@ ContractTest는 기기 전용 타입과 집·구역·반경 필드가 요청·�
 - `VoiceCallRepository.microphonePermission`은 통화 여부·SOLO 여부와 독립적인 기기 권한 관찰이에요. 온보딩을 다시 열어도 실제 권한 표시를 복원하며 마이크를 열지 않아요.
 - `VoiceTransport.open(connectionId)`는 인증된 `VoiceChannel`을 열어요. incoming과 send는 PCM16 little endian, 16 kHz, mono, 20 ms, 정확히 640 bytes예요. 마이크가 없거나 음소거면 프레임을 보내지 않아요. 침묵 프레임으로 대체하지 않아요.
 - `data:voice` 내부 `DemoPeerVoice.start(peer)/setFocusAvailable/stop`은 데모 재생 수명 경계이고 `DemoSpeechEngine.prepare/speak/stop/release` 뒤에 Pleos TextToSpeech 3.3.1 ON_DEVICE 구현을 둬요. SOLO 또는 상대가 DEMO_PEER이면 모드와 무관하게 마이크와 음성 WebSocket을 열지 않아요. 상대별 세 문장을 초기 준비 후 순서대로 재생하며, 문장 시작 시각 기준 약 20초 간격을 유지해요. 포커스가 없으면 재생하지 않고 종료 시 즉시 stop해요. SDK 시작 이벤트는 실제 소리 시작 신호로 사용하지 않아요.
-- `ParticipationSettings.receiveRequestsWhileDriving`와 `UpdateSettingsRequest.receiveRequestsWhileDriving`은 기본 false예요. 기존 저장 데이터·구버전 DTO는 OFF로 읽어요. 주행 중 설정 관찰은 이 값만 공개하고 요청은 ON+RESTRICTED의 PENDING INCOMING만 공개해요. 수락/거절의 실제 전송과 재시도 직전에도 정책·설정·요청 방향을 다시 검사해요. 집 보호는 수락을 추가로 차단해요.
+- `ParticipationSettings.drivingConnectMode`는 OFF/RING/AUTO이며 기본 OFF예요. 기존 `receiveRequestsWhileDriving=true`는 RING, false는 OFF로 읽어요. `autoConnectConditions`는 점수 특성별 최소 점수(60..100, 5점 단위)와 공통 관심사 요구를 담아요. 일반 화면 관찰과 자동 조정기의 관찰을 구분하고, 실제 전송과 재시도 직전에 정책·설정·요청 방향·집 보호를 다시 검사해요.
 - 정상 요청 화면의 수락과 opt-in 수신 화면의 받기는 같은 respond(ACCEPT) 명령이에요. `통화 끊기`와 알림 action은 기존 leave 명령이에요. 새로운 종료 사유·애프터 음성 계약은 추가하지 않아요.
 - 서버는 현재 CONNECTED만 참여·중계해요. CHECKING과 ENDED로 바뀌면 이미 열린 양측 소켓도 닫고 늦은 join은 거절해요. 단순 네트워크 끊김에는 관계를 종료하지 않아 아직 CONNECTED라면 재참여할 수 있어요. 토큰 교체·로그아웃·계정 삭제 시 기존 토큰 소켓도 닫아요.
 - 프레임은 640 byte이며 초당 50개, 버스트 50개 예산을 사용해요. 순간 초과는 DROP으로 처리하고 연결을 유지해요. 잘못된 크기 또는 초당 100개 초과가 5개 연속 1초 구간에 걸치면 소켓을 닫아요. 참가자의 전송률 예산과 과부하 관측은 재접속으로 초기화하지 않아요. 상대별 큐는 5프레임 drop-oldest예요. 입장·명령·revision·ticker가 현재 참가자를 다시 확인하며 프레임마다 engine export나 prune을 호출하지 않아요. 녹음·저장·내용 및 프레임별 메타데이터 로그는 없어요.
@@ -260,3 +260,15 @@ ContractTest는 기기 전용 타입과 집·구역·반경 필드가 요청·�
 - 상호 수락한 현재 `AfterConnection.sharedContacts`는 상대가 선택한 ID, `ownSharedContacts`는 내가 선택한 ID예요. 둘 다 nullable이며 관계 종료·차단·삭제에는 null로 투영해요. 저장 결과·스냅샷·명령 재시도에서도 현재 권한을 다시 확인해요. 계정 삭제는 저장·교환 사본을 제거해요.
 - 인연 목록·ID·QR은 ALLOWED에서만 관찰해요. `SocialGraph.requestSignals`는 수신 대기 요청의 불투명 ID만 제공하며 교환 ID를 실어 나르지 않아요. HTTP 스냅샷 캐시와 로그에 연락처를 추가하지 않아요.
 - Instagram QR은 검증된 ID의 `https://instagram.com/<id>`를 기기에서 ZXing Core 3.5.3(Apache-2.0)으로 생성해요. 카카오톡 ID에는 공개 URL을 추정하거나 QR을 만들지 않아요. 시연 상대의 인스타그램 값은 실제 계정이 될 수 없는 하이픈 포함 예약 값이며 사용자 입력 검증과 분리해요.
+
+## 공개 점수와 자동 연결 계약 개정 · 2026-11-13
+
+- 경로는 `/v1`을 유지해요. 점수·연결 모드·자동 요청 표시는 필드 추가 개정이며 `automatic=false` 기본값으로 기존 요청을 읽어요. 엔진과 차량 저장 형식에는 별도 버전 번호를 추가하지 않아요. `StoredEvidence`의 새 값은 null/0/빈 목록 기본값으로 읽고 로컬 저장소가 보관된 `DerivedTripMetrics`에서 새 점수와 근거를 재계산해요.
+- 점수 공식은 최근 30일의 유효·비제외 주행에 대해 `round(100 × Σ passingSampleCount / Σ supportedSampleCount)`예요. 전체 유효 주행 3회 전에는 점수가 없어요. 점수 단계는 60/75/90 경계와 일치하고 취향 특성은 null이에요. 공개 DTO에 원시 신호나 분모·분자·개별 주행을 추가하지 않아요.
+- 기기 전용 `TraitEvidence.score`, `passingSampleCount`, `recentTrips`와 `TraitTripEvidence`는 내 프로필과 근거 차트·표를 위한 값이에요. 개인 이력은 wire 직렬화 그래프에서 계속 제외해요. 제외 주행은 표에 표시하되 점수와 차트에 포함하지 않아요.
+- `DrivingConnectMode`와 `AutoConnectConditions`는 참여 설정의 계약이에요. 레거시 boolean true는 RING으로 마이그레이션하며 설정이 없으면 OFF예요. 설정 저장은 ALLOWED에서만 허용해요. 자동 표시가 있는 정상 연결 요청도 행위자 ID나 동의 플래그를 인증 근거로 쓰지 않아요.
+- 자동 조정기는 AUTO·발견 ON·RESTRICTED·집 보호 아님·차단 아님·활성 연결 없음·보낸 대기 요청 없음에서 조건을 통과한 후보를 선택해요. 최소 점수 초과 조건 수 → 공통 관심사 수 → 고정 ID 순이에요. 공개되지 않은 특성은 조건 실패예요.
+- 수신 AUTO 조건 충족은 기존 respond(ACCEPT), 불충족은 RING 화면이에요. RING은 수동 응답, OFF는 주차 대기이며 ALLOWED에서는 모든 모드가 수동이에요. 동일 요청의 중복 실행을 막고 요청 유효 기한과 엔진의 단일 활성 연결 규칙을 유지해요.
+- 통화 종료 뒤 10분 자동 동작 금지, 거절·취소·종료·만료 상대의 동일 달력 날짜 자동 재시도 금지를 적용해요. 자동으로 연결된 connectionId마다 Pleos ON_DEVICE로 닉네임과 연결 사실을 한 번 알리며 녹음·오디오 저장·로그를 추가하지 않아요.
+
+`AutoConnectSnapshot`은 서비스 전용 기기 계약이며 계정·참여 설정·내 관심사·발견·요청·연결·차단 프로필 ID만 담아요. 연락처와 내 점수 근거를 포함하지 않아요. `AutoConnectCoordinator`는 이 흐름과 주행 정책·집 보호를 관찰하고 `PrivateAutoConnectStore`의 계정별 noBackup 기록에 종료 대기·당일 재시도 금지·이미 알린 연결을 유지해요. 자동 요청과 수락의 실제 전송·재시도 직전에도 현재 설정과 보호 조건을 다시 검사해 오래된 스냅샷이 동작을 허용하지 않게 해요.

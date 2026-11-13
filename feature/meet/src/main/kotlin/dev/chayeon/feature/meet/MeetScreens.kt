@@ -216,6 +216,14 @@ fun ConnectedScreen(
                                 }
                             }
                         }
+                        if (topPublishedScoredTraits(connection.peer.signature).isNotEmpty()) {
+                            GlassCard(Modifier.fillMaxWidth()) {
+                                Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
+                                    SectionTitle("상대의 운전")
+                                    PublishedScoreChips(connection.peer.signature)
+                                }
+                            }
+                        }
                         MeetCallTopics(state, onSafety)
                     }
                 }
@@ -316,7 +324,7 @@ fun DrivingScreen(
 private fun MeetDiscoveryFacts() {
     MeetTwoColumns(
         first = { GlassCard(Modifier.fillMaxWidth()) { InfoRow(ChayeonIcon.EYE, "내 카드를 직접 공개해요", body = "공개한 시그니처와 관심사로 서로를 알아봐요") } },
-        second = { GlassCard(Modifier.fillMaxWidth()) { InfoRow(ChayeonIcon.LOCK, "대화는 따로 수락해요", body = "발견을 켜도 대화가 자동으로 열리지 않아요") } },
+        second = { GlassCard(Modifier.fillMaxWidth()) { InfoRow(ChayeonIcon.LOCK, "대화는 따로 수락해요", body = "수락하거나 주차 중 고른 자동 연결 조건에 맞을 때 이어져요") } },
     )
 }
 
@@ -387,14 +395,16 @@ private fun MeetPendingRequest(
         primary = {
             MeetPane {
                 ResponseCountdown(state.remainingMillis, totalMillis = request.expiresAtEpochMillis - request.createdAtEpochMillis)
-                MeetRelationStage(state.ownProfile, request.peer, ThreadStage.REACH,
-                    if (incoming) "${request.peer.nickname} 님이 연결을 요청했어요" else "${request.peer.nickname} 님의 수락을 기다려요",
-                    "근처에 있는 동안 목소리로 이야기해요", animate = false,
-                    modifier = Modifier.heightIn(min = ChayeonDimensions.ChemistryKnot + ChayeonDimensions.PeerSmall), centered = true)
-                request.peer.signature?.let {
-                    GlassCard(Modifier.fillMaxWidth()) {
-                        SignatureMini(it)
-                        if (incoming) request.chemistry.lines.forEach { line ->
+                HeroPanel(Modifier.fillMaxWidth()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(ChayeonSpacing.Medium)) {
+                        SectionTitle(if (incoming) "${request.peer.nickname} 님이 연결을 요청했어요" else "${request.peer.nickname} 님의 수락을 기다려요",
+                            subtitle = "근처에 있는 동안 목소리로 이야기해요")
+                        PeerHeader(request.peer, size = PeerHeaderSize.SMALL)
+                        request.peer.signature?.let { signature ->
+                            SignatureMini(signature)
+                            PublishedScoreChips(signature)
+                        }
+                        request.chemistry.lines.forEach { line ->
                             ChayeonText(line.text, style = ChayeonType.Secondary, color = ChayeonColors.Secondary)
                         }
                     }

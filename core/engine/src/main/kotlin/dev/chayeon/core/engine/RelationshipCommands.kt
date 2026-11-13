@@ -4,6 +4,12 @@ import dev.chayeon.core.model.*
 
 internal fun Room.requestConnection(actor: String, r: RequestConnectionRequest): ConnectionRequest {
     val other = visiblePeer(actor, r.candidateId)
+    if (r.automatic) {
+        val owner = account(actor)
+        ensure(owner.settings.drivingConnectMode == DrivingConnectMode.AUTO)
+        ensure(owner.settings.autoConnectConditions.matches(publicProfile(other, actor), owner.profile.publicProfile.interests))
+        ensure(state.requests.values.none { it.sender == actor && it.status == ConnectionRequestStatus.PENDING }, AppError.AlreadyClosed)
+    }
     ensure(available(actor) && available(other) && !blocked(actor, other), AppError.PeerUnavailable)
     ensure(activeConnection(actor) == null && activeConnection(other) == null, AppError.AlreadyClosed)
     ensure(near(actor, other), AppError.PeerUnavailable)
@@ -11,7 +17,7 @@ internal fun Room.requestConnection(actor: String, r: RequestConnectionRequest):
     ensure(prior.none { it.status == ConnectionRequestStatus.PENDING || (it.retryAt ?: 0) > now }, AppError.AlreadyClosed)
     checkVersion(r.meta, v)
     stamp()
-    val record = RequestRecord(ids.next(), v, actor, other, ConnectionRequestStatus.PENDING, now, now + policy.requestTtlMillis)
+    val record = RequestRecord(ids.next(), v, actor, other, ConnectionRequestStatus.PENDING, now, now + policy.requestTtlMillis, automatic = r.automatic)
     state = state.copy(requests = state.requests + (record.id to record))
     return request(record, actor)
 }
@@ -29,6 +35,11 @@ internal fun Room.pendingRequest(actor: String, id: String, recipient: Boolean):
 
 internal fun Room.respondConnection(actor: String, r: RespondConnectionRequest): ConnectionRequest {
     val record = pendingRequest(actor, r.requestId, true)
+    if (r.automatic) {
+        val owner = account(actor)
+        ensure(r.decision == RequestDecision.ACCEPT && owner.settings.drivingConnectMode == DrivingConnectMode.AUTO)
+        ensure(owner.settings.autoConnectConditions.matches(publicProfile(record.sender, actor), owner.profile.publicProfile.interests))
+    }
     checkVersion(r.meta, v)
     if (r.decision == RequestDecision.ACCEPT) {
         ensure(available(actor) && available(record.sender) && !blocked(actor, record.sender), AppError.PeerUnavailable)

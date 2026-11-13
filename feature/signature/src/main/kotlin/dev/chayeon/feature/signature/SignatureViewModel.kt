@@ -19,11 +19,13 @@ class SignatureViewModel(private val deps: SignatureDeps) : ViewModel() {
         deps.drivingStateProvider.drivingState.catch { emit(DrivingState()) },
         observeAgain(refresh) { deps.signatureRepository.signature },
         deps.vehicleConsole.consoleState.catch { emit(ConsoleState()) },
-    ) { driving, signature, console ->
+        observeAgain(refresh) { deps.profileRepository.settings },
+    ) { driving, signature, console, settings ->
         SignatureUiState(
             driving = driving,
             signature = if (driving.policy == DrivingPolicy.ALLOWED) signature else LoadState.Loading(),
             consoleAvailable = console.available,
+            recordingEnabled = driving.policy == DrivingPolicy.ALLOWED && settings.readyValue()?.recordingEnabled == true,
         )
     }.stateIn(viewModelScope, signatureSharing, SignatureUiState())
 

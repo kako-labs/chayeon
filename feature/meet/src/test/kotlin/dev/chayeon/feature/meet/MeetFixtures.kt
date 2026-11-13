@@ -7,8 +7,8 @@ import kotlinx.coroutines.flow.Flow
 internal object MeetFixtures {
     val parked = DrivingState(policy = DrivingPolicy.ALLOWED, gear = Gear.PARK)
     val signature = PublicSignature("signature-peer", 1, "여유롭게 멈추는 밤 드라이버",
-        listOf(PublicTrait(TraitId.EARLY_BRAKE, TraitLevel.SIGNATURE), PublicTrait(TraitId.SIGNAL_MANNERS, TraitLevel.STEADY),
-            PublicTrait(TraitId.TIRE_CARE, TraitLevel.VISIBLE)), KnotSeed(71), DataSource.SYNTHETIC, EvidenceBucket.ESTABLISHED)
+        listOf(PublicTrait(TraitId.EARLY_BRAKE, TraitLevel.SIGNATURE, 94), PublicTrait(TraitId.SIGNAL_MANNERS, TraitLevel.STEADY, 82),
+            PublicTrait(TraitId.TIRE_CARE, TraitLevel.VISIBLE, 65)), KnotSeed(71), DataSource.SYNTHETIC, EvidenceBucket.ESTABLISHED)
     val peer = PublicProfile("peer", 1, "느린오후", AvatarId.SLOW,
         setOf(InterestId.JAZZ, InterestId.NIGHT_VIEW, InterestId.EXHIBITIONS), ProfileKind.DEMO_PEER, signature)
     val own = PublicProfile("self", 1, "새벽드라이브", AvatarId.DAWN,
@@ -18,16 +18,17 @@ internal object MeetFixtures {
     val candidate = Candidate("candidate", 1, peer, chemistry, setOf(InterestId.JAZZ, InterestId.NIGHT_VIEW))
     private val engine = dev.chayeon.core.signature.DefaultSignatureEngine()
     val tourOwn = own.copy(signature = signature.copy(traits = listOf(
-        PublicTrait(TraitId.GENTLE_RIDE, TraitLevel.STEADY), PublicTrait(TraitId.CABIN_CARE, TraitLevel.STEADY))))
+        PublicTrait(TraitId.GENTLE_RIDE, TraitLevel.STEADY, 82), PublicTrait(TraitId.CABIN_CARE, TraitLevel.STEADY, 82))))
     val tourPeer = peer.copy(nickname = "별보는밤", avatar = AvatarId.STAR, interests = setOf(InterestId.NIGHT_VIEW, InterestId.FILM_PHOTOGRAPHY),
-        signature = signature.copy(title = "밤길을 좋아하는 드라이버", traits = listOf(
-            PublicTrait(TraitId.NIGHT_DRIVE, TraitLevel.SIGNATURE), PublicTrait(TraitId.CABIN_CARE, TraitLevel.STEADY))))
+        signature = signature.copy(title = "깜빡이를 잊지 않는 밤 드라이버", traits = listOf(
+            PublicTrait(TraitId.SIGNAL_MANNERS, TraitLevel.SIGNATURE, 94),
+            PublicTrait(TraitId.NIGHT_DRIVE, TraitLevel.SIGNATURE, null), PublicTrait(TraitId.CABIN_CARE, TraitLevel.STEADY, 82))))
     val tourCandidate = candidate.copy(profile = tourPeer, chemistry = engine.chemistry(tourOwn.signature!!, tourPeer.signature!!), sharedInterests = setOf(InterestId.NIGHT_VIEW))
     val completeCandidate = candidate.copy(profile = peer.copy(
         nickname = "밤하늘따라천천히달려봐요",
         interests = setOf(InterestId.JAZZ, InterestId.NIGHT_VIEW, InterestId.DRIVE_MUSIC, InterestId.FILM_PHOTOGRAPHY, InterestId.EXHIBITIONS),
-        signature = signature.copy(traits = TraitId.entries.map { PublicTrait(it, TraitLevel.SIGNATURE) })),
-        chemistry = engine.chemistry(own.signature!!, signature.copy(traits = TraitId.entries.map { PublicTrait(it, TraitLevel.SIGNATURE) })))
+        signature = signature.copy(traits = TraitId.entries.map { PublicTrait(it, TraitLevel.SIGNATURE, if (it == TraitId.LONG_ROAD || it == TraitId.NIGHT_DRIVE) null else 94) })),
+        chemistry = engine.chemistry(own.signature!!, signature.copy(traits = TraitId.entries.map { PublicTrait(it, TraitLevel.SIGNATURE, if (it == TraitId.LONG_ROAD || it == TraitId.NIGHT_DRIVE) null else 94) })))
     val discovery = DiscoveryState(version = 1, mode = DiscoveryMode.ON, status = DiscoveryStatus.AVAILABLE,
         locationAvailability = LocationAvailability.FRESH, candidates = listOf(candidate))
     val request = ConnectionRequest("request", 2, peer, RequestDirection.INCOMING, ConnectionRequestStatus.PENDING,

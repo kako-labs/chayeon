@@ -39,7 +39,7 @@ internal class SocialProfileRepository(private val coordinator: SocialCoordinato
             is LoadState.Ready -> {
                 val settings = data.value.settings ?: ParticipationSettings("settings", data.version)
                 LoadState.Ready(if (driving.policy == DrivingPolicy.ALLOWED) settings else
-                    ParticipationSettings(settings.id, settings.version, receiveRequestsWhileDriving = settings.receiveRequestsWhileDriving), data.version)
+                    ParticipationSettings(settings.id, settings.version, receiveRequestsWhileDriving = settings.drivingConnectMode != DrivingConnectMode.OFF, drivingConnectMode = settings.drivingConnectMode), data.version)
             }
             is LoadState.Loading -> data
             is LoadState.Failed -> data
@@ -82,16 +82,17 @@ internal class SocialDiscoveryRepository(private val coordinator: SocialCoordina
 
 internal class SocialConnectionRepository(
     private val coordinator: SocialCoordinator,
+    private val canAutomaticallyConnect: suspend (String) -> Boolean = { false },
     private val canStartConnection: suspend () -> Boolean = { true },
 ) : ConnectionRepository {
     override val requests = combine(coordinator.store.state, coordinator.driving) { state, driving ->
         when (val data = state.data) {
             is LoadState.Ready -> when {
                 driving.policy == DrivingPolicy.ALLOWED -> LoadState.Ready(data.value.connectionRequests, data.version)
-                driving.policy == DrivingPolicy.RESTRICTED && data.value.settings?.receiveRequestsWhileDriving == true ->
+                driving.policy == DrivingPolicy.RESTRICTED && data.value.settings?.drivingConnectMode in setOf(DrivingConnectMode.RING, DrivingConnectMode.AUTO) ->
                     LoadState.Ready(data.value.connectionRequests.filter {
                         it.direction == RequestDirection.INCOMING && it.status == ConnectionRequestStatus.PENDING
-                    }.map { it.copy(peer = it.peer.copy(interests = emptySet(), signature = it.peer.signature?.copy(traits = emptyList(), knotSeed = KnotSeed(0))), chemistry = Chemistry()) }, data.version)
+                    }.map { it.copy(peer = it.peer.copy(interests = emptySet(), signature = it.peer.signature?.let { signature -> signature.copy(traits = signature.traits.filter { trait -> trait.score in 60..100 }.sortedByDescending { trait -> trait.score }.take(2), knotSeed = KnotSeed(0)) }), chemistry = Chemistry()) }, data.version)
                 else -> LoadState.Failed(AppError.Restricted, data.version)
             }
             is LoadState.Loading -> data
@@ -110,11 +111,15 @@ internal class SocialConnectionRepository(
     }
     override suspend fun requestConnection(request: RequestConnectionRequest) = coordinator.command(
         ApiRoutes.REQUEST_CONNECTION, request, RequestConnectionRequest.serializer(), RequestConnectionResponse.serializer(), { it.result },
-        canExecute = canStartConnection)
+        requiresAllowed = !request.automatic,
+        canExecute = { canStartConnection() && (!request.automatic ||
+            (coordinator.allowsAutomaticRequest(request.candidateId) && canAutomaticallyConnect(request.candidateId))) })
     override suspend fun respond(request: RespondConnectionRequest) = coordinator.command(
         ApiRoutes.RESPOND_CONNECTION, request, RespondConnectionRequest.serializer(), RespondConnectionResponse.serializer(), { it.result },
         requiresAllowed = false,
         canExecute = { coordinator.allowsIncomingResponse(request.requestId) &&
+            (!request.automatic || (coordinator.allowsAutomaticResponse(request.requestId) &&
+                coordinator.incomingPeerId(request.requestId)?.let { canAutomaticallyConnect(it) } == true)) &&
             (request.decision != RequestDecision.ACCEPT || canStartConnection()) })
     override suspend fun cancel(request: CancelConnectionRequest) = coordinator.command(
         ApiRoutes.CANCEL_CONNECTION, request, CancelConnectionRequest.serializer(), CancelConnectionResponse.serializer(), { it.result })

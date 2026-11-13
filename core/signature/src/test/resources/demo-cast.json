@@ -5,15 +5,18 @@
     "traits": [
       {
         "trait": "GENTLE_RIDE",
-        "level": "STEADY"
+        "level": "STEADY",
+        "score": 82
       },
       {
         "trait": "EARLY_BRAKE",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 94
       },
       {
         "trait": "BELT_FIRST",
-        "level": "VISIBLE"
+        "level": "VISIBLE",
+        "score": 68
       }
     ]
   },
@@ -23,11 +26,13 @@
     "traits": [
       {
         "trait": "LONG_ROAD",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": null
       },
       {
         "trait": "ENERGY_PLANNER",
-        "level": "STEADY"
+        "level": "STEADY",
+        "score": 82
       }
     ]
   },
@@ -37,7 +42,8 @@
     "traits": [
       {
         "trait": "ENERGY_PLANNER",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 94
       }
     ]
   },
@@ -47,33 +53,44 @@
     "traits": [
       {
         "trait": "CABIN_CARE",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": 94
       },
       {
         "trait": "SIGNAL_MANNERS",
-        "level": "STEADY"
+        "level": "STEADY",
+        "score": 82
       },
       {
         "trait": "STEADY_PACE",
-        "level": "STEADY"
+        "level": "STEADY",
+        "score": 82
       },
       {
         "trait": "GENTLE_RIDE",
-        "level": "VISIBLE"
+        "level": "VISIBLE",
+        "score": 68
       }
     ]
   },
   {
     "id": "demo-star",
-    "title": "밤길을 좋아하는 드라이버",
+    "title": "깜빡이를 잊지 않는 밤 드라이버",
     "traits": [
       {
         "trait": "NIGHT_DRIVE",
-        "level": "SIGNATURE"
+        "level": "SIGNATURE",
+        "score": null
       },
       {
         "trait": "CABIN_CARE",
-        "level": "STEADY"
+        "level": "STEADY",
+        "score": 82
+      },
+      {
+        "trait": "SIGNAL_MANNERS",
+        "level": "SIGNATURE",
+        "score": 94
       }
     ]
   }

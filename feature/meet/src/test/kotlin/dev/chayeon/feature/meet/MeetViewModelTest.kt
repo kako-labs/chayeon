@@ -251,6 +251,31 @@ class MeetViewModelTest {
         assertEquals("new-connection", model.uiState.value.connection?.id)
     }
 
+    @Test fun `home protection stays with same call but new outside call is visible`() = scenario { deps, store ->
+        deps.connection.value = LoadState.Ready(MeetFixtures.connection, 3)
+        deps.drivingState.value = DrivingState(policy = DrivingPolicy.RESTRICTED)
+        val model = store.keep(ConnectedViewModel(deps)); observe(model.uiState); runCurrent()
+        deps.homeZone.value = HomeZoneState(HomeZoneStatus.INSIDE, HomeZoneRadius.MEDIUM)
+        runCurrent()
+        assertTrue(model.uiState.value.awaitingPark)
+        deps.homeZone.value = HomeZoneState(HomeZoneStatus.OUTSIDE, HomeZoneRadius.MEDIUM)
+        runCurrent()
+        assertTrue(model.uiState.value.awaitingPark)
+        assertNull(model.uiState.value.connection)
+        deps.connection.value = LoadState.Loading(4); runCurrent()
+        deps.connection.value = LoadState.Ready(MeetFixtures.connection, 5); runCurrent()
+        assertTrue(model.uiState.value.awaitingPark)
+        deps.connection.value = LoadState.Ready(MeetFixtures.connection.copy(id = "new-call", version = 6), 6)
+        runCurrent()
+        assertFalse(model.uiState.value.awaitingPark)
+        assertEquals("new-call", model.uiState.value.connection?.id)
+        deps.homeZone.value = HomeZoneState(HomeZoneStatus.INSIDE, HomeZoneRadius.MEDIUM)
+        deps.connection.value = LoadState.Ready(MeetFixtures.connection.copy(id = "inside-call", version = 7), 7)
+        runCurrent()
+        assertTrue(model.uiState.value.awaitingPark)
+        assertNull(model.uiState.value.connection)
+    }
+
     @Test fun `restored ended connection does not hijack the ready home`() = scenario { deps, store ->
         deps.connection.value = LoadState.Ready(MeetFixtures.ended, 5)
         val model = store.keep(MeetViewModel(deps))
