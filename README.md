@@ -80,10 +80,10 @@ Pleos Connect(Android Automotive)용 앱과 서버를 담은 모노레포입니�
 
 ### APK 설치
 
-Pleos 에뮬레이터의 앱 사용자는 10입니다. 시리얼은 `adb devices`로 확인합니다.
+Pleos 에뮬레이터의 앱 사용자는 10입니다. 시리얼은 `adb devices`로 확인합니다. 직접 빌드한 APK는 경로만 `apk/chayeon-release.apk`로 바꿉니다.
 
 ```sh
-adb -s <시리얼> install --user 10 apk/chayeon-release.apk
+adb -s <시리얼> install --user 10 "apk/KA&KO_차연_release.apk"
 adb -s <시리얼> shell am start --user 10 -n dev.chayeon/.MainActivity
 ```
 
@@ -112,7 +112,7 @@ python3 scripts/dev.py server
 ./gradlew :app:assembleDebug -Pchayeon.serverUrl=http://10.0.2.2:8080
 ```
 
-서버만 빌드할 때는 Android SDK가 필요 없습니다. `server/Dockerfile`도 있으나 이미지 실행은 확인하지 않았습니다.
+서버만 빌드할 때는 Android SDK가 필요 없습니다. 운영 서버는 `server/Dockerfile`로 만든 이미지로 실행합니다([배포 안내](deploy/README.md)).
 
 ```sh
 ./gradlew -Pchayeon.serverOnly=true :server:build
@@ -141,7 +141,9 @@ python3 scripts/dev.py drive care --duration-seconds 210
 
 ## APK 위치
 
-`python3 scripts/dev.py release`를 실행하면 `apk/chayeon-release.apk`가 생깁니다. 제출할 때는 공모전 형식인 `팀명_앱이름_release.apk`로 이름을 바꿉니다.
+제출한 APK는 `apk/KA&KO_차연_release.apk`입니다. 심사 기간에 팀이 운영하는 서버 주소를 넣어 `CHAYEON_SERVER_URL=<운영 주소> python3 scripts/dev.py release`로 빌드했습니다.
+
+직접 빌드하면 `apk/chayeon-release.apk`가 생기며, 이 파일은 Git에 넣지 않습니다. 빌드한 컴퓨터의 로컬 키로 서명하므로 제출 APK와 서명이 다릅니다. 제출 APK가 설치된 에뮬레이터에는 먼저 앱을 지우고 설치합니다.
 
 ## 검증
 
@@ -170,7 +172,7 @@ python3 scripts/dev.py drive care --duration-seconds 210
 - 저장된 집 중심은 앱 전용 저장소에 암호화 없이 있습니다. 며칠에 걸친 부재 패턴으로 집을 짐작하는 추론은 막지 못합니다.
 - 이 에뮬레이터 이미지는 타이어와 소모품 신호를 지원하지 않습니다. 실제 신호 주행에서 이 특성들은 `이 차량에서 제공되지 않아요`로 표시됩니다.
 - 임계값은 제품 기준이며 안전이나 의학 기준이 아닙니다. 실차 센서 노이즈에 맞춘 보정은 하지 않았습니다.
-- 팀은 심사 기간에 서버를 운영할 예정입니다. 주소 확정 후 [배포 안내](deploy/README.md)에 따라 `CHAYEON_SERVER_URL` 또는 `-Pchayeon.serverUrl`에 HTTPS 주소를 넣어 APK를 빌드합니다. 실제 공개 서버 가동과 Docker·공개 TLS 검증은 아직 확인하지 않았습니다. 시연용 로그인과 연령 자기 확인은 실제 인증이 아닙니다.
+- 서버는 팀이 심사 기간에 운영하는 서버 한 대입니다([배포 안내](deploy/README.md)). 서버가 멈추면 `두 대로 연결(서버)`을 쓸 수 없고, `혼자 둘러보기`는 영향을 받지 않습니다. 시연용 로그인과 연령 자기 확인은 실제 인증이 아닙니다.
 - 사용자 수요와 재방문은 측정하지 않았습니다.
 
 ## 구조
